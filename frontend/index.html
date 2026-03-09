@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -78,9 +78,9 @@
             <!-- Status Filter -->
             <div class="filter-bar" id="status-filters" style="margin-top: -0.5rem; margin-bottom: 1rem;">
                 <span style="font-size: 0.8rem; color: white; align-self: center; margin-right: 0.5rem;">Status:</span>
-                <button class="filter-chip" onclick="toggleStatus('Hot')" title="Hot">ðŸ”¥</button>
-                <button class="filter-chip" onclick="toggleStatus('Soon')" title="Soon">âš¡</button>
-                <button class="filter-chip" onclick="toggleStatus('Cold')" title="Cold">ðŸ§Š</button>
+                <button class="filter-chip" onclick="toggleStatus('Hot')" title="Hot">🔥</button>
+                <button class="filter-chip" onclick="toggleStatus('Soon')" title="Soon">⚡</button>
+                <button class="filter-chip" onclick="toggleStatus('Cold')" title="Cold">🧊</button>
                 <button class="filter-chip" onclick="toggleStatus(null)" style="opacity: 0.6;">All</button>
             </div>
 
@@ -137,7 +137,7 @@
             <!-- Pipeline Section -->
             <div id="pipeline-section" style="display:none;">
                 <div class="section-header">
-                    <span class="icon">ðŸš€</span>
+                    <span class="icon">🚀</span>
                     <h2>Upcoming Commitments</h2>
                     <span class="section-count" id="pipeline-count">0</span>
                 </div>
@@ -147,7 +147,7 @@
             <!-- Action Gaps Section -->
             <div id="gaps-section" style="display:none;">
                 <div class="section-header" style="border-bottom-color: var(--accent-red); margin-top: 1rem;">
-                    <span class="icon">âš ï¸</span>
+                    <span class="icon">⚠️</span>
                     <h2>Engagement Gaps</h2>
                     <span class="section-count" id="gaps-count">0</span>
                 </div>
@@ -160,7 +160,7 @@
             <!-- Overdue Section -->
             <div id="overdue-section" style="display:none;">
                 <div class="section-header">
-                    <span class="icon">ðŸ”´</span>
+                    <span class="icon">🔴</span>
                     <h2>Past</h2>
                     <span class="section-count" id="overdue-count">0</span>
                 </div>
@@ -170,7 +170,7 @@
             <!-- Not Sched Section -->
             <div id="not-scheduled-section" style="display:none;">
                 <div class="section-header">
-                    <span class="icon">âšª</span>
+                    <span class="icon">⚪</span>
                     <h2>Not Sched / No Date</h2>
                     <span class="section-count" id="not-scheduled-count">0</span>
                 </div>
@@ -180,7 +180,7 @@
             <!-- Soon Section -->
             <div id="soon-section" style="display:none;">
                 <div class="section-header">
-                    <span class="icon">ðŸŸ </span>
+                    <span class="icon">🟠</span>
                     <h2>Coming Soon</h2>
                     <span class="section-count" id="soon-count">0</span>
                 </div>
@@ -190,7 +190,7 @@
             <!-- On Track Section -->
             <div id="ontrack-section" style="display:none;">
                 <div class="section-header">
-                    <span class="icon">ðŸ”µ</span>
+                    <span class="icon">🔵</span>
                     <h2>On Track</h2>
                     <span class="section-count" id="ontrack-count">0</span>
                 </div>
@@ -199,7 +199,7 @@
 
             <!-- Empty State -->
             <div id="empty-state" class="empty-state" style="display:none;">
-                <div class="empty-state-icon">ðŸ“…</div>
+                <div class="empty-state-icon">📅</div>
                 <p>No scheduled meetings</p>
                 <p style="font-size: 0.85rem; margin-top: 0.5rem;">Tap contacts to schedule your first meeting</p>
             </div>
@@ -208,7 +208,7 @@
         <!-- Quick Capture Modal -->
         <div id="quick-capture-modal" class="modal" style="display:none;">
             <div class="modal-content">
-                <h3>ðŸ“ Quick Capture</h3>
+                <h3>📝 Quick Capture</h3>
 
                 <div class="form-group">
                     <input list="person-list" id="qc-person-input" class="form-control" placeholder="Search contact...">
@@ -235,7 +235,7 @@
             <div class="floating-chat-content">
                 <div class="chat-header">
                     <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:0.5rem;">
-                        ðŸ¤– Twin Assistant
+                        Twin Assistant
                     </h3>
                     <button onclick="closeTwinChat()" class="close-btn">&times;</button>
                 </div>
@@ -255,7 +255,7 @@
                             style="position: absolute; right: 8px; background: none; border: none; cursor: pointer; color: var(--text-muted); opacity: 0.6; padding: 4px; font-size: 1.1rem; transition: opacity 0.2s;"
                             onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'"
                             title="Voice input">
-                            ðŸŽ¤
+                            Mic
                         </button>
                     </div>
                     <button onclick="sendTwinMessage()" class="send-btn">Send</button>
@@ -264,7 +264,7 @@
                 <!-- Drag Overlay -->
                 <div id="twin-drag-overlay" class="drag-overlay">
                     <div class="drag-overlay-content">
-                        <div style="font-size:3rem; margin-bottom:1rem;">ðŸ“„</div>
+                        <div style="font-size:3rem; margin-bottom:1rem;">PDF</div>
                         <h3>Drop PDF to Create Profile</h3>
                         <p>I'll extract the details automatically.</p>
                     </div>
@@ -282,7 +282,7 @@
 
         <!-- Scroll to Top Button -->
         <div id="scroll-top-btn" class="scroll-top-btn" onclick="scrollToTop()" title="Return to Top">
-            â†‘
+            ^
         </div>
 
         <!-- Quick Capture Modal -->
@@ -348,7 +348,7 @@
             const formData = new FormData();
             formData.append('file', file);
 
-            appendMessage('user', `ðŸ“„ Uploading ${file.name}...`);
+            appendMessage('user', `📄 Uploading ${file.name}...`);
             const historyDiv = document.getElementById('twin-history');
             const loadingId = 'loading-' + Date.now();
             historyDiv.innerHTML += `<div id="${loadingId}" class="assistant-message" style="font-style:italic;">Analyzing content & creating profile...</div>`;
@@ -375,7 +375,7 @@
                 document.getElementById(loadingId)?.remove();
 
                 if (data.status === 'error') {
-                    appendMessage('twin', `âŒ ERROR: ${data.message || 'Briefing failed'}`);
+                    appendMessage('twin', `❌ ERROR: ${data.message || 'Briefing failed'}`);
                     return;
                 }
 
@@ -390,7 +390,7 @@
                         renderSearchResults(data.data);
                     } else if (data.data.person_id) {
                         // It's a created person!
-                        appendMessage('twin', `âœ… Profile Created: <strong>${data.data.full_name}</strong>. Opening...`);
+                        appendMessage('twin', `✅ Profile Created: <strong>${data.data.full_name}</strong>. Opening...`);
                         setTimeout(() => {
                             window.location.href = `/people/${data.data.person_id}`;
                         }, 1500);
@@ -400,7 +400,7 @@
             } catch (err) {
                 console.error(err);
                 document.getElementById(loadingId)?.remove();
-                appendMessage('twin', `âŒ Error: ${err.message}`);
+                appendMessage('twin', `❌ Error: ${err.message}`);
             }
         });
     </script>
@@ -417,7 +417,7 @@
 
     <!-- Scroll to Top Button -->
     <div id="scroll-top-btn" class="scroll-top-btn" onclick="scrollToTop()" title="Return to Top">
-        â†‘
+        ↑
     </div>
 </body>
 

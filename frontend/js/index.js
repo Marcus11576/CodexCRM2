@@ -1,4 +1,4 @@
-﻿var API_BASE = window.API_BASE || '';
+var API_BASE = window.API_BASE || '';
 let currentStatusFilter = null; // for traffic light click
 let activeMeetingStatuses = new Set(); // Multi-select Meeting Filter
 let selectedCats = new Set(['all']); // Multi-select
@@ -86,10 +86,10 @@ function renderContact(contact, listId) {
                         </div>
                         <div class="meta-group" style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
                             ${contact.phone_primary ? `
-                                <div class="mini-action" onclick="event.stopPropagation(); window.location.href='tel:${contact.phone_primary}'">ðŸ“ž</div>
-                                <div class="mini-action whatsapp" onclick="event.stopPropagation(); window.location.href='whatsapp://send?phone=${contact.phone_primary.replace(/\D/g, '')}'">ðŸ’¬</div>
+                                <div class="mini-action" onclick="event.stopPropagation(); window.location.href='tel:${contact.phone_primary}'">📞</div>
+                                <div class="mini-action whatsapp" onclick="event.stopPropagation(); window.location.href='whatsapp://send?phone=${contact.phone_primary.replace(/\D/g, '')}'">💬</div>
                             ` : ''}
-                            <span style="font-weight:700; margin-left: 0.5rem;">ðŸ“… ${formatDate(contact.next_contact_due_date)}</span>
+                            <span style="font-weight:700; margin-left: 0.5rem;">📅 ${formatDate(contact.next_contact_due_date)}</span>
                         </div>
                     </div>
                     `;
@@ -763,11 +763,11 @@ async function loadPipelineData() {
                         </div>
                     </div>
                     <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin: 0.5rem 0 0.5rem 0;">
-                        ðŸ“ ${c.task_text || 'No task text'}
+                        📝 ${c.task_text || 'No task text'}
                     </div>
                     <div class="contact-meta" style="margin-left: 0;">
-                        <span title="Due Date">ðŸ“… ${displayDate}</span>
-                        <span title="Company">ðŸ¢ ${c.company_name_raw || 'No Company'}</span>
+                        <span title="Due Date">📅 ${displayDate}</span>
+                        <span title="Company">🏢 ${c.company_name_raw || 'No Company'}</span>
                     </div>
                 `;
                 if (pipelineList) pipelineList.appendChild(card);
@@ -815,7 +815,7 @@ async function loadPipelineData() {
                         High-priority contact with no tasks scheduled in the next 3 months.
                     </div>
                     <div class="contact-meta" style="margin-left: 64px;">
-                        <span>ðŸ·ï¸ ${c.cat || 'Member'}</span>
+                        <span>🏷️ ${c.cat || 'Member'}</span>
                     </div>
                 `;
                 if (gapsList) gapsList.appendChild(card);
@@ -876,7 +876,7 @@ function renderEventDashboardWidget(summary) {
     }
 
     widget.style.display = 'block';
-    stats.textContent = `${summary.upcoming_event_count || 0} upcoming events · ${summary.upcoming_linked_people || 0} linked people`;
+    stats.textContent = `${summary.upcoming_event_count || 0} upcoming events � ${summary.upcoming_linked_people || 0} linked people`;
     cards.innerHTML = upcomingEvents.map((eventItem) => `
         <a class="event-dashboard-card" href="/events/${eventItem.event_id}">
             <div class="event-dashboard-card-top">
@@ -884,7 +884,7 @@ function renderEventDashboardWidget(summary) {
                 <span>${formatDate(eventItem.event_date)}</span>
             </div>
             <div class="event-dashboard-meta">${eventItem.location || 'Location TBD'}</div>
-            <div class="event-dashboard-meta">${eventItem.linked_people_count || 0} linked · ${eventItem.confirmed_count || 0} confirmed · ${eventItem.registered_count || 0} registered</div>
+            <div class="event-dashboard-meta">${eventItem.linked_people_count || 0} linked � ${eventItem.confirmed_count || 0} confirmed � ${eventItem.registered_count || 0} registered</div>
         </a>
     `).join('');
 }
@@ -964,7 +964,7 @@ async function sendTwinMessage() {
         if (data.pending_action) {
             if (data.pending_action.type === 'search') {
                 // Auto-execute search for better UX
-                appendMessage('twin', 'ðŸ”Ž Auto-executing search...');
+                appendMessage('twin', 'Search in progress...');
                 executeTwinAction(data.pending_action);
             } else {
                 renderActionCard(data.pending_action);
@@ -1016,7 +1016,7 @@ function renderActionCard(action) {
     div.className = 'chat-message twin';
     div.innerHTML = `
             <div class="action-card">
-                <h4>âš ï¸ Confirm Action</h4>
+                <h4>Confirm Action</h4>
                 <p><strong>Type:</strong> ${action.type}</p>
                 <p><strong>Details:</strong> <pre style="font-size:0.8rem; overflow-x:auto;">${JSON.stringify(action.params, null, 2)}</pre></p>
                 <div style="margin-top:0.5rem; display:flex; gap:0.5rem;">
@@ -1040,7 +1040,7 @@ async function executeTwinAction(action) {
         const result = await res.json();
 
         if (result.status === 'success') {
-            // appendMessage('twin', `âœ… Done! ${result.message || 'Action completed.'}`); // Too verbose
+            // appendMessage('twin', `Done! ${result.message || 'Action completed.'}`); // Too verbose
             if (result.data) {
                 // Render rich results instead of JSON
                 if (Array.isArray(result.data)) {
@@ -1049,13 +1049,13 @@ async function executeTwinAction(action) {
                     appendMessage('twin', JSON.stringify(result.data, null, 2));
                 }
             } else {
-                appendMessage('twin', `âœ… ${result.message || 'Done'}`);
+                appendMessage('twin', `Done: ${result.message || 'Done'}`);
             }
         } else {
-            appendMessage('twin', `âŒ Failed: ${result.message}`);
+            appendMessage('twin', `Failed: ${result.message}`);
         }
     } catch (err) {
-        appendMessage('twin', `âŒ Error: ${err.message}`);
+        appendMessage('twin', `Error: ${err.message}`);
     }
 }
 
@@ -1100,7 +1100,7 @@ function renderSearchResults(results) {
     let html = `<div style="display:flex; flex-direction:column; gap:0.5rem; width:100%;">`;
     html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
                 <span style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:1px;">${results.length} results</span>
-                <button id="${exportId}" style="background:rgba(53,232,255,0.1); border:1px solid var(--accent-cyan); color:var(--accent-cyan); padding:4px 10px; border-radius:6px; font-size:0.7rem; font-weight:700; cursor:pointer;">ðŸ“¥ Export CSV</button>
+                <button id="${exportId}" style="background:rgba(53,232,255,0.1); border:1px solid var(--accent-cyan); color:var(--accent-cyan); padding:4px 10px; border-radius:6px; font-size:0.7rem; font-weight:700; cursor:pointer;">Export CSV</button>
             </div>`;
 
     results.forEach(p => {
@@ -1121,7 +1121,7 @@ function renderSearchResults(results) {
                         <div style="font-size:0.8rem; color:var(--text-secondary);">${p.title_current || 'No Title'} @ ${p.company_name_raw || 'Unknown'}</div>
                         <div style="font-size:0.7rem; color:var(--accent-cyan); margin-top:2px;">${p.cat || ''}</div>
                     </div>
-                    <div style="color:var(--accent-blue);">âžœ</div>
+                    <div style="color:var(--accent-blue);">View</div>
                 </div>`;
     });
 
@@ -1151,7 +1151,7 @@ async function startDictation() {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         // Stop recording
         mediaRecorder.stop();
-        btn.textContent = 'â³'; // Processing
+        btn.textContent = '⏳'; // Processing
         btn.style.background = '';
         return;
     }
@@ -1179,12 +1179,12 @@ async function startDictation() {
                 console.warn("Audio recording was empty.");
                 input.placeholder = "Recording failed (empty).";
             }
-            btn.textContent = 'ðŸŽ¤';
+            btn.textContent = '🎤';
             stream.getTracks().forEach(track => track.stop());
         };
 
         mediaRecorder.start(200); // 200ms timeslice for better reliability
-        btn.textContent = 'ðŸ”´'; // Recording indicator
+        btn.textContent = '🔴'; // Recording indicator
         btn.style.background = 'var(--accent-red)';
         input.placeholder = "Recording... Click mic to stop.";
 
@@ -1265,14 +1265,14 @@ async function recordTwinAudio() {
 
             if (audioBlob.size === 0) {
                 console.warn("Twin audio recording was empty.");
-                micBtn.textContent = 'ðŸŽ¤';
+                micBtn.textContent = '🎤';
                 return;
             }
 
             const formData = new FormData();
             formData.append('file', audioBlob, 'twin-voice.webm');
 
-            micBtn.textContent = 'â³';
+            micBtn.textContent = '⏳';
             micBtn.classList.remove('recording');
 
             try {
@@ -1294,7 +1294,7 @@ async function recordTwinAudio() {
                 console.error('Transcription failed:', err);
                 alert('Transcription failed');
             } finally {
-                micBtn.textContent = 'ðŸŽ¤';
+                micBtn.textContent = '🎤';
             }
 
             stream.getTracks().forEach(track => track.stop());
@@ -1302,7 +1302,7 @@ async function recordTwinAudio() {
 
         twinMediaRecorder.start(200);
         micBtn.classList.add('recording');
-        micBtn.textContent = 'â¹';
+        micBtn.textContent = '⏹';
 
     } catch (err) {
         console.error('Mic error:', err);
