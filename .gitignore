@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+*.env.local
+.venv/
+.venv_py314_backup/
+
+# Database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Uploads (user data - never commit)
+uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+.codex_server.err
+.codex_server.out
+.codex_server.pid
+
+# Backups
+*.backup
+*.bak
+backups/
+backups_external/
+
+# Temp
+.tmp/
+temp/
+_restore_temp/
+.pytest_cache/
+
+# Codex local artifacts
+.brain/
+_agents/

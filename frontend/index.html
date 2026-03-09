@@ -1,0 +1,424 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Relationship Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="manifest" href="/static/manifest.json">
+    <script src="/static/utils.js"></script>
+    <script src="/js/background.js"></script>
+    <link rel="stylesheet" href="/static/design-system.css">
+    <link rel="stylesheet" href="/static/index.css">
+    <link rel="stylesheet" href="/static/events.css">
+</head>
+
+<body>
+    <div class="platinum-bg">
+        <div class="platinum-frosted"></div>
+    </div>
+
+    <!-- Universal components will be injected here by renderUniversalLayout() -->
+
+    <div class="main-content-wrap">
+
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Cat Filter -->
+            <div class="filter-bar" id="cat-filters">
+                <button class="filter-chip active" onclick="toggleCat('all')">All</button>
+                <button class="filter-chip" onclick="toggleCat('OBE Member')">OBE Member</button>
+                <button class="filter-chip" onclick="toggleCat('OBE Target')">OBE Target</button>
+                <button class="filter-chip" onclick="toggleCat('Client Target')">Client Target</button>
+                <button class="filter-chip" onclick="toggleCat('Existing Client')">Existing Client</button>
+                <button class="filter-chip" onclick="toggleCat('Candidate')">Candidate</button>
+                <button class="filter-chip" onclick="toggleCat('General')">General</button>
+            </div>
+
+            <!-- Env Filter -->
+            <div class="filter-bar" id="env-filters" style="margin-top: -0.5rem; margin-bottom: 1rem;">
+                <span style="font-size: 0.75rem; font-weight: 800; color: white; text-transform: uppercase;">Env:</span>
+                <div class="filter-scroll">
+                    <button class="filter-chip active" onclick="toggleEnv('all')">All</button>
+                    <button class="filter-chip" onclick="toggleEnv('DevMaster')"
+                        style="border: 1px solid var(--accent-blue);">Dev</button>
+                    <button class="filter-chip" onclick="toggleEnv('Gov Dev')">Gov Dev</button>
+                    <button class="filter-chip" onclick="toggleEnv('Semi-Gov Dev')">Semi-Gov Dev</button>
+                    <button class="filter-chip" onclick="toggleEnv('Private Dev')">Private Dev</button>
+                    <button class="filter-chip" onclick="toggleEnv('Consultant')">Consultant</button>
+                    <button class="filter-chip" onclick="toggleEnv('Main Contractor')">Main Contractor</button>
+                    <button class="filter-chip" onclick="toggleEnv('Sub Contractor')">Sub Contractor</button>
+                    <button class="filter-chip" onclick="toggleEnv('PMO')">PMO</button>
+                </div>
+            </div>
+
+            <!-- Disc Filter -->
+            <div class="filter-bar" id="disc-filters" style="margin-top: -0.5rem; margin-bottom: 1rem;">
+                <span
+                    style="font-size: 0.75rem; font-weight: 800; color: white; text-transform: uppercase;">Disc:</span>
+                <div class="filter-scroll">
+                    <button class="filter-chip active" onclick="toggleDisc('all')">All</button>
+                    <button class="filter-chip" onclick="toggleDisc('Commercial')">Commercial</button>
+                    <button class="filter-chip" onclick="toggleDisc('Delivery')">Delivery</button>
+                    <button class="filter-chip" onclick="toggleDisc('Design')">Design</button>
+                    <button class="filter-chip" onclick="toggleDisc('Corporate')">Corporate</button>
+                    <button class="filter-chip" onclick="toggleDisc('Support')">Support</button>
+                    <button class="filter-chip" onclick="toggleDisc('Others')">Others</button>
+                </div>
+            </div>
+
+            <!-- Status Filter -->
+            <div class="filter-bar" id="status-filters" style="margin-top: -0.5rem; margin-bottom: 1rem;">
+                <span style="font-size: 0.8rem; color: white; align-self: center; margin-right: 0.5rem;">Status:</span>
+                <button class="filter-chip" onclick="toggleStatus('Hot')" title="Hot">ðŸ”¥</button>
+                <button class="filter-chip" onclick="toggleStatus('Soon')" title="Soon">âš¡</button>
+                <button class="filter-chip" onclick="toggleStatus('Cold')" title="Cold">ðŸ§Š</button>
+                <button class="filter-chip" onclick="toggleStatus(null)" style="opacity: 0.6;">All</button>
+            </div>
+
+            <!-- Pipeline Filter -->
+            <div class="filter-bar" id="pipeline-filters"
+                style="display:none; margin-top: -0.5rem; margin-bottom: 1.5rem;">
+                <span style="font-size: 0.8rem; color: white; align-self: center; margin-right: 0.5rem;">Pipeline
+                    View:</span>
+                <button class="filter-chip" onclick="showPipeline(0)">Today</button>
+                <button class="filter-chip" onclick="showPipeline(3)">3 Days</button>
+                <button class="filter-chip" onclick="showPipeline(7)">7 Days</button>
+                <button class="filter-chip" onclick="showPipeline(14)">14 Days</button>
+                <button class="filter-chip active" id="pipeline-btn-30" onclick="showPipeline(30)">1 Month</button>
+                <button class="filter-chip" onclick="showPipeline(90)">3 Months</button>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
+                <div class="stat-card status-past" onclick="filterByStatus('overdue')">
+                    <div class="stat-value" id="stat-overdue">0</div>
+                    <div class="stat-label">Past</div>
+                </div>
+                <div class="stat-card status-soon" onclick="filterByStatus('soon')">
+                    <div class="stat-value" id="stat-soon">0</div>
+                    <div class="stat-label">Soon</div>
+                </div>
+                <div class="stat-card status-on_track" onclick="filterByStatus('on_track')">
+                    <div class="stat-value" id="stat-ontrack">0</div>
+                    <div class="stat-label">On Track</div>
+                </div>
+                <div class="stat-card status-not_scheduled" onclick="filterByStatus('not_scheduled')">
+                    <div class="stat-value" id="stat-not-scheduled">0</div>
+                    <div class="stat-label">Not Sched</div>
+                </div>
+            </div>
+
+            <div id="event-dashboard-widget" class="section-card event-dashboard-widget" style="margin-top: 1rem; display:none;">
+                <div class="event-dashboard-header">
+                    <div>
+                        <div class="events-kicker">Events Visibility</div>
+                        <h2 style="margin:0;">Upcoming Events</h2>
+                    </div>
+                    <a href="/events" class="events-ghost-btn compact" style="text-decoration:none;">Open Events</a>
+                </div>
+                <div id="event-dashboard-stats" class="event-detail-meta"></div>
+                <div id="event-dashboard-cards" class="event-dashboard-cards"></div>
+            </div>
+
+            <div id="loading-state" class="loading">
+                <div class="spinner"></div>
+                <p>Loading contacts...</p>
+            </div>
+
+            <!-- Pipeline Section -->
+            <div id="pipeline-section" style="display:none;">
+                <div class="section-header">
+                    <span class="icon">ðŸš€</span>
+                    <h2>Upcoming Commitments</h2>
+                    <span class="section-count" id="pipeline-count">0</span>
+                </div>
+                <div class="contact-list" id="pipeline-list"></div>
+            </div>
+
+            <!-- Action Gaps Section -->
+            <div id="gaps-section" style="display:none;">
+                <div class="section-header" style="border-bottom-color: var(--accent-red); margin-top: 1rem;">
+                    <span class="icon">âš ï¸</span>
+                    <h2>Engagement Gaps</h2>
+                    <span class="section-count" id="gaps-count">0</span>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: -0.5rem; margin-bottom: 1rem;">
+                    High-priority contacts with no tasks scheduled in the next 3 months.
+                </p>
+                <div class="contact-list" id="gaps-list"></div>
+            </div>
+
+            <!-- Overdue Section -->
+            <div id="overdue-section" style="display:none;">
+                <div class="section-header">
+                    <span class="icon">ðŸ”´</span>
+                    <h2>Past</h2>
+                    <span class="section-count" id="overdue-count">0</span>
+                </div>
+                <div class="contact-list" id="overdue-list"></div>
+            </div>
+
+            <!-- Not Sched Section -->
+            <div id="not-scheduled-section" style="display:none;">
+                <div class="section-header">
+                    <span class="icon">âšª</span>
+                    <h2>Not Sched / No Date</h2>
+                    <span class="section-count" id="not-scheduled-count">0</span>
+                </div>
+                <div class="contact-list" id="not-scheduled-list"></div>
+            </div>
+
+            <!-- Soon Section -->
+            <div id="soon-section" style="display:none;">
+                <div class="section-header">
+                    <span class="icon">ðŸŸ </span>
+                    <h2>Coming Soon</h2>
+                    <span class="section-count" id="soon-count">0</span>
+                </div>
+                <div class="contact-list" id="soon-list"></div>
+            </div>
+
+            <!-- On Track Section -->
+            <div id="ontrack-section" style="display:none;">
+                <div class="section-header">
+                    <span class="icon">ðŸ”µ</span>
+                    <h2>On Track</h2>
+                    <span class="section-count" id="ontrack-count">0</span>
+                </div>
+                <div class="contact-list" id="ontrack-list"></div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="empty-state" style="display:none;">
+                <div class="empty-state-icon">ðŸ“…</div>
+                <p>No scheduled meetings</p>
+                <p style="font-size: 0.85rem; margin-top: 0.5rem;">Tap contacts to schedule your first meeting</p>
+            </div>
+        </main>
+
+        <!-- Quick Capture Modal -->
+        <div id="quick-capture-modal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <h3>ðŸ“ Quick Capture</h3>
+
+                <div class="form-group">
+                    <input list="person-list" id="qc-person-input" class="form-control" placeholder="Search contact...">
+                    <datalist id="person-list"></datalist>
+                </div>
+
+                <div class="form-group">
+                    <textarea id="qc-note-input" class="form-control" rows="4"
+                        placeholder="Note, thought, or meeting summary..."></textarea>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="closeQuickCapture()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveQuickCapture()">Save Note</button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ... (Existing content) ... -->
+
+        <!-- Profile Chat - Floating Sidebar -->
+        <div id="twin-chat-modal" class="floating-chat" style="display:none;">
+            <div class="floating-chat-content">
+                <div class="chat-header">
+                    <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:0.5rem;">
+                        ðŸ¤– Twin Assistant
+                    </h3>
+                    <button onclick="closeTwinChat()" class="close-btn">&times;</button>
+                </div>
+
+                <div id="twin-history" class="chat-messages">
+                    <div class="assistant-message">
+                        Hello! I'm your Twin. I can help you find people, log interactions, or create tasks. What's on
+                        your mind?
+                    </div>
+                </div>
+
+                <div class="chat-input-container">
+                    <div class="input-wrapper" style="position: relative; flex: 1; display: flex; align-items: center;">
+                        <input type="text" id="twin-input" placeholder="Ask or tell me something..."
+                            style="padding-right: 40px;" onkeypress="if(event.key==='Enter') sendTwinMessage()">
+                        <button id="twin-mic-btn" onclick="recordTwinAudio()"
+                            style="position: absolute; right: 8px; background: none; border: none; cursor: pointer; color: var(--text-muted); opacity: 0.6; padding: 4px; font-size: 1.1rem; transition: opacity 0.2s;"
+                            onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'"
+                            title="Voice input">
+                            ðŸŽ¤
+                        </button>
+                    </div>
+                    <button onclick="sendTwinMessage()" class="send-btn">Send</button>
+                </div>
+
+                <!-- Drag Overlay -->
+                <div id="twin-drag-overlay" class="drag-overlay">
+                    <div class="drag-overlay-content">
+                        <div style="font-size:3rem; margin-bottom:1rem;">ðŸ“„</div>
+                        <h3>Drop PDF to Create Profile</h3>
+                        <p>I'll extract the details automatically.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Twin Floating Action Button -->
+        <div class="fab twin-fab" onclick="openTwinChat()" title="Talk to Twin">
+            <svg class="ombre-icon" width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L14.7 8.6L21.3 11.3L14.7 14L12 20.6L9.3 14L2.7 11.3L9.3 8.6L12 2Z"
+                    fill="url(#ombre-grad)" />
+            </svg>
+        </div>
+
+        <!-- Scroll to Top Button -->
+        <div id="scroll-top-btn" class="scroll-top-btn" onclick="scrollToTop()" title="Return to Top">
+            â†‘
+        </div>
+
+        <!-- Quick Capture Modal -->
+        <div id="quick-capture-modal" class="modal" style="display:none;">
+            <!-- ... (Existing content) ... -->
+        </div>
+
+        <!-- Floating Action Button (Quick Capture) - REMOVED AS PER USER REQUEST -->
+
+        </div>
+    </div>
+    
+    <script>
+        // Initialize Universal Layout
+        document.addEventListener('DOMContentLoaded', () => {
+            const isPipeline = new URLSearchParams(window.location.search).get('view') === 'pipeline';
+            renderUniversalLayout(isPipeline ? 'pipeline' : 'dashboard', 'RELATIONSHIP INTELLIGENCE');
+        });
+    </script>
+    </div>
+
+    <script src="/js/index.js"></script>
+    <script>
+        // --- Drag & Drop for PDF ---
+        const twinModal = document.getElementById('twin-chat-modal');
+        const dragOverlay = document.getElementById('twin-drag-overlay');
+        let dragCounter = 0;
+
+        twinModal.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            dragOverlay.classList.add('active');
+        });
+
+        twinModal.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter === 0) {
+                dragOverlay.classList.remove('active');
+            }
+        });
+
+        twinModal.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        twinModal.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            dragOverlay.classList.remove('active');
+
+            const files = e.dataTransfer.files;
+            if (files.length === 0) return;
+
+            const file = files[0];
+            // Allow PDF
+            if (file.type !== 'application/pdf') {
+                alert('Please drop a PDF file.');
+                return;
+            }
+
+            // Upload
+            const formData = new FormData();
+            formData.append('file', file);
+
+            appendMessage('user', `ðŸ“„ Uploading ${file.name}...`);
+            const historyDiv = document.getElementById('twin-history');
+            const loadingId = 'loading-' + Date.now();
+            historyDiv.innerHTML += `<div id="${loadingId}" class="assistant-message" style="font-style:italic;">Analyzing content & creating profile...</div>`;
+            historyDiv.scrollTop = historyDiv.scrollHeight;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/twin/upload_pdf`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!res.ok) {
+                    let errorMessage = 'Upload failed';
+                    try {
+                        const errData = await res.json();
+                        errorMessage = errData.detail || errData.message || errorMessage;
+                    } catch (e) {
+                        // ignore json parse error
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const data = await res.json();
+                document.getElementById(loadingId)?.remove();
+
+                if (data.status === 'error') {
+                    appendMessage('twin', `âŒ ERROR: ${data.message || 'Briefing failed'}`);
+                    return;
+                }
+
+                // Handle Response similar to chat
+                if (data.reply) {
+                    appendMessage('twin', data.reply);
+                }
+
+                if (data.data) {
+                    // Check if it's a list (from search) or object (from create)
+                    if (Array.isArray(data.data)) {
+                        renderSearchResults(data.data);
+                    } else if (data.data.person_id) {
+                        // It's a created person!
+                        appendMessage('twin', `âœ… Profile Created: <strong>${data.data.full_name}</strong>. Opening...`);
+                        setTimeout(() => {
+                            window.location.href = `/people/${data.data.person_id}`;
+                        }, 1500);
+                    }
+                }
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById(loadingId)?.remove();
+                appendMessage('twin', `âŒ Error: ${err.message}`);
+            }
+        });
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then(reg => console.log('Service Worker registered!'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+
+    <!-- Scroll to Top Button -->
+    <div id="scroll-top-btn" class="scroll-top-btn" onclick="scrollToTop()" title="Return to Top">
+        â†‘
+    </div>
+</body>
+
+</html>

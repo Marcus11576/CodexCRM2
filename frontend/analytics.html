@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Intelligence Pulse | Antigravity CRM</title>
+    
+    <!-- Dependencies -->
+    <link rel="stylesheet" href="/static/design-system.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;600;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider/dist/nouislider.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/nouislider/dist/nouislider.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/wnumb/wNumb.min.js"></script>
+    <script src="/static/utils.js"></script>
+    <script src="/js/background.js"></script>
+
+    <style>
+        :root {
+            --card-glow: rgba(34, 211, 238, 0.1);
+        }
+        /* Page-specific adjustments */
+        .analytics-main {
+            flex: 1;
+            padding: 2.5rem;
+            overflow-y: auto;
+            height: 100vh;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 2.5rem;
+        }
+
+        .logo-area svg {
+            width: 24px;
+            color: var(--accent-cyan);
+        }
+
+        .logo-area span {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 900;
+            font-size: 1.25rem;
+            letter-spacing: -0.5px;
+        }
+
+        .nav-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-surface);
+            color: white;
+        }
+
+        .nav-link.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(34, 211, 238, 0.15);
+        }
+
+        /* --- MAIN CONTENT --- */
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            height: var(--top-bar-h);
+            padding: 0 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            background: rgba(6, 9, 15, 0.4);
+        }
+
+        .search-container {
+            flex: 1;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .search-container input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 16px 10px 40px;
+            color: white;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .search-container i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .user-role {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .user-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-violet));
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .scroll-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2.5rem;
+        }
+
+        .pulse-grid {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 2rem;
+            height: fit-content;
+        }
+
+        /* --- EFFORT PULSE UI --- */
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .panel-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .range-picker-btn {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .stat-badge {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.2s;
+        }
+
+        .stat-badge:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(34, 211, 238, 0.2);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .stat-content {
+            flex: 1;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-val-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .stat-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 900;
+            margin: 2px 0;
+        }
+
+        .stat-change {
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .up { color: var(--accent-emerald); }
+        .down { color: var(--accent-rose); }
+
+        .chart-container {
+            height: 450px;
+            position: relative;
+        }
+
+        /* --- PROFILE BREAKDOWN UI --- */
+        .breakdown-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .breakdown-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .donut-box {
+            position: relative;
+            width: 220px;
+            margin: 0 auto 2.5rem;
+        }
+
+        .donut-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .center-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.75rem;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .center-lbl {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .legend-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .legend-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .legend-item.active {
+            background: rgba(34, 211, 238, 0.1);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 12px;
+        }
+
+        .legend-label {
+            flex: 1;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .legend-pct {
+            font-weight: 700;
+            color: white;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* --- DATE SLIDER --- */
+        #date-slider-container {
+            margin-top: 2rem;
+            padding: 0 10px;
+        }
+
+        .noUi-target {
+            background: rgba(255,255,255,0.05);
+            border: none;
+            box-shadow: none;
+            height: 4px;
+        }
+
+        .noUi-connect {
+            background: linear-gradient(to right, var(--accent-cyan), var(--accent-blue));
+        }
+
+        .noUi-handle {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(34,211,238,0.5);
+            cursor: pointer;
+            top: -8px !important;
+        }
+
+        .noUi-handle::before, .noUi-handle::after { display: none; }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* --- MODAL FOR DATE PICKER --- */
+        .picker-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(13, 17, 23, 0.95);
+            padding: 2rem;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        @media (max-width: 1200px) {
+            .pulse-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body class="platinum-body">
+    <div class="platinum-bg">
+        <div class="platinum-frosted"></div>
+    </div>
+
+    <!-- Universal components will be injected here -->
+    <div class="main-content-wrap">
+        <div class="scroll-container">
+            <div class="pulse-grid">
+                <!-- Left: Profiles Breakdown -->
+                <div class="glass-panel">
+                    <div class="breakdown-title">New Profiles Breakdown</div>
+                    <div class="breakdown-subtitle">Cohort distribution for selected period</div>
+                    
+                    <div class="donut-box">
+                        <canvas id="profileDonut"></canvas>
+                        <div class="donut-center">
+                            <div class="center-val" id="totalProfiles">0</div>
+                            <div class="center-lbl">New<br>Profiles</div>
+                        </div>
+                    </div>
+
+                    <div class="legend-list" id="profileLegend">
+                        <!-- Populated via JS -->
+                    </div>
+
+                    <div id="date-slider-container">
+                        <div id="date-slider"></div>
+                        <div class="slider-labels">
+                            <span id="slider-start">...</span>
+                            <span id="slider-end">...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Interaction Effort -->
+                <div class="glass-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">Interaction Effort: <span id="periodLabel">Last 30 Days</span></div>
+                        <button class="range-picker-btn" id="activeDateRange">
+                            <i class="far fa-calendar-alt"></i>
+                            <span id="currentDateRangeStr">Loading period...</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+
+                    <div class="summary-cards">
+                        <div class="stat-badge">
+                            <div class="stat-icon" style="background: rgba(139, 92, 246, 0.1); color: var(--accent-violet);">
+                                <i class="fas fa-video"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Meetings</div>
+                                <div class="stat-val-row">
+                                    <div class="stat-val" id="count-meeting">0</div>
+                                    <div class="stat-change up" id="change-meeting">--%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-badge">
+                            <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-blue);">
+                                <i class="fas fa-phone-alt"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Calls</div>
+                                <div class="stat-val-row">
+                                    <div class="stat-val" id="count-call">0</div>
+                                    <div class="stat-change down" id="change-call">--%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-badge">
+                            <div class="stat-icon" style="background: rgba(37, 211, 102, 0.1); color: #25d366;">
+                                <i class="fab fa-whatsapp"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">WhatsApp</div>
+                                <div class="stat-val-row">
+                                    <div class="stat-val" id="count-whatsapp">0</div>
+                                    <div class="stat-change up" id="change-whatsapp">--%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-badge">
+                            <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--accent-amber);">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Emails</div>
+                                <div class="stat-val-row">
+                                    <div class="stat-val" id="count-email">0</div>
+                                    <div class="stat-change up" id="change-email">--%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="effortChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Background Elements -->
+    <div class="platinum-bg">
+        <div class="platinum-frosted"></div>
+    </div>
+
+    <script src="/static/utils.js"></script>
+    <script src="/js/analytics.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            renderUniversalLayout('analytics', 'NETWORK INTELLIGENCE PULSE');
+        });
+    </script>
+</body>
+
+</html>
+```

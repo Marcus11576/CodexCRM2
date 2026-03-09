@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activities Dashboard - Antigravity</title>
+    <link rel="stylesheet" href="/static/design-system.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/utils.js"></script>
+    <script src="/js/background.js"></script>
+    <link rel="stylesheet" href="/static/activities.css">
+    <style>
+        .centrifuge-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 500px;
+            position: relative;
+        }
+
+        .centrifuge-core {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .momentum-dial {
+            position: relative;
+            width: 260px;
+            height: 260px;
+            z-index: 10;
+        }
+
+        .momentum-dial svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .dial-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.05);
+            stroke-width: 8;
+        }
+
+        .dial-progress {
+            fill: none;
+            stroke: var(--accent-cyan);
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 283;
+            stroke-dashoffset: 283;
+            transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: drop-shadow(0 0 8px var(--accent-cyan));
+        }
+
+        .dial-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dial-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 4.5rem;
+            font-weight: 900;
+            line-height: 1;
+            color: white;
+            text-shadow: 0 0 30px rgba(34, 211, 238, 0.3);
+        }
+
+        .dial-label {
+            font-size: 0.8rem;
+            letter-spacing: 3px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-top: 0.5rem;
+        }
+
+        .orbit-item {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            z-index: 5;
+        }
+
+        .orbit-item i {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent-cyan);
+        }
+
+        .orbit-val {
+            font-family: 'Outfit';
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: white;
+        }
+
+        .orbit-lbl {
+            font-size: 0.6rem;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .orbit-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--accent-cyan);
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(34, 211, 238, 0.2);
+        }
+
+        .pos-1 { top: -20%; left: 50%; transform: translateX(-50%); }
+        .pos-2 { bottom: 5%; left: -10%; }
+        .pos-3 { bottom: 5%; right: -10%; }
+
+        .intel-feed-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .intel-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: var(--t-base);
+        }
+
+        .intel-card:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .intel-topic {
+            font-size: 0.6rem;
+            color: var(--accent-cyan);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .intel-text {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: var(--text-primary);
+        }
+
+        .trend-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="platinum-body">
+    <div class="platinum-bg">
+        <div class="platinum-frosted"></div>
+    </div>
+
+    <!-- Universal components will be injected here -->
+    
+    <div class="main-content-wrap">
+        <div class="app-container">
+    <div class="dashboard-container">
+        <header style="margin-bottom: 4rem; text-align: center;">
+            <h1 class="gradient-text" style="font-family: 'Outfit', sans-serif; font-size: 4rem; font-weight: 900; margin-bottom: 0.5rem; letter-spacing: -2px;">
+                Relationship <span style="color: var(--accent-cyan);">Momentum</span>
+            </h1>
+            <p style="color: var(--text-secondary); letter-spacing: 4px; text-transform: uppercase; font-size: 0.9rem; font-weight: 700;"> The Platinum Pulse </p>
+        </header>
+
+        <!-- Centrifuge Layout -->
+        <div class="centrifuge-wrapper">
+            <div class="centrifuge-core">
+                <div class="momentum-dial">
+                    <svg viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" class="dial-bg"></circle>
+                        <circle cx="50" cy="50" r="45" class="dial-progress" id="momentum-progress"></circle>
+                    </svg>
+                    <div class="dial-content">
+                        <span class="dial-value" id="total-momentum">0</span>
+                        <span class="dial-label" id="current-period">MORNING</span>
+                    </div>
+                </div>
+
+                <!-- Orbiting Stats -->
+                <div class="orbit-item pos-1" id="stat-people">
+                    <i class="fas fa-users"></i>
+                    <div class="orbit-data">
+                        <span class="orbit-val">0</span>
+                        <span class="orbit-lbl">PROFILES</span>
+                    </div>
+                </div>
+                <div class="orbit-item pos-2" id="stat-interactions">
+                    <i class="fas fa-comment-dots"></i>
+                    <div class="orbit-data">
+                        <span class="orbit-val">0</span>
+                        <span class="orbit-lbl">INPUTS</span>
+                    </div>
+                </div>
+                <div class="orbit-item pos-3" id="stat-intel">
+                    <i class="fas fa-brain"></i>
+                    <div class="orbit-data">
+                        <span class="orbit-val">0</span>
+                        <span class="orbit-lbl">INTEL</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-grid" style="margin-top: 6rem; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem;">
+            <!-- Intel Feed -->
+            <section class="intel-feed-section">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+                    <h2 style="font-family: 'Outfit'; font-size: 1.2rem; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">
+                        Latest <span style="color: var(--accent-cyan);">Intelligence Feed</span>
+                    </h2>
+                </div>
+                <div id="intel-feed" class="intel-feed-grid">
+                    <!-- Dynamic intel nuggets -->
+                </div>
+            </section>
+
+            <!-- Sentiment Trends -->
+            <section class="trend-section">
+                <h2 style="font-family: 'Outfit'; font-size: 1.2rem; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 2rem;">
+                    Sentiment <span style="color: var(--accent-cyan);">Momentum</span>
+                </h2>
+                <div class="trend-grid" id="trend-grid">
+                    <!-- Dynamic cards -->
+                </div>
+            </section>
+        </div>
+    </div>
+        </div>
+    </div>
+    <script src="/js/activities.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            renderUniversalLayout('analytics', 'ACTIVITIES & STRATEGIC MOMENTUM');
+        });
+    </script>
+</body>
+</html>

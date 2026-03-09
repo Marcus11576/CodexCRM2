@@ -1,0 +1,89 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events - Antigravity CRM</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <script src="/static/utils.js"></script>
+    <script src="/js/background.js"></script>
+    <link rel="stylesheet" href="/static/design-system.css">
+    <link rel="stylesheet" href="/static/events.css">
+</head>
+<body>
+    <div class="platinum-bg">
+        <div class="platinum-frosted"></div>
+    </div>
+
+    <div class="main-content-wrap">
+        <main class="main-content events-page-shell">
+            <section class="events-toolbar section-card">
+                <div>
+                    <div class="events-kicker">CRM Event Hub</div>
+                    <h1 class="events-title">Events</h1>
+                    <p class="events-subtitle">Track every event, connect people to it, and manage event statuses from both sides of the CRM.</p>
+                </div>
+                <div class="events-toolbar-actions">
+                    <input id="events-search" class="events-search" type="search" placeholder="Search events, topics, notes, locations">
+                    <button id="new-event-btn" class="events-primary-btn" type="button">New Event</button>
+                </div>
+            </section>
+
+            <section class="events-layout">
+                <div class="section-card events-list-panel">
+                    <div class="events-list-header">
+                        <h2>Central Event List</h2>
+                        <button id="toggle-upcoming-btn" class="events-ghost-btn" type="button">Upcoming Only</button>
+                    </div>
+                    <div id="events-list" class="events-list"></div>
+                </div>
+
+                <div class="section-card events-detail-panel">
+                    <div id="event-detail-empty" class="events-empty-state">
+                        <div class="events-empty-icon">EV</div>
+                        <p>Select an event to view its details and linked people.</p>
+                    </div>
+                    <div id="event-detail" style="display:none;"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="event-modal" class="events-modal" style="display:none;">
+        <div class="events-modal-card">
+            <div class="events-modal-header">
+                <h3 id="event-modal-title">Create Event</h3>
+                <button id="close-event-modal" class="events-close-btn" type="button">x</button>
+            </div>
+            <form id="event-form" class="events-form-grid">
+                <label>
+                    <span>Event Name</span>
+                    <input id="event-name" required>
+                </label>
+                <label>
+                    <span>Location</span>
+                    <input id="event-location">
+                </label>
+                <label>
+                    <span>Date</span>
+                    <input id="event-date" type="date" required>
+                </label>
+                <label>
+                    <span>Topics</span>
+                    <input id="event-topics" placeholder="Comma separated topics">
+                </label>
+                <label class="events-full-width">
+                    <span>Notes</span>
+                    <textarea id="event-notes" rows="5"></textarea>
+                </label>
+                <div class="events-modal-actions events-full-width">
+                    <button type="button" id="cancel-event-modal" class="events-ghost-btn">Cancel</button>
+                    <button type="submit" class="events-primary-btn">Save Event</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/events.js"></script>
+</body>
+</html>

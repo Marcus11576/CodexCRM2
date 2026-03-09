@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Profile - Antigravity</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="/static/utils.js"></script>
+    <script src="/js/background.js"></script>
+    <link rel="stylesheet" href="/static/design-system.css">
+    <link rel="stylesheet" href="/static/profile.css">
+    <link rel="stylesheet" href="/static/events.css">
+</head>
+
+<body>
+    <div class="platinum-bg">
+        <div class="platinum-frosted"></div>
+    </div>
+
+    <!-- Universal components will be injected here -->
+    
+    <div class="main-content-wrap">
+
+    <!-- Loading State -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Loading profile...</p>
+    </div>
+
+    <!-- Main Container -->
+    <div id="content" class="container" style="display: none;">
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <!-- Large photo left -->
+            <div class="profile-photo" id="profile-photo">
+                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                    stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3;">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </div>
+
+            <!-- Right body -->
+            <div class="profile-header-body">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.25rem;">
+                    <h1 class="profile-name" id="profile-name">Loading...</h1>
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <input type="checkbox" id="advisory-checkbox" onchange="toggleAdvisoryCheckbox(this)"
+                            style="cursor:pointer; width:1.1rem; height:1.1rem; accent-color:var(--accent-cyan);">
+                        <label for="advisory-checkbox"
+                            style="color:white; font-weight:700; font-size:0.72rem; cursor:pointer; text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap;">TS
+                            Advisory</label>
+                    </div>
+                </div>
+                <div class="profile-title" id="profile-title">Loading title...</div>
+                <div class="v1-tags-row">
+                    <!-- Env Group -->
+                    <div class="tag-group">
+                        <div class="tag-label" id="label-env">Env ↘ <span onclick="toggleEnvEdit()"
+                                style="cursor:pointer; opacity:0.6; font-size:0.6rem;">✎</span></div>
+                        <div id="env-toggles" class="tag-chips"></div>
+                    </div>
+                    <!-- Disc Group -->
+                    <div class="tag-group">
+                        <div class="tag-label" id="label-disc">Disc ↘ <span onclick="toggleDiscEdit()"
+                                style="cursor:pointer; opacity:0.6; font-size:0.6rem;">✎</span></div>
+                        <div id="disc-toggles" class="tag-chips"></div>
+                    </div>
+                    <!-- Cat Group -->
+                    <div class="tag-group">
+                        <div class="tag-label" id="label-cat">Cat ↘ <span onclick="toggleCatEdit()"
+                                style="cursor:pointer; opacity:0.6; font-size:0.6rem;">✎</span></div>
+                        <div id="cat-toggles" class="tag-chips"></div>
+                    </div>
+                    <!-- Status Group -->
+                    <div class="tag-group">
+                        <div class="tag-label" id="label-status">Status ↘ <span onclick="toggleStatusEdit()"
+                                style="cursor:pointer; opacity:0.6; font-size:0.6rem;">✎</span></div>
+                        <div id="status-toggles" class="tag-chips"></div>
+                    </div>
+                </div>
+
+                <!-- Header Bottom Strip (SIT-REP & Action Cluster) -->
+                <div class="header-bottom-strip">
+                    <div id="meeting-status-display" style="flex:1;"></div>
+                    <div class="icon-actions" id="header-icon-actions">
+                        <!-- Redefined Action Button Cluster -->
+                    </div>
+                </div>
+            </div><!-- /profile-header-body -->
+        </div>
+
+        <!-- Executive Interaction Log -->
+        <div class="section-card executive-log"
+            style="margin-top: 1.5rem; border: 1px solid rgba(53,232,255,0.2); background: linear-gradient(145deg, rgba(12,20,38,0.4) 0%, rgba(12,20,38,0.1) 100%);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h3
+                    style="margin:0; font-size:0.85rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--accent-cyan); font-weight:800;">
+                    <i class="fas fa-pen-nib" style="margin-right:8px;"></i> Log Intelligence
+                </h3>
+                <div style="font-size:0.7rem; color:var(--text-muted); font-weight:600;">PLATINUM STANDARD ENTRY</div>
+            </div>
+
+            <div class="log-input-wrapper" style="position:relative;">
+                <textarea id="interaction-input"
+                    placeholder="Paste meeting notes, call SIT-REPs, or quick updates here... AI will extract intelligence automatically."
+                    style="width:100%; min-height:120px; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:1rem; color:white; font-family:'Inter', sans-serif; font-size:0.92rem; line-height:1.6; resize:vertical; outline:none; transition:border-color 0.2s; padding-bottom: 3rem;"
+                    onfocus="this.style.borderColor='rgba(53,232,255,0.5)'"
+                    onblur="this.style.borderColor='rgba(255,255,255,0.08)'"></textarea>
+
+                <div style="position:absolute; bottom:12px; right:12px; display:flex; gap:8px;">
+                    <input type="file" id="log-file-input" style="display:none;" onchange="handleLogFileSelect(this)">
+                    <button onclick="document.getElementById('log-file-input').click()" class="icon-btn"
+                        style="background:rgba(255,255,255,0.05); color:var(--text-muted); border:1px solid rgba(255,255,255,0.1); border-radius:8px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer;"
+                        title="Attach File">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="selected-files-container" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:0.5rem;"></div>
+
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:1rem; align-items:center;">
+                <span id="log-status" style="font-size:0.75rem; color:var(--text-muted); opacity:0.8;"></span>
+                <button onclick="submitInteraction()" id="btn-submit-interaction"
+                    style="background:var(--accent-cyan); color:black; border:none; padding:10px 24px; border-radius:100px; font-weight:800; font-size:0.8rem; cursor:pointer; text-transform:uppercase; letter-spacing:0.5px; box-shadow:0 8px 20px rgba(53,232,255,0.2); display:flex; align-items:center; gap:8px;">
+                    Process Intelligence <i class="fas fa-brain"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Meeting Briefing -->
+        <div class="section-card briefing" id="briefing-section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+                <div class="section-header" style="flex:1; margin-bottom:0;">
+                    <h2 style="margin:0;"><i class="fas fa-bolt-lightning"></i> Meeting Brief</h2>
+                    <div class="header-line"></div>
+                </div>
+                <div style="display:flex; gap:0.6rem; align-items:center; margin-left:1.5rem;">
+                    <button id="btn-brief-listen" onclick="generateBriefAudio()"
+                        style="background:rgba(53,232,255,0.12); border:1px solid var(--accent-cyan); color:var(--accent-cyan); padding:6px 14px; border-radius:8px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                        🎧 Listen
+                    </button>
+                    <button id="btn-brief-regen" onclick="regenerateBrief()"
+                        style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:var(--text-secondary); padding:6px 14px; border-radius:8px; font-size:0.78rem; font-weight:700; cursor:pointer;">
+                        🔄 Regenerate
+                    </button>
+                </div>
+            </div>
+            <!-- Audio player — hidden until audio is ready -->
+            <audio id="brief-audio-player" controls
+                style="display:none; width:100%; margin-bottom:1rem; border-radius:8px;"></audio>
+            <div id="briefing-content">
+                <p>Loading briefing...</p>
+            </div>
+            
+            <!-- AI Pipeline Feedback UI (Placeholders) -->
+            <div id="briefing-feedback" style="display:none; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between;">
+                <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Was this brief accurate?
+                </div>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button onclick="logAiFeedback('brief', 'approve')" class="v1-act-btn" title="Accurate" style="width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:8px; background:rgba(16, 185, 129, 0.1); border-color:rgba(16, 185, 129, 0.3); color:var(--accent-green);">
+                        <i class="fas fa-thumbs-up"></i>
+                    </button>
+                    <button onclick="logAiFeedback('brief', 'reject')" class="v1-act-btn" title="Needs Correction" style="width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:8px; background:rgba(239, 68, 68, 0.1); border-color:rgba(239, 68, 68, 0.3); color:var(--accent-red);">
+                        <i class="fas fa-thumbs-down"></i>
+                    </button>
+                    <button onclick="logAiFeedback('brief', 'edit')" class="v1-act-btn" title="Manual Fix" style="width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:8px; background:rgba(255, 255, 255, 0.05); border-color:rgba(255, 255, 255, 0.1); color:var(--text-muted);">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+
+        <div class="section-card" id="ai-job-status-section" style="margin-top: 1rem;">
+            <div class="profile-events-header">
+                <div>
+                    <div class="events-kicker">AI Processing</div>
+                    <h2 style="margin:0;">Background Jobs</h2>
+                </div>
+                <button type="button" id="refresh-ai-jobs-btn" class="events-ghost-btn compact">Refresh</button>
+            </div>
+            <div id="ai-job-status-list" class="profile-events-list"></div>
+        </div>
+
+        <!-- Predictive Health & Network Synergy -->
+        <div id="propensity-panel">
+            <div class="section-card health-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="color:var(--accent-purple); font-size: 0.7rem; letter-spacing: 1px; font-weight: 800; text-transform: uppercase;">
+                        <i class="fas fa-heart-pulse"></i> Relationship Health
+                    </div>
+                    <div id="health-score" style="font-family:'Outfit'; font-weight:900; font-size:1.4rem; color:var(--accent-purple);">--%</div>
+                </div>
+                <div style="margin-top:0.5rem; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
+                    <div id="health-bar" style="height:100%; width:0%; background:var(--accent-purple); transition:width 1s ease;"></div>
+                </div>
+                <div id="next-action" style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-secondary); font-style:italic;">Fetching next best action...</div>
+            </div>
+
+            <div class="section-card velocity-card">
+                <div style="font-size:0.6rem; color:var(--text-secondary); text-transform:uppercase; font-weight:800; margin-bottom:4px;">Engagement Velocity</div>
+                <div id="velocity-score" style="font-family:'Outfit'; font-weight:900; font-size:1.4rem; color:var(--accent-cyan);">--</div>
+                <div style="font-size:0.6rem; color:var(--text-muted);">Hits (14d)</div>
+            </div>
+
+            <a href="/analytics" class="section-card synergy-card">
+                <i class="fas fa-globe" style="font-size:1.2rem; color:var(--text-muted); margin-bottom:8px;"></i>
+                <div style="font-size:0.6rem; color:white; font-weight:800; text-transform:uppercase;">Network Synergy</div>
+            </a>
+        </div>
+
+
+        <!-- Intelligence Databank v5.0 -->
+        <div class="section-card">
+            <div class="section-header" style="display:flex; align-items:center; justify-content:space-between;">
+                <h2><i class="fas fa-database"></i> Intelligence Databank</h2>
+                <button id="review-signals-btn" style="font-size:0.8rem; padding:4px 8px; background:var(--accent-cyan); color:#0a0a1a; border:none; border-radius:6px; cursor:pointer;">Review Signals</button>
+                <div class="header-line"></div>
+                <div
+                    style="font-size:0.6rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:1px; opacity:0.6; white-space:nowrap;">
+                    Historical Truths</div>
+            </div>
+
+            <div class="databank-grid">
+                <!-- Business Focus -->
+                <div class="databank-column">
+                    <div class="databank-header">
+                        <i class="fas fa-chart-line" style="color:var(--accent-blue);"></i>
+                        <h3>Business Focus</h3>
+                    </div>
+                    <div id="db-business" class="nugget-list">
+                        <div class="loading" style="padding:1rem;"><small>Fetching history...</small></div>
+                    </div>
+                </div>
+
+                <!-- Recruitment & Talent -->
+                <div class="databank-column">
+                    <div class="databank-header">
+                        <i class="fas fa-bullseye" style="color:var(--accent-amber);"></i>
+                        <h3>Recruitment & Talent</h3>
+                    </div>
+                    <div id="db-recruitment" class="nugget-list">
+                        <div class="loading" style="padding:1rem;"><small>Fetching history...</small></div>
+                    </div>
+                </div>
+
+                <!-- Personal / Family -->
+                <div class="databank-column">
+                    <div class="databank-header">
+                        <i class="fas fa-heart" style="color:var(--accent-rose);"></i>
+                        <h3>Family & Personal</h3>
+                    </div>
+                    <div id="db-personal" class="nugget-list">
+                        <div class="loading" style="padding:1rem;"><small>Fetching history...</small></div>
+                    </div>
+                </div>
+
+                <!-- OBE Focus -->
+                <div class="databank-column">
+                    <div class="databank-header">
+                        <i class="fas fa-globe" style="color:var(--accent-violet);"></i>
+                        <h3>OBE Focus</h3>
+                    </div>
+                    <div id="db-obe" class="nugget-list">
+                        <div class="loading" style="padding:1rem;"><small>Fetching history...</small></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legacy Context (Small Drill-down) -->
+            <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                    <div class="context-label" style="opacity:0.6;">Profile Overrides / Manual Notes</div>
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                    <div>
+                        <div class="context-label" style="font-size:0.6rem;">Professional Override</div>
+                        <div class="context-text" id="prof-context-text" contenteditable="true"
+                            style="font-size:0.85rem; opacity:0.8; padding:8px; background:rgba(255,255,255,0.03); border-radius:8px; min-height: 44px;">
+                        </div>
+                    </div>
+                    <div>
+                        <div class="context-label" style="font-size:0.6rem;">Personal Override</div>
+                        <div class="context-text" id="pers-context-text" contenteditable="true"
+                            style="font-size:0.85rem; opacity:0.8; padding:8px; background:rgba(255,255,255,0.03); border-radius:8px; min-height: 44px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Career History remains at bottom -->
+            <div id="employment-history-container"
+                style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--glass-border);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.75rem;">
+                    <div class="context-label">📋 Career History</div>
+                    <button onclick="addRole()"
+                        style="font-size:0.75rem; padding:4px 12px; background:rgba(53,232,255,0.1); border:1px solid var(--accent-cyan); color:var(--accent-cyan); border-radius:8px; cursor:pointer; font-weight:700;">+
+                        Add Role</button>
+                </div>
+                <div id="employment-timeline">
+                    <p style="color:var(--text-muted); font-size:0.85rem;">No career history yet — click + Add Role.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-card profile-events-section" id="profile-events-section">
+            <div class="profile-events-header">
+                <div>
+                    <div class="events-kicker">Event Relationships</div>
+                    <h2 style="margin:0;">Event Tracking</h2>
+                </div>
+                <button type="button" id="profile-add-event-btn" class="events-primary-btn">Add To Event</button>
+            </div>
+            <div id="profile-events-controls" class="profile-event-controls" style="display:none; margin-top: 1rem;">
+                <select id="profile-event-select"></select>
+                <select id="profile-event-status-select"></select>
+                <button type="button" id="profile-link-event-btn" class="events-ghost-btn">Link Event</button>
+            </div>
+            <div id="profile-events-list" class="profile-events-list"></div>
+        </div>
+
+        <!-- Recent Interactions -->
+        <div class="section-card">
+            <div class="section-header">
+                <h2><i class="fas fa-history"></i> Recent Interactions</h2>
+                <div class="header-line"></div>
+            </div>
+            <div id="interactions-timeline"></div>
+        </div>
+
+        <!-- M365 Email Panel -->
+        <div class="section-card" id="m365-email-section" style="border-left: 3px solid #0078D4;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                <div class="section-header" style="flex:1; margin-bottom:0;">
+                    <h2><i class="fab fa-microsoft" style="color:#0078D4;"></i> M365 Mailbox</h2>
+                    <div class="header-line"></div>
+                </div>
+                <div style="display:flex; gap:0.5rem; margin-left:1.5rem;">
+                    <button onclick="syncM365Emails()" id="btn-sync-emails"
+                        style="font-size:0.75rem; padding:4px 12px; background:rgba(0,120,212,0.1); border:1px solid rgba(0,120,212,0.3); color:#35E8FF; border-radius:8px; cursor:pointer; font-weight:700;">🔄
+                        Sync Emails</button>
+                    <span id="m365-sync-status" style="font-size:0.75rem; color:#666; margin-left:8px;">(status unknown)</span>
+                    <button onclick="openComposeModal()"
+                        style="font-size:0.75rem; padding:4px 12px; background:#0078D4; border:none; color:white; border-radius:8px; cursor:pointer; font-weight:700;">✏️
+                        Compose</button>
+                </div>
+            </div>
+            <div id="m365-auth-warning"
+                style="display:none; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); padding:0.75rem; border-radius:8px; margin-bottom:1rem; font-size:0.85rem; color:#f59e0b;">
+                ⚠️ M365 not authenticated. <button onclick="startM365Auth()"
+                    style="background:transparent; border:none; color:#35E8FF; text-decoration:underline; cursor:pointer; font-weight:700; padding:0;">Login
+                    now</button>
+            </div>
+            <div id="m365-email-list" style="max-height: 300px; overflow-y:auto; padding-right:8px;">
+                <p style="color:var(--text-muted); font-size:0.85rem; padding: 1rem 0;">Click Sync to load recent emails
+                    with this contact.</p>
+            </div>
+        </div>
+
+        <!-- Open Tasks -->
+        <div class="section-card" id="tasks-section" style="display:none;">
+            <h2><span class="icon">✓</span> Open Tasks</h2>
+            <div id="tasks-list"></div>
+        </div>
+    </div>
+
+    <script src="/js/plugins/PluginManager.js"></script>
+    <script src="/js/plugins/StrategistPlugin.js"></script>
+    <script src="/js/profile/core.js"></script>
+    <script src="/js/profile/header.js"></script>
+    <script src="/js/profile/signals.js"></script>
+    <script src="/js/profile/interactions.js"></script>
+    <script src="/js/profile/briefing.js"></script>
+    <script src="/js/profile/workflow.js"></script>
+    <script src="/js/profile.js"></script>
+    <!-- Profile Chat - Floating Sidebar -->
+    <div id="chat-modal" class="floating-chat" style="display:none;">
+        <div class="floating-chat-content">
+            <div class="chat-header">
+                <h3 id="profile-chat-title"
+                    style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:0.5rem;">
+                    💬 Profile Assistant
+                </h3>
+                <button onclick="closeChatModal()" class="close-btn">&times;</button>
+            </div>
+
+            <div id="chat-history" class="chat-messages">
+                <!-- Messages will be injected here -->
+            </div>
+        </div>
+
+        <div class="chat-input-container" id="chat-dropzone">
+            <!-- Drop overlay (hidden by default) -->
+            <div id="chat-drop-overlay"
+                style="display:none; position:absolute; inset:0; background:rgba(53,232,255,0.9); border-radius:inherit; z-index:10; display:none; flex-direction:column; align-items:center; justify-content:center; color:var(--bg-card); font-weight:700;">
+                <i class="fas fa-file-arrow-up" style="font-size:2rem; margin-bottom:0.5rem;"></i>
+                Drop to process AI
+            </div>
+
+            <div class="chat-input-wrapper">
+                <input type="text" id="chat-input" placeholder="Ask or tell me something..."
+                    onkeypress="if(event.key==='Enter') askQuestion()">
+
+                <!-- File Attach Button -->
+                <label for="chat-file-upload" class="input-attach-btn" title="Attach file (Image, Audio, PDF)">
+                    📎
+                </label>
+                <input type="file" id="chat-file-upload" style="display:none;"
+                    accept="image/*,audio/*,application/pdf,text/plain" onchange="handleFileSelect(event)">
+
+                <button id="mic-btn" class="input-mic-btn" onclick="recordChatAudio()" title="Voice input">
+                    🎤
+                </button>
+            </div>
+            <button onclick="askQuestion()" class="send-btn">Send</button>
+        </div>
+    </div>
+
+    </div>
+
+    <style>
+        /* Floating Chat Styles — right-side panel (overrides base) */
+        .floating-chat {
+            position: fixed;
+            right: 16px;
+            top: 16px;
+            bottom: 16px;
+            width: 400px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            animation: slideInRight 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+            border-radius: 20px;
+        }
+
+        .floating-chat-content {
+            background: rgba(255, 255, 255, 0.95) !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            border-radius: 20px !important;
+            box-shadow: var(--shadow-lg) !important;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            background: linear-gradient(135deg, rgba(0, 71, 255, 0.05), rgba(53, 232, 255, 0.05));
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.75rem;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .close-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .assistant-message,
+        .user-message {
+            padding: 0.875rem 1rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            max-width: 90%;
+        }
+
+        .assistant-message {
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            align-self: flex-start;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-navy));
+            color: white;
+            align-self: flex-end;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0, 71, 255, 0.1);
+        }
+
+        /* Chat Input Styling - With Integrated Mic */
+        .chat-input-container {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            background: rgba(255, 255, 255, 0.2);
+            position: relative;
+        }
+
+        .chat-input-wrapper {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .chat-input-wrapper input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            padding: 0.75rem;
+            padding-right: 2.5rem;
+            /* Room for mic icon */
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .input-attach-btn {
+            position: absolute;
+            right: 42px;
+            /* Next to mic */
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-attach-btn:hover {
+            opacity: 1;
+            color: var(--accent-blue);
+        }
+
+        .input-mic-btn {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: all 0.2s;
+        }
+
+        .input-mic-btn:hover {
+            opacity: 1;
+            color: var(--accent-cyan);
+        }
+
+        .input-mic-btn.recording {
+            color: var(--accent-red);
+            animation: pulse-red 1s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 0.7;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .chat-input-container input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .mic-button {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            border: none;
+            border-radius: 8px;
+            width: 44px;
+            height: 44px;
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mic-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
+        }
+
+        .mic-button.recording {
+            background: #ff006e;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.25rem;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .send-btn:hover {
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4);
+            filter: brightness(1.1);
+        }
+    </style>
+
+    <!-- File Drop Zone Removed for better UX -->
+
+    <script>
+        // ... (Existing JS) ...
+
+
+        // --- Chat Logic ---
+        function openChat() {
+            const chatModal = document.getElementById('chat-modal');
+            const history = document.getElementById('chat-history');
+            const name = document.getElementById('profile-name') ? document.getElementById('profile-name').innerText : 'this person';
+
+            // Hide the Ask AI FAB when chat is open to prevent overlap
+            const aiFab = document.querySelector('.twin-fab');
+            if (aiFab) aiFab.style.display = 'none';
+
+            // Add initial greeting if history is empty
+            if (currentChatHistory.length === 0 && history.children.length <= 1) {
+                const welcomeMsg = document.createElement('div');
+                welcomeMsg.className = 'assistant-message';
+                welcomeMsg.innerHTML = `Hi! I'm your dedicated assistant for <b>${name}</b>. How can I help you with this profile today?`;
+                history.appendChild(welcomeMsg);
+            }
+
+            chatModal.style.display = 'flex';
+            document.getElementById('chat-input').focus();
+        }
+
+        function closeChatModal() {
+            document.getElementById('chat-modal').style.display = 'none';
+            // Show the Ask AI FAB again when chat is closed
+            const aiFab = document.querySelector('.twin-fab');
+            if (aiFab) aiFab.style.display = 'flex';
+        }
+
+        let currentChatHistory = [];
+        let chatMediaRecorder;
+        let chatAudioChunks = [];
+
+        async function askQuestion() {
+            const input = document.getElementById('chat-input');
+            const history = document.getElementById('chat-history');
+            const question = input.value.trim();
+
+            if (!question) return;
+
+            // Add user message with new styling
+            const userMsg = document.createElement('div');
+            userMsg.className = 'user-message';
+            userMsg.textContent = question;
+            history.appendChild(userMsg);
+            input.value = '';
+
+            // Add to history state
+            currentChatHistory.push({ "role": "user", "content": question });
+
+            // Add loading message
+            const loadingMsg = document.createElement('div');
+            loadingMsg.className = 'assistant-message';
+            loadingMsg.textContent = 'Thinking...';
+            loadingMsg.style.fontStyle = 'italic';
+            loadingMsg.id = 'loading-' + Date.now();
+            history.appendChild(loadingMsg);
+            history.scrollTop = history.scrollHeight;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/intelligence/chat/${personId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: question, history: currentChatHistory })
+                });
+
+                const data = await res.json();
+
+                // Replace loading with answer
+                loadingMsg.remove();
+                const assistantMsg = document.createElement('div');
+                assistantMsg.className = 'assistant-message';
+                assistantMsg.innerHTML = data.response || "No answer returned.";
+                history.appendChild(assistantMsg);
+
+                // Add assistant message to history state
+                currentChatHistory.push({ "role": "assistant", "content": data.response });
+
+                // REFRESH IMMEDIATELY if any update suggested
+                console.log("Checking for refresh flags in response...");
+                regenerateBrief();
+                setTimeout(() => loadPerson(), 500);
+
+            } catch (err) {
+                loadingMsg.remove();
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'assistant-message';
+                errorMsg.style.color = 'var(--accent-red)';
+                errorMsg.textContent = 'Error: ' + err.message;
+                history.appendChild(errorMsg);
+            }
+            history.scrollTop = history.scrollHeight;
+        }
+
+        // Voice input for chat
+        async function recordChatAudio() {
+            const micBtn = document.getElementById('mic-btn');
+
+            if (chatMediaRecorder && chatMediaRecorder.state === 'recording') {
+                // Stop recording
+                chatMediaRecorder.stop();
+                micBtn.classList.remove('recording');
+                micBtn.textContent = '🎤';
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                // Explicitly request opus codec for OpenAI Whisper compatibility
+                const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                    ? { mimeType: 'audio/webm;codecs=opus' }
+                    : undefined;
+
+                chatMediaRecorder = new MediaRecorder(stream, options);
+                chatAudioChunks = [];
+
+                chatMediaRecorder.ondataavailable = (e) => {
+                    chatAudioChunks.push(e.data);
+                };
+
+                chatMediaRecorder.onstop = async () => {
+                    // Use the exact mime type that was recorded
+                    const audioBlob = new Blob(chatAudioChunks, { type: chatMediaRecorder.mimeType || 'audio/webm' });
+
+                    if (audioBlob.size === 0) {
+                        console.warn("Chat audio recording was empty.");
+                        micBtn.textContent = '🎤';
+                        return;
+                    }
+
+                    // Transcribe using Gemini (or OpenAI Whisper on backend)
+                    const formData = new FormData();
+                    formData.append('file', audioBlob, 'chat-voice.webm');
+
+                    micBtn.textContent = '⏳';
+
+                    try {
+                        const res = await fetch(`${API_BASE}/api/intelligence/transcribe`, {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        const data = await res.json();
+
+                        if (data.text) {
+                            // Insert transcript into input field
+                            document.getElementById('chat-input').value = data.text;
+                            document.getElementById('chat-input').focus();
+                        }
+                    } catch (err) {
+                        alert('Transcription failed: ' + err.message);
+                    } finally {
+                        micBtn.textContent = '🎤';
+                    }
+
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                chatMediaRecorder.start(200);
+                micBtn.classList.add('recording');
+                micBtn.textContent = '⏹';
+            } catch (err) {
+                alert('Microphone access denied: ' + err.message);
+            }
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('chat-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') askQuestion();
+        });
+
+        // ── Unified file upload handler (images + PDFs) ──
+        async function handleFileUpload(blob, filename) {
+            const history = document.getElementById('chat-history');
+
+            // Show user bubble with file preview
+            const fileMsg = document.createElement('div');
+            fileMsg.className = 'user-message';
+            const isImage = blob.type.startsWith('image/');
+            if (isImage) {
+                const fr = new FileReader();
+                fr.onload = (evt) => {
+                    fileMsg.innerHTML = `<img src="${evt.target.result}" style="max-width:200px;border-radius:12px;display:block;margin:4px 0;border:1px solid rgba(255,255,255,0.1);" />`;
+                };
+                fr.readAsDataURL(blob);
+            } else {
+                // PDF / TXT — show file pill
+                fileMsg.innerHTML = `<span style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(53,232,255,0.1);border:1px solid rgba(53,232,255,0.3);border-radius:12px;font-size:0.85rem;">
+                    📄 <strong>${filename}</strong>
+                </span>`;
+            }
+            history.appendChild(fileMsg);
+            history.scrollTop = history.scrollHeight;
+
+            // Loading indicator
+            const loadingMsg = document.createElement('div');
+            loadingMsg.className = 'assistant-message';
+            loadingMsg.innerHTML = `<span class="spinner" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:8px;border-width:2px;border-color:var(--accent-cyan);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></span> <span style="font-style:italic">${isImage ? 'Analysing image...' : 'Reading document and updating profile...'}</span>`;
+            history.appendChild(loadingMsg);
+            history.scrollTop = history.scrollHeight;
+
+            try {
+                const formData = new FormData();
+                formData.append('file', blob, filename);
+                const res = await fetch(`${API_BASE}/api/interactions/upload/${personId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                loadingMsg.remove();
+
+                const successMsg = document.createElement('div');
+                successMsg.className = 'assistant-message';
+
+                if (data.profile_photo_updated && data.media_url) {
+                    // Instantly update avatar
+                    const photoEl = document.getElementById('profile-photo');
+                    if (photoEl) {
+                        photoEl.innerHTML = `<img src="${API_BASE}${data.media_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+                        photoEl.style.backgroundColor = 'transparent';
+                    }
+                    successMsg.innerHTML = '✅ Profile photo updated!';
+                } else if (isImage) {
+                    successMsg.innerHTML = '✅ Image analysed and added to interactions.';
+                } else {
+                    const enrichMsg = data.enrichment ? (data.enrichment.response || 'Career profile updated from document.') : 'Document uploaded.';
+                    successMsg.innerHTML = `✅ ${enrichMsg}`;
+                }
+                history.appendChild(successMsg);
+                history.scrollTop = history.scrollHeight;
+
+                currentChatHistory.push({ "role": "user", "content": `[User uploaded: ${filename}]` });
+                currentChatHistory.push({ "role": "assistant", "content": "File processed: " + data.media_url });
+
+                // Force reload of briefing and intel
+                window.hasLoadedBriefing = false;
+                setTimeout(() => loadPerson(), 1200);
+            } catch (err) {
+                loadingMsg.remove();
+                const errMsg = document.createElement('div');
+                errMsg.className = 'assistant-message';
+                errMsg.style.color = 'var(--accent-red)';
+                errMsg.textContent = 'Upload error: ' + err.message;
+                history.appendChild(errMsg);
+            }
+        }
+
+        // Paste handler — images AND PDFs
+        document.getElementById('chat-input').addEventListener('paste', async function (e) {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let index in items) {
+                const item = items[index];
+                const isImage = item.kind === 'file' && item.type.startsWith('image/');
+                const isPdf = item.kind === 'file' && (item.type === 'application/pdf' || item.type === 'text/plain');
+                if (isImage || isPdf) {
+                    e.preventDefault();
+                    const blob = item.getAsFile();
+                    const filename = isImage ? 'clipboard_image.png' : (blob.name || 'document.pdf');
+                    await handleFileUpload(blob, filename);
+                    return;
+                }
+            }
+        });
+
+        // Manual File Upload handler
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files && files.length > 0) {
+                const f = files[0];
+                handleFileUpload(f, f.name);
+            }
+            // Reset input so same file can be selected again if needed
+            event.target.value = '';
+        }
+
+        // Drag-and-drop handler on the chat input area
+        const dropzone = document.getElementById('chat-dropzone');
+        const dropOverlay = document.getElementById('chat-drop-overlay');
+
+        if (dropzone) {
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropOverlay.style.display = 'flex';
+            });
+
+            dropzone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.relatedTarget && !dropzone.contains(e.relatedTarget)) {
+                    dropOverlay.style.display = 'none';
+                }
+            });
+
+            dropzone.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropOverlay.style.display = 'none';
+
+                const files = e.dataTransfer.files;
+                for (let i = 0; i < files.length; i++) {
+                    const f = files[i];
+                    if (f.type.startsWith('image/') || f.type.startsWith('audio/') || f.type === 'application/pdf' || f.type === 'text/plain') {
+                        await handleFileUpload(f, f.name);
+                    }
+                }
+            });
+        }
+
+
+
+
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then(reg => console.log('Service Worker registered!'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+    <!-- AI Chat FAB -->
+    <div class="twin-fab" onclick="openChat()" title="Ask AI about this contact">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <defs>
+                <linearGradient id="ombre-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#35E8FF;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#0047FF;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+            <path d="M12 2L14.7 8.6L21.3 11.3L14.7 14L12 20.6L9.3 14L2.7 11.3L9.3 8.6L12 2Z" fill="url(#ombre-grad)" />
+        </svg>
+        <span
+            style="font-size:0.8rem; font-weight:700; color:transparent; background:linear-gradient(135deg,#35E8FF,#0047FF); -webkit-background-clip:text; background-clip:text;">Ask
+            AI</span>
+    </div>
+    <!-- Scroll to Top Button -->
+    <div id="scroll-top-btn" class="scroll-top-btn" onclick="scrollToTop()" title="Return to Top">
+        ↑
+    </div>
+    <!-- ═══ CREATE TASK MODAL ══════════════════════════════════════════ -->
+    <div id="task-modal-overlay" onclick="closeTaskModal(event)"
+        style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); backdrop-filter:none; z-index:900; align-items:flex-end; justify-content:center;">
+        <div id="task-modal-sheet"
+            style="background:rgba(12,20,38,0.97); border:1px solid rgba(255,255,255,0.14); border-radius:24px 24px 0 0; padding:1.5rem; width:100%; max-width:560px; transform:translateY(100%); transition:transform 0.35s cubic-bezier(0.23,1,0.32,1);">
+
+            <div
+                style="width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,0.18);margin:0 auto 1.25rem;">
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+                <div style="font-family:'Outfit',sans-serif;font-size:1.15rem;font-weight:700;">✅ New Task</div>
+                <div id="tm-person-pill"
+                    style="display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:100px;background:rgba(53,232,255,0.1);border:1px solid rgba(53,232,255,0.3);font-size:0.72rem;font-weight:700;color:#35E8FF;">
+                    <span
+                        style="width:6px;height:6px;border-radius:50%;background:#35E8FF;display:inline-block;"></span>
+                    <span id="tm-person-name">Contact</span>
+                </div>
+            </div>
+
+            <div style="margin-bottom:0.9rem;">
+                <label
+                    style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;display:block;margin-bottom:.35rem;">Task
+                    Description *</label>
+                <textarea id="tm-text" rows="2" placeholder="Call to discuss Q2 plan, Send follow-up proposal…"
+                    style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);color:white;padding:.65rem .9rem;border-radius:11px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none;resize:vertical;min-height:70px;"
+                    onfocus="this.style.borderColor='#35E8FF'"
+                    onblur="this.style.borderColor='rgba(255,255,255,0.14)'"></textarea>
+            </div>
+
+            <div style="margin-bottom:0.9rem;">
+                <label
+                    style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;display:block;margin-bottom:.35rem;">Due
+                    Date & Time</label>
+                <div style="display:flex;gap:.5rem;margin-bottom:.65rem;">
+                    <button onclick="tmSeg('morning')" id="tmsq-morning"
+                        style="flex:1;padding:7px 4px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.68rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .2s;">
+                        <span style="font-size:1rem;">🌅</span><span>Morning</span><span
+                            style="font-size:.6rem;opacity:.7;">09:00</span>
+                    </button>
+                    <button onclick="tmSeg('afternoon')" id="tmsq-afternoon"
+                        style="flex:1;padding:7px 4px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.68rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .2s;">
+                        <span style="font-size:1rem;">☀️</span><span>Afternoon</span><span
+                            style="font-size:.6rem;opacity:.7;">13:00</span>
+                    </button>
+                    <button onclick="tmSeg('evening')" id="tmsq-evening"
+                        style="flex:1;padding:7px 4px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.68rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .2s;">
+                        <span style="font-size:1rem;">🌙</span><span>Evening</span><span
+                            style="font-size:.6rem;opacity:.7;">18:00</span>
+                    </button>
+                    <button onclick="tmSeg('anytime')" id="tmsq-anytime"
+                        style="flex:1;padding:7px 4px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.68rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .2s;">
+                        <span style="font-size:1rem;">📌</span><span>Anytime</span><span
+                            style="font-size:.6rem;opacity:.7;">No time</span>
+                    </button>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+                    <input type="date" id="tm-date"
+                        style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);color:white;padding:.65rem .9rem;border-radius:11px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none;"
+                        onfocus="this.style.borderColor='#35E8FF'"
+                        onblur="this.style.borderColor='rgba(255,255,255,0.14)'">
+                    <input type="time" id="tm-time"
+                        style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);color:white;padding:.65rem .9rem;border-radius:11px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none;"
+                        onfocus="this.style.borderColor='#35E8FF'"
+                        onblur="this.style.borderColor='rgba(255,255,255,0.14)'">
+                </div>
+            </div>
+
+            <div style="margin-bottom:1.1rem;">
+                <label
+                    style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;display:block;margin-bottom:.35rem;">Priority</label>
+                <div style="display:flex;gap:.5rem;">
+                    <button id="tm-ph" onclick="tmPri('high')"
+                        style="flex:1;padding:7px;border-radius:9px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;">🔴
+                        High</button>
+                    <button id="tm-pm" onclick="tmPri('medium')"
+                        style="flex:1;padding:7px;border-radius:9px;border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.12);color:#f59e0b;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;">🟡
+                        Medium</button>
+                    <button id="tm-pl" onclick="tmPri('low')"
+                        style="flex:1;padding:7px;border-radius:9px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;">🟢
+                        Low</button>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:.75rem;">
+                <button onclick="closeTaskModal()"
+                    style="padding:.78rem 1.1rem;border-radius:11px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#cbd5e1;font-size:.88rem;font-weight:600;cursor:pointer;">Cancel</button>
+                <button onclick="saveProfileTask()"
+                    style="flex:1;padding:.78rem;border-radius:11px;border:none;background:linear-gradient(135deg,#0047FF,#35E8FF);color:white;font-size:.88rem;font-weight:700;cursor:pointer;">Save
+                    Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task toast notification -->
+    <div id="task-toast"
+        style="position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(100px);background:rgba(12,20,38,0.96);border:1px solid rgba(255,255,255,0.14);border-radius:11px;padding:.7rem 1.2rem;font-size:.83rem;font-weight:600;color:white;transition:transform .3s cubic-bezier(0.23,1,0.32,1);z-index:1000;pointer-events:none;">
+    </div>
+
+    <!-- ── M365 EMAIL COMPOSE MODAL ─────────────────────────────────────── -->
+    <div id="m365-compose-modal"
+        style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); backdrop-filter:none; z-index:10000; align-items:center; justify-content:center;">
+        <div
+            style="background:var(--bg-card); border:1px solid rgba(0,120,212,0.5); border-radius:16px; width:90%; max-width:600px; padding:2rem; box-shadow:0 24px 80px rgba(0,0,0,0.6); position:relative;">
+            <button onclick="document.getElementById('m365-compose-modal').style.display='none'"
+                style="position:absolute; top:15px; right:15px; background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+            <h3 style="margin-top:0; color:#35E8FF; font-size:1.2rem; display:flex; align-items:center; gap:0.5rem;">
+                <span style="color:#0078D4;">📧</span> Compose Email
+            </h3>
+
+            <div style="margin-bottom:1rem;">
+                <label
+                    style="display:block; font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px; font-weight:800; letter-spacing:1px;">To</label>
+                <div id="m365-compose-to"
+                    style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-muted); padding:10px 12px; border-radius:8px; font-size:0.9rem;">
+                </div>
+            </div>
+
+            <div style="margin-bottom:1rem;">
+                <label
+                    style="display:block; font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px; font-weight:800; letter-spacing:1px;">Subject</label>
+                <input type="text" id="m365-compose-subject" placeholder="Email subject..."
+                    style="width:100%; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.2); color:white; padding:10px 12px; border-radius:8px; font-size:0.9rem; outline:none; font-family:'Inter', sans-serif;">
+            </div>
+
+            <div style="margin-bottom:1.5rem;">
+                <label
+                    style="display:block; font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px; font-weight:800; letter-spacing:1px;">Message</label>
+                <textarea id="m365-compose-body" rows="8" placeholder="Type your email here..."
+                    style="width:100%; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.2); color:white; padding:12px; border-radius:8px; font-size:0.9rem; outline:none; font-family:'Inter', sans-serif; resize:vertical;"></textarea>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+                <button onclick="document.getElementById('m365-compose-modal').style.display='none'"
+                    style="background:none; border:none; color:var(--text-muted); padding:8px 16px; cursor:pointer; font-weight:600;">Cancel</button>
+                <button onclick="sendM365Email()" id="m365-btn-send"
+                    style="background:#0078D4; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:0.5rem;">Send
+                    Email 🚀</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- M365 Auth Modal (Device Flow) -->
+    <div id="m365-auth-modal"
+        style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); backdrop-filter:none; z-index:10000; align-items:center; justify-content:center;">
+        <div
+            style="background:var(--bg-card); border:1px solid var(--accent-cyan); border-radius:16px; width:90%; max-width:450px; padding:2.5rem; text-align:center; box-shadow:0 24px 80px rgba(0,0,0,0.6);">
+            <div style="font-size:3rem; margin-bottom:1rem;">🔐</div>
+            <h3 style="margin-top:0; font-size:1.5rem; margin-bottom:1rem;">Microsoft 365 Login</h3>
+            <p style="color:var(--text-secondary); margin-bottom:2rem;">To sync emails and send messages, please
+                authenticate your Microsoft account.</p>
+
+            <div style="background:rgba(255,255,255,0.05); padding:1.5rem; border-radius:12px; margin-bottom:2rem;">
+                <p style="margin:0 0 1rem 0; font-size:0.9rem;">1. Go to this link:</p>
+                <a id="m365-auth-url" href="#" target="_blank"
+                    style="display:inline-block; margin-bottom:1.5rem; color:#35E8FF; font-weight:bold; font-size:1.1rem; word-break:break-all;">https://microsoft.com/devicelogin</a>
+
+                <p style="margin:0 0 0.5rem 0; font-size:0.9rem;">2. Enter this code:</p>
+                <div id="m365-auth-code"
+                    style="font-size:2rem; font-family:monospace; font-weight:bold; letter-spacing:4px; color:#fff; background:rgba(0,0,0,0.3); padding:0.5rem 1rem; border-radius:8px; display:inline-block;">
+                    ...</div>
+            </div>
+
+            <p id="m365-auth-status-text"
+                style="color:var(--text-muted); font-size:0.85rem; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
+                <span class="spinner" style="font-size:1.2rem;">⏳</span> Waiting for you to complete login...
+            </p>
+        </div>
+    </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            renderUniversalLayout('', 'PROFILE DOSSIER');
+        });
+        // ─── TASK MODAL ───────────────────────────────────────────────────────────
+        let _tmPriority = 'medium';
+        const _tmSegTimes = { morning: '09:00', afternoon: '13:00', evening: '18:00', anytime: '' };
+        const _tmSegColors = {
+            morning: { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: 'rgba(245,158,11,0.35)' },
+            afternoon: { bg: 'rgba(53,232,255,0.1)', color: '#35E8FF', border: 'rgba(53,232,255,0.3)' },
+            evening: { bg: 'rgba(139,92,246,0.15)', color: '#8b5cf6', border: 'rgba(139,92,246,0.35)' },
+            anytime: { bg: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: 'rgba(255,255,255,0.14)' }
+        };
+
+        function openTaskModal() {
+            // Pre-fill today's date
+            const d = new Date();
+            document.getElementById('tm-date').value =
+                d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            document.getElementById('tm-time').value = '';
+            document.getElementById('tm-text').value = '';
+
+            // Show person name in pill (currentPersonData set by the page's existing JS)
+            const name = window.currentPersonData ? window.currentPersonData.full_name : 'This Contact';
+            document.getElementById('tm-person-name').textContent = name;
+
+            // Reset segments & priority
+            ['morning', 'afternoon', 'evening', 'anytime'].forEach(s => {
+                const btn = document.getElementById('tmsq-' + s);
+                btn.style.background = 'transparent'; btn.style.color = '#94a3b8'; btn.style.borderColor = 'rgba(255,255,255,0.14)';
+            });
+            tmPri('medium');
+
+            // Slide up the sheet
+            const overlay = document.getElementById('task-modal-overlay');
+            overlay.style.display = 'flex';
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                document.getElementById('task-modal-sheet').style.transform = 'translateY(0)';
+            }));
+            setTimeout(() => document.getElementById('tm-text').focus(), 380);
+        }
+
+        function closeTaskModal(e) {
+            if (e && e.target && e.target.id !== 'task-modal-overlay') return;
+            document.getElementById('task-modal-sheet').style.transform = 'translateY(100%)';
+            setTimeout(() => { document.getElementById('task-modal-overlay').style.display = 'none'; }, 370);
+        }
+
+        function tmSeg(s) {
+            ['morning', 'afternoon', 'evening', 'anytime'].forEach(x => {
+                const b = document.getElementById('tmsq-' + x);
+                b.style.background = 'transparent'; b.style.color = '#94a3b8'; b.style.borderColor = 'rgba(255,255,255,0.14)';
+            });
+            const c = _tmSegColors[s]; const b = document.getElementById('tmsq-' + s);
+            b.style.background = c.bg; b.style.color = c.color; b.style.borderColor = c.border;
+            document.getElementById('tm-time').value = _tmSegTimes[s];
+        }
+
+        function tmPri(p) {
+            _tmPriority = p;
+            const styles = {
+                high: ['rgba(255,59,48,0.15)', '#FF3B30', 'rgba(255,59,48,0.3)'],
+                medium: ['rgba(245,158,11,0.12)', '#f59e0b', 'rgba(245,158,11,0.3)'],
+                low: ['rgba(16,185,129,0.12)', '#10b981', 'rgba(16,185,129,0.3)']
+            };
+            ['high', 'medium', 'low'].forEach(x => {
+                const b = document.getElementById('tm-p' + x[0]);
+                if (x === p) { b.style.background = styles[x][0]; b.style.color = styles[x][1]; b.style.borderColor = styles[x][2]; }
+                else { b.style.background = 'transparent'; b.style.color = '#94a3b8'; b.style.borderColor = 'rgba(255,255,255,0.14)'; }
+            });
+        }
+
+        function _showTaskToast(msg, success) {
+            const toast = document.getElementById('task-toast');
+            toast.textContent = msg;
+            toast.style.borderColor = success ? 'rgba(16,185,129,0.4)' : 'rgba(255,59,48,0.4)';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+            setTimeout(() => { toast.style.transform = 'translateX(-50%) translateY(100px)'; }, 3000);
+        }
+
+        async function saveProfileTask() {
+            const text = document.getElementById('tm-text').value.trim();
+            if (!text) { document.getElementById('tm-text').focus(); return; }
+
+            // Grab personId from the existing page state
+            const personId = window.currentPersonData ? window.currentPersonData.person_id : null;
+            const dueDate = document.getElementById('tm-date').value || null;
+            const dueTime = document.getElementById('tm-time').value || null;
+
+            try {
+                const r = await fetch('/api/tasks', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_text: text, person_id: personId, due_date: dueDate, due_time: dueTime, priority: _tmPriority })
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                // Close & toast
+                document.getElementById('task-modal-sheet').style.transform = 'translateY(100%)';
+                setTimeout(() => { document.getElementById('task-modal-overlay').style.display = 'none'; }, 370);
+                _showTaskToast('✅ Task saved — linked to ' + (window.currentPersonData ? window.currentPersonData.full_name : 'contact'), true);
+            } catch (e) {
+                _showTaskToast('❌ Save failed — is the server running?', false);
+            }
+        }
+        // M365 Functions
+        let checkAuthInterval;
+
+        async function checkM365Auth() {
+            try {
+                const res = await fetch(`${API_BASE}/api/m365/auth/status`);
+                const data = await res.json();
+                if (data.status === 'authenticated') {
+                    document.getElementById('m365-auth-warning').style.display = 'none';
+                    return true;
+                } else {
+                    document.getElementById('m365-auth-warning').style.display = 'block';
+                    return false;
+                }
+            } catch (e) { console.error("M365 Auth Check Error", e); return false; }
+        }
+
+        async function startM365Auth() {
+            try {
+                const res = await fetch(`${API_BASE}/api/m365/auth/start`, { method: 'POST' });
+                const data = await res.json();
+
+                if (data.status === 'pending') {
+                    document.getElementById('m365-auth-url').href = data.verification_uri;
+                    document.getElementById('m365-auth-url').textContent = data.verification_uri;
+                    document.getElementById('m365-auth-code').textContent = data.user_code;
+                    document.getElementById('m365-auth-modal').style.display = 'flex';
+
+                    // Poll for completion
+                    checkAuthInterval = setInterval(async () => {
+                        const statusRes = await fetch(`${API_BASE}/api/m365/auth/status`);
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'authenticated') {
+                            clearInterval(checkAuthInterval);
+                            document.getElementById('m365-auth-modal').style.display = 'none';
+                            document.getElementById('m365-auth-warning').style.display = 'none';
+                            _showTaskToast('M365 Connected successfully! 🚀');
+                            syncM365Emails();
+                        } else if (statusData.status === 'error') {
+                            clearInterval(checkAuthInterval);
+                            alert("Auth failed: " + statusData.message);
+                            document.getElementById('m365-auth-modal').style.display = 'none';
+                        }
+                    }, 3000);
+                } else if (data.status === 'authenticated') {
+                    // Already logged in
+                    document.getElementById('m365-auth-warning').style.display = 'none';
+                    syncM365Emails();
+                    loadM365Status();
+                } else {
+                    alert("Auth error: " + JSON.stringify(data));
+                }
+            } catch (e) { alert("Start Auth Error: " + e.message); }
+        }
+
+        async function loadM365Status() {
+            try {
+                const res = await fetch(`${API_BASE}/api/m365/account/${personId}`);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const s = data.data;
+                    const el = document.getElementById('m365-sync-status');
+                    let txt = '';
+                    if (s.last_sync_at) txt += `Last sync: ${s.last_sync_at}`;
+                    if (s.sync_status) txt += ` (${s.sync_status})`;
+                    if (s.last_synced_count) txt += ` · ${s.last_synced_count} new`;
+                    el.textContent = txt || '(never synced)';
+                } else {
+                    document.getElementById('m365-sync-status').textContent = '(no data)';
+                }
+            } catch (e) { console.error('status load error', e); }
+        }
+
+        // update status when page is first displayed
+        document.addEventListener('DOMContentLoaded', () => {
+            loadM365Status();
+        });
+
+        async function syncM365Emails() {
+            const btn = document.getElementById('btn-sync-emails');
+            btn.textContent = '⏳ Syncing...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/m365/emails/${personId}`);
+                const data = await res.json();
+
+                if (data.status === 'error') {
+                    if (data.message.includes('No primary email')) {
+                        document.getElementById('m365-email-list').innerHTML = '<p style="color:var(--text-secondary);">No primary email set for this contact.</p>';
+                    } else if (data.message.includes('auth')) {
+                        document.getElementById('m365-auth-warning').style.display = 'block';
+                    }
+                } else if (data.status === 'success') {
+                    renderEmails(data.emails);
+                    if (data.new_synced > 0) {
+                        _showTaskToast(`Synced ${data.new_synced} new emails to history.`);
+                        // Refresh history panel to show new emails
+                        loadPerson();
+                    }
+                    // update status display after sync
+                    loadM365Status();
+                }
+            } catch (e) {
+                console.error(e);
+            }
+
+            btn.textContent = '🔄 Sync Emails';
+            btn.disabled = false;
+        }
+
+        function renderEmails(emails) {
+            const list = document.getElementById('m365-email-list');
+            if (!emails || emails.length === 0) {
+                list.innerHTML = '<p style="color:var(--text-secondary);">No emails found.</p>';
+                return;
+            }
+
+            list.innerHTML = emails.map(e => `
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); padding:12px; margin-bottom:8px; border-radius:8px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <strong style="color:white; font-size:0.9rem;">${e.subject || '(No Subject)'}</strong>
+                        <span style="color:var(--text-muted); font-size:0.75rem;">${new Date(e.receivedDateTime).toLocaleDateString()}</span>
+                    </div>
+                    <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">From: ${e.sender?.emailAddress?.address || 'Unknown'}</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+                        ${e.bodyPreview || ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function openComposeModal() {
+            if (!await checkM365Auth()) {
+                startM365Auth();
+                return;
+            }
+
+            if (!window.currentPersonData || !window.currentPersonData.email_primary) {
+                alert("Cannot compose: Contact has no primary email address.");
+                return;
+            }
+
+            document.getElementById('m365-compose-to').textContent = `${window.currentPersonData.full_name} <${window.currentPersonData.email_primary}>`;
+            document.getElementById('m365-compose-subject').value = '';
+            document.getElementById('m365-compose-body').value = '';
+            document.getElementById('m365-compose-modal').style.display = 'flex';
+        }
+
+        async function sendM365Email() {
+            const subject = document.getElementById('m365-compose-subject').value.trim();
+            const body = document.getElementById('m365-compose-body').value.trim();
+
+            if (!subject) { alert('Please enter a subject'); return; }
+            if (!body) { alert('Please enter a message'); return; }
+
+            const btn = document.getElementById('m365-btn-send');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ Sending...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/m365/emails/${personId}/send`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject, body })
+                });
+
+                const data = await res.json();
+                if (data.status === 'success') {
+                    document.getElementById('m365-compose-modal').style.display = 'none';
+                    _showTaskToast('Email sent successfully! 🚀');
+                    // Refresh history
+                    loadPerson();
+                } else {
+                    alert('Error sending email: ' + data.message);
+                }
+            } catch (e) {
+                alert('Connection error: ' + e.message);
+            }
+
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+
+        // On document ready, check auth status silently
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(checkM365Auth, 2000);
+        });
+    </script>
+</body>
+
+</html>
+
+
+
+
+

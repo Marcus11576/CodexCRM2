@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — Antigravity CRM</title>
+    <meta name="description" content="Relationship Intelligence Platform — Sign in to your account">
+    <link rel="stylesheet" href="/static/design-system.css">
+    <style>
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-5);
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            padding: var(--space-8);
+        }
+
+        .logo-area {
+            text-align: center;
+            margin-bottom: var(--space-8);
+        }
+
+        .logo-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue), var(--accent-violet));
+            border-radius: var(--radius-xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--space-4);
+            font-size: 28px;
+        }
+
+        .logo-title {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: var(--space-1);
+        }
+
+        .logo-sub {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            margin-bottom: var(--space-5);
+        }
+
+        .setup-note {
+            background: rgba(34, 211, 238, 0.08);
+            border: 1px solid rgba(34, 211, 238, 0.2);
+            border-radius: var(--radius-md);
+            padding: var(--space-4);
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-5);
+            line-height: 1.6;
+        }
+
+        .setup-note strong {
+            color: var(--accent-cyan);
+        }
+    </style>
+    <script src="/js/background.js"></script>
+</head>
+
+<body class="platinum-body">
+    <!-- Platinum Global Background -->
+    <div class="platinum-bg">
+        <div class="platinum-frosted"></div>
+    </div>
+
+    <div class="login-page">
+        <div class="login-card glass-strong">
+            <div class="logo-area">
+                <div class="logo-icon">⚡</div>
+                <h1 class="logo-title gradient-text">Antigravity CRM</h1>
+                <p class="logo-sub">Relationship Intelligence Platform</p>
+            </div>
+
+            <div id="setup-note" class="setup-note" style="display:none">
+                <strong>First launch!</strong> Create your admin account to get started.
+                This only appears once.
+            </div>
+
+            <form id="login-form" novalidate>
+                <div id="name-group" class="form-group" style="display:none">
+                    <div class="input-group">
+                        <label class="input-label" for="full-name">Your Name</label>
+                        <input type="text" id="full-name" class="input" placeholder="Marcus Johnson"
+                            autocomplete="name">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-group">
+                        <label class="input-label" for="email">Email Address</label>
+                        <input type="email" id="email" class="input" placeholder="you@example.com" autocomplete="email"
+                            required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-group">
+                        <label class="input-label" for="password">Password</label>
+                        <input type="password" id="password" class="input" placeholder="••••••••"
+                            autocomplete="current-password" required>
+                    </div>
+                </div>
+
+                <div id="error-msg" style="display:none;color:#f87171;font-size:13px;margin-bottom:var(--space-4)">
+                </div>
+
+                <button type="submit" id="submit-btn" class="btn btn-accent w-full btn-lg">
+                    <span id="btn-text">Sign In</span>
+                    <div id="btn-spinner" class="spinner" style="display:none;width:16px;height:16px;border-width:2px">
+                    </div>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, post, toast } from '/static/utils.js';
+
+        // Redirect if already logged in
+        if (auth.isLoggedIn()) {
+            window.location.href = '/';
+        }
+
+        let isSetupMode = false;
+
+        async function checkSetup() {
+            try {
+                const res = await fetch('/api/auth/status');
+                const data = await res.json();
+                if (data.needs_setup) {
+                    isSetupMode = true;
+                    document.getElementById('setup-note').style.display = 'block';
+                    document.getElementById('name-group').style.display = 'block';
+                    document.getElementById('btn-text').textContent = 'Create Account';
+                    document.querySelector('.logo-sub').textContent = 'First-time setup';
+                    document.getElementById('password').setAttribute('autocomplete', 'new-password');
+                }
+            } catch (e) {
+                console.error('Status check failed:', e);
+            }
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const errEl = document.getElementById('error-msg');
+            const spinner = document.getElementById('btn-spinner');
+            const btnText = document.getElementById('btn-text');
+
+            errEl.style.display = 'none';
+            btn.disabled = true;
+            spinner.style.display = 'block';
+            btnText.style.opacity = '0.5';
+
+            try {
+                let result;
+                if (isSetupMode) {
+                    result = await post('/api/auth/setup', {
+                        email: document.getElementById('email').value.trim(),
+                        full_name: document.getElementById('full-name').value.trim(),
+                        password: document.getElementById('password').value,
+                    });
+                } else {
+                    result = await post('/api/auth/login', {
+                        email: document.getElementById('email').value.trim(),
+                        password: document.getElementById('password').value,
+                    });
+                }
+                auth.setUser(result.user);
+                window.location.href = '/';
+            } catch (err) {
+                errEl.textContent = err.message;
+                errEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                btnText.style.opacity = '1';
+            }
+        });
+
+        checkSetup();
+    </script>
+</body>
+
+</html>
