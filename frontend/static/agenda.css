@@ -56,7 +56,7 @@
             flex-direction: column;
         }
 
-        /* ── TOP BAR ─────────────────────────────────── */
+        /* â”€â”€ TOP BAR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .top-bar {
             display: flex;
             align-items: center;
@@ -118,7 +118,7 @@
             box-shadow: 0 0 15px var(--accent-cyan);
         }
 
-        /* ── LAYOUT ──────────────────────────────────── */
+        /* â”€â”€ LAYOUT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .main {
             display: grid;
             grid-template-columns: 290px 1fr;
@@ -133,7 +133,7 @@
             }
         }
 
-        /* ── CALENDAR PANEL ──────────────────────────── */
+        /* â”€â”€ CALENDAR PANEL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .cal-panel {
             background: var(--glass);
             border: 1px solid var(--glass-border);
@@ -320,7 +320,7 @@
             white-space: nowrap;
         }
 
-        /* ── RIGHT PANEL ──────────────────────────────── */
+        /* â”€â”€ RIGHT PANEL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .right-panel {
             display: flex;
             flex-direction: column;
@@ -338,11 +338,9 @@
             flex-wrap: wrap;
         }
 
-        .day-label {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.2rem;
-            font-weight: 700;
-        }
+.day-label {
+    margin: 0;
+}
 
         .day-sub {
             font-size: 0.72rem;
@@ -355,6 +353,75 @@
             gap: 0.4rem;
             flex-wrap: wrap;
             margin-left: auto;
+        }
+
+        .agenda-search-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-top: 0;
+            width: 100%;
+        }
+
+        .agenda-search-shell {
+            width: 100%;
+            padding: 0.95rem 1rem;
+            border-radius: 18px;
+            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+        }
+
+        .agenda-search-input {
+            flex: 1;
+            min-width: 0;
+            width: 100%;
+            height: 46px;
+            padding: 0.85rem 1rem;
+            border-radius: 14px;
+            border: 1px solid var(--glass-border);
+            background: rgba(15, 23, 42, 0.72);
+            color: var(--text-primary);
+            font-size: 0.88rem;
+            outline: none;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+        }
+
+        .agenda-search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .agenda-search-input:focus {
+            border-color: rgba(53, 232, 255, 0.34);
+            box-shadow: 0 0 0 1px rgba(53, 232, 255, 0.08);
+        }
+
+        .agenda-search-clear {
+            height: 46px;
+            padding: 0 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .agenda-search-context {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.55rem 0.8rem;
+            border-radius: 999px;
+            border: 1px solid rgba(53, 232, 255, 0.2);
+            background: rgba(53, 232, 255, 0.08);
+            color: var(--accent-cyan);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
         }
 
         .fpill {
@@ -446,7 +513,7 @@
             background: white;
         }
 
-        /* ── SEGMENT GROUPS ───────────────────────────── */
+        /* â”€â”€ SEGMENT GROUPS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .seg-block {
             margin-bottom: 0.25rem;
         }
@@ -491,7 +558,7 @@
             gap: 0.4rem;
         }
 
-        /* ── TASK CARD ────────────────────────────────── */
+        /* â”€â”€ TASK CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .task-card {
             background: var(--glass);
             border: 1px solid var(--glass-border);
@@ -534,12 +601,12 @@
             box-shadow: 0 0 15px var(--accent-cyan);
         }
 
-        .task-card.overdue {
-            border-color: rgba(255, 59, 48, 0.22);
-        }
+        
 
-        .task-card.done {
-            opacity: 0.4;
+        .task-card.in-progress {
+            background: rgba(53, 232, 255, 0.12);
+            border-color: rgba(147, 226, 255, 0.42);
+            box-shadow: 0 0 0 1px rgba(147, 226, 255, 0.16) inset, 0 10px 28px rgba(53, 232, 255, 0.08);
         }
 
         .chk {
@@ -580,7 +647,6 @@
 
         .task-card.done .task-text {
             text-decoration: line-through;
-            color: var(--text-muted);
         }
 
         .task-meta {
@@ -659,15 +725,30 @@
             font-weight: 700;
         }
 
-        .task-due.today {
-            color: var(--accent-orange);
-            font-weight: 700;
+        
+
+        .task-status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.64rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            white-space: nowrap;
+        }
+
+        .task-status-badge.in-progress {
+            background: rgba(147, 226, 255, 0.18);
+            color: #dff8ff;
+            border: 1px solid rgba(147, 226, 255, 0.28);
         }
 
         .task-actions {
             display: flex;
             gap: 0.4rem;
-            opacity: 0;
+            opacity: 1;
             transition: opacity 0.2s;
             flex-shrink: 0;
         }
@@ -696,12 +777,50 @@
             color: white;
         }
 
-        .tact.del:hover {
-            background: rgba(255, 59, 48, 0.2);
-            color: var(--accent-red);
+                .tact.status {
+            width: auto;
+            min-width: 58px;
+            padding: 0 10px;
+            font-size: 0.67rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--accent-cyan);
+            border: 1px solid rgba(53, 232, 255, 0.18);
+            background: rgba(53, 232, 255, 0.08);
         }
 
-        /* ── EMPTY / LOADING ─────────────────────────── */
+        .tact.status.active {
+            color: var(--text-primary);
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tact.segment {
+            width: auto;
+            min-width: 76px;
+            padding: 0 10px;
+            font-size: 0.64rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .tact.segment.morning {
+            color: var(--morning-col);
+            border: 1px solid rgba(245, 158, 11, 0.28);
+            background: rgba(245, 158, 11, 0.10);
+        }
+
+        .tact.segment.afternoon {
+            color: var(--accent-cyan);
+            border: 1px solid rgba(53, 232, 255, 0.24);
+            background: rgba(53, 232, 255, 0.10);
+        }
+
+
+
+        /* â”€â”€ EMPTY / LOADING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .empty-state {
             text-align: center;
             padding: 2.5rem 1rem;
@@ -746,7 +865,7 @@
             }
         }
 
-        /* ── ADD TASK MODAL ──────────────────────────── */
+        /* â”€â”€ ADD TASK MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .overlay {
             position: fixed;
             inset: 0;
@@ -1049,3 +1168,175 @@
                 padding: 0.65rem 1rem;
             }
         }
+
+
+
+
+/* Codex compact agenda overrides */
+.main {
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.9rem;
+}
+
+.main > * {
+  min-width: 0;
+}
+
+.cal-panel,
+.panel-header,
+.week-strip-wrap,
+.task-card,
+.sheet {
+  border-radius: 16px;
+}
+
+.cal-panel {
+  padding: 1rem;
+}
+
+.right-panel {
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.panel-header {
+  padding: 0.85rem 1rem;
+  gap: 0.8rem;
+}
+
+.day-label {
+  font-size: var(--heading-page-size);
+}
+
+.filter-pills {
+  gap: 0.35rem;
+}
+
+.agenda-search-row {
+  margin-top: 0;
+}
+
+.agenda-search-input {
+  height: 42px;
+  padding: 0.72rem 0.85rem;
+  font-size: 0.8rem;
+}
+
+.agenda-search-clear {
+  height: 42px;
+  padding: 0 0.85rem;
+}
+
+.fpill,
+.view-btn {
+  min-height: 30px;
+  padding: 0.32rem 0.65rem;
+  font-size: 0.66rem;
+}
+
+.mini-panel,
+.view-row {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .main {
+    grid-template-columns: 1fr;
+  }
+
+  .cal-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 600px) {
+  .main {
+    padding: 0;
+    gap: 0.8rem;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-pills {
+    margin-left: 0;
+  }
+
+  .agenda-search-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 560px) {
+  .cal-panel,
+  .panel-header,
+  .agenda-search-shell,
+  .week-strip-wrap,
+  #task-list,
+  .mini-panel {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .cal-panel {
+    padding: 0.9rem;
+    overflow: hidden;
+  }
+
+  .view-row {
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .view-btn {
+    flex: 1 1 calc(33.333% - 0.35rem);
+    min-width: 0;
+  }
+
+  .mini-item,
+  .mini-text,
+  .mini-date {
+    min-width: 0;
+  }
+
+  .panel-header {
+    padding: 0.85rem 0.9rem;
+  }
+
+  .filter-pills {
+    width: 100%;
+  }
+
+  .fpill {
+    flex: 1 1 calc(50% - 0.35rem);
+    text-align: center;
+  }
+
+  .agenda-search-shell {
+    padding: 0.8rem;
+  }
+
+  .task-card {
+    flex-wrap: wrap;
+    padding: 0.8rem 0.9rem;
+  }
+
+  .task-meta {
+    gap: 0.45rem;
+  }
+
+  .task-person {
+    white-space: normal;
+  }
+
+  .task-actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+}

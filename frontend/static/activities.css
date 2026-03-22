@@ -1,0 +1,57 @@
+﻿/* Activities page shared refinements */
+.content-grid {
+    align-items: start;
+}
+
+.intel-feed-section,
+.trend-section {
+    min-width: 0;
+}
+
+@media (max-width: 960px) {
+    .content-grid {
+        grid-template-columns: 1fr !important;
+        gap: 2rem !important;
+    }
+
+    .centrifuge-wrapper {
+        height: auto;
+        padding: 1rem 0 2rem;
+    }
+}
+
+/* Codex activities uniformity overrides */
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.content-grid {
+  margin-top: 1rem !important;
+  gap: 1rem !important;
+}
+
+.intel-feed-section,
+.trend-section {
+  background: var(--shell-card-bg);
+  border: 1px solid var(--shell-card-border);
+  border-radius: var(--shell-card-radius);
+  box-shadow: var(--shell-card-shadow);
+  padding: 1rem;
+}
+
+.intel-card,
+.trend-card {
+  padding: 0.95rem !important;
+  border-radius: 16px !important;
+}
+
+.centrifuge-wrapper {
+  height: 360px;
+}
+
+.orbit-item {
+  width: 104px;
+  height: 104px;
+}

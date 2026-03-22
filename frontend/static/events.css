@@ -26,7 +26,6 @@
 .events-title {
     margin: 0;
     color: #fff;
-    font-size: clamp(1.8rem, 3vw, 2.5rem);
 }
 
 .events-subtitle {
@@ -64,6 +63,15 @@
     box-sizing: border-box;
 }
 
+.events-search-field {
+    position: relative;
+    min-width: 0;
+}
+
+.events-search-input {
+    width: 100%;
+}
+
 .events-primary-btn,
 .events-ghost-btn {
     border-radius: 999px;
@@ -82,6 +90,12 @@
     background: rgba(255, 255, 255, 0.05);
     color: #fff;
     border-color: rgba(255, 255, 255, 0.1);
+}
+
+.events-primary-btn:disabled,
+.events-ghost-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .events-ghost-btn.compact {
@@ -365,4 +379,39 @@
     .events-search {
         min-width: 0;
     }
+}
+
+/* Codex event page uniformity overrides */
+.events-page-shell {
+  gap: 1rem;
+}
+
+.events-toolbar,
+.events-list-panel,
+.events-detail-panel {
+  padding: 1rem !important;
+}
+
+.events-toolbar {
+  align-items: flex-start;
+}
+
+.events-layout {
+  gap: 1rem;
+}
+
+.event-list-item,
+.event-notes-card,
+.event-link-card,
+.event-people-group,
+.profile-event-row,
+.event-dashboard-card {
+  border-radius: 16px;
+  padding: 0.9rem;
+}
+
+@media (max-width: 980px) {
+  .events-toolbar {
+    gap: 0.85rem;
+  }
 }

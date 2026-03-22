@@ -2,12 +2,10 @@
 Antigravity CRM — Strategist Service (V2)
 Higher-order relationship intelligence and pattern synthesis.
 """
-import json
 from datetime import datetime, timezone
-from typing import Optional, List
-from backend.config import settings
 from backend.database import get_db
-from backend.services.ai_service import _get_client, _get_taxonomy_block
+from backend.services.ai_runtime import run_json_chat_task
+from backend.services.ai_service import _get_client
 
 async def synthesize_strategic_intel(person_id: str) -> dict:
     """
@@ -20,7 +18,10 @@ async def synthesize_strategic_intel(person_id: str) -> dict:
     async with get_db() as db:
         # Get Person
         async with db.execute("SELECT * FROM PERSON WHERE person_id=?", (person_id,)) as c:
-            person = dict(await c.fetchone())
+            person_row = await c.fetchone()
+        if not person_row:
+            raise LookupError("Person not found")
+        person = dict(person_row)
         
         # Get Histroy (last 50)
         async with db.execute("SELECT * FROM INTERACTION WHERE person_id=? ORDER BY interaction_at DESC LIMIT 50", (person_id,)) as c:
@@ -69,26 +70,28 @@ Return ONLY a JSON objects with these keys:
 - sitrep_brief: A 3-sentence high-density executive summary.
 """
 
-    try:
-        client = _get_client()
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a master relationship strategist. You see patterns others miss. Return valid JSON only."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.4
-        )
-        result = json.loads(response.choices[0].message.content)
-        
-        # Save synthesis to person's profile as a system interaction
-        await log_strategic_synthesis(person_id, result['sitrep_brief'])
-        
-        return result
-    except Exception as e:
-        print(f"Strategist Error: {e}")
-        return {"error": str(e)}
+    result, _run_id = await run_json_chat_task(
+        task_type="strategic_synthesis",
+        prompt_family="strategist_v2",
+        messages=[
+            {"role": "system", "content": "You are a master relationship strategist. You see patterns others miss. Return valid JSON only."},
+            {"role": "user", "content": prompt},
+        ],
+        model="gpt-4o",
+        temperature=0.4,
+        client_getter=_get_client,
+        related_profile_id=person_id,
+    )
+    result.setdefault("behavioral_analysis", "")
+    result.setdefault("intelligence_gaps", [])
+    result.setdefault("strategic_hypotheses", [])
+    result.setdefault("platform_connections", [])
+    result.setdefault("sitrep_brief", "")
+
+    if str(result.get("sitrep_brief") or "").strip():
+        await log_strategic_synthesis(person_id, result["sitrep_brief"])
+
+    return result
 
 async def log_strategic_synthesis(person_id: str, brief: str):
     """Logs the strategic synthesis as an interaction for historical tracking."""

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Lab Profile - Antigravity</title>
+    <script src="/static/utils.js?v=20260318d"></script>
+    <script src="/js/background.js?v=20260317d"></script>
+    <link rel="stylesheet" href="/static/design-system.css?v=20260318b">
+    <link rel="stylesheet" href="/static/network-lab-profile-review.css?v=20260321m">
+    <style>
+        body.embedded-profile .simple-shell {
+            max-width: none;
+            margin: 0;
+            padding: 0;
+        }
+        body.embedded-profile .simple-header {
+            display: none;
+        }
+        body.embedded-profile .simple-panel {
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="simple-shell">
+        <header class="simple-header">
+            <div class="header-main">
+                <div class="eyebrow">Relationship Intelligence</div>
+                <h1 id="page-title">Loading profile...</h1>
+                <div id="header-meta" class="header-meta"></div>
+                <div id="status-line" class="status-line">Loading...</div>
+                <div id="action-priority-widget" class="action-priority-widget is-loading">Calculating action priority...</div>
+            </div>
+            <button id="force-refresh-button" class="button" type="button">Refresh</button>
+        </header>
+
+        <section class="simple-panel collapsible-panel" id="panel-shell-stages">
+            <div class="panel-head">
+                <h2 class="panel-title">Stages</h2>
+                <div class="panel-actions">
+                    <div class="small-note">Relationship and opportunity stages, side by side.</div>
+                    <button class="button collapse-toggle" data-target="stages" type="button">Collapse</button>
+                </div>
+            </div>
+            <div id="panel-stages" class="panel-body">
+                <div id="stage2-flow-root" class="stage2-flow-grid"></div>
+            </div>
+        </section>
+
+        <section class="simple-panel collapsible-panel" id="panel-shell-knowledge">
+            <div class="panel-head">
+                <h2 class="panel-title">Knowledge Buckets</h2>
+                <div class="panel-actions">
+                    <div class="small-note">Small-to-medium cards for quick reading.</div>
+                    <button class="button collapse-toggle" data-target="knowledge" type="button">Collapse</button>
+                </div>
+            </div>
+            <div id="panel-knowledge" class="panel-body">
+                <div id="knowledge-bank-root" class="knowledge-bank-grid"></div>
+            </div>
+        </section>
+
+        <section class="simple-panel collapsible-panel" id="panel-shell-transcript">
+            <div class="panel-head panel-head-stack">
+                <h2 class="panel-title">Transcript</h2>
+                <div class="panel-actions transcript-actions">
+                    <div class="view-toggle" role="tablist" aria-label="Transcript color mode">
+                        <button class="view-toggle-btn is-active" type="button" data-mode="stage">Stage View</button>
+                        <button class="view-toggle-btn" type="button" data-mode="knowledge">Knowledge View</button>
+                    </div>
+                    <button class="button" id="transcript-recalculate" type="button">Recalculate</button>
+                    <button class="button collapse-toggle" data-target="transcript" type="button">Collapse</button>
+                </div>
+            </div>
+            <div id="panel-transcript" class="panel-body">
+                <div id="transcript-summary" class="small-note">Loading transcript...</div>
+                <div id="transcript-progress-wrap" class="transcript-progress-wrap">
+                    <div
+                        id="transcript-progress"
+                        class="transcript-progress"
+                        role="progressbar"
+                        aria-label="Transcript tagged line coverage"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuenow="0"
+                    >
+                        <span id="transcript-progress-fill" class="transcript-progress-fill"></span>
+                    </div>
+                    <div id="transcript-progress-label" class="small-note transcript-progress-label">0% coverage (0/0 blocks tagged | 0 mapped | 0 source lines)</div>
+                </div>
+                <div id="transcript-list" class="transcript-list"></div>
+            </div>
+        </section>
+    </div>
+
+    <div id="transcript-modal" class="transcript-modal" aria-hidden="true">
+        <div class="transcript-modal-card" role="dialog" aria-modal="true" aria-label="Transcript detail">
+            <div class="transcript-modal-head">
+                <div>
+                    <h3 id="transcript-modal-title">Transcript detail</h3>
+                    <div id="transcript-modal-meta" class="small-note"></div>
+                </div>
+                <div class="transcript-modal-actions">
+                    <button id="transcript-edit-toggle" class="button" type="button">Edit</button>
+                    <button id="transcript-save" class="button" type="button" hidden>Save</button>
+                    <button id="transcript-cancel" class="button" type="button" hidden>Cancel</button>
+                    <button id="transcript-delete" class="button danger" type="button">Delete</button>
+                    <button id="transcript-modal-close" class="button" type="button">Close</button>
+                </div>
+            </div>
+            <div id="transcript-modal-status" class="small-note transcript-modal-status" aria-live="polite"></div>
+            <div id="transcript-modal-edit-wrap" class="transcript-modal-edit-wrap" hidden>
+                <textarea id="transcript-modal-editor" class="transcript-modal-editor" spellcheck="false"></textarea>
+            </div>
+            <div id="transcript-modal-body" class="transcript-modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const embedded = params.get('embedded') === '1';
+            if (embedded) {
+                document.body.classList.add('embedded-profile');
+                return;
+            }
+            renderUniversalLayout('network-lab', 'NETWORK LAB PROFILE');
+        });
+    </script>
+<script src="/js/network-lab-profile-review.js?v=20260321n"></script>
+</body>
+</html>

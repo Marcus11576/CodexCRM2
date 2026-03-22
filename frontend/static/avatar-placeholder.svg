@@ -1,0 +1,12 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240" role="img" aria-label="Avatar placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="240" height="240" rx="36" fill="url(#bg)"/>
+  <circle cx="120" cy="92" r="42" fill="#38bdf8" fill-opacity="0.16" stroke="#38bdf8" stroke-opacity="0.55" stroke-width="4"/>
+  <path d="M64 184c12-28 36-42 56-42s44 14 56 42" fill="#38bdf8" fill-opacity="0.16" stroke="#38bdf8" stroke-opacity="0.55" stroke-width="4" stroke-linecap="round"/>
+  <text x="120" y="220" text-anchor="middle" fill="#e2e8f0" font-family="Arial, sans-serif" font-size="22" font-weight="700">AG CRM</text>
+</svg>

@@ -1,21 +1,16 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="description" content="Antigravity CRM Agenda — your relationship action diary">
+    <meta name="description" content="Antigravity CRM Agenda - your relationship action diary">
     <title>Agenda | Antigravity</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap"
-        rel="stylesheet">
-    <script src="/static/utils.js"></script>
-    <script src="/js/background.js"></script>
-    <link rel="stylesheet" href="/static/design-system.css">
-    <link rel="stylesheet" href="/static/agenda.css">
+    <script src="/static/utils.js?v=20260318d"></script>
+    <script src="/js/background.js?v=20260311u"></script>
+    <link rel="stylesheet" href="/static/design-system.css?v=20260318b">
+    <link rel="stylesheet" href="/static/agenda.css?v=20260311u">
 </head>
 
 <body>
@@ -34,9 +29,9 @@
             <div>
                 <div class="cal-panel">
                     <div class="cal-header">
-                        <button class="cal-nav" onclick="prevMonth()">‹</button>
+                        <button class="cal-nav" onclick="prevMonth()">&lt;</button>
                         <div class="cal-title" id="cal-title"></div>
-                        <button class="cal-nav" onclick="nextMonth()">›</button>
+                        <button class="cal-nav" onclick="nextMonth()">&gt;</button>
                     </div>
                     <div class="cal-grid" id="cal-grid"></div>
 
@@ -62,10 +57,20 @@
                         <div class="day-sub" id="panel-sub"></div>
                     </div>
                     <div class="filter-pills">
-                        <button class="fpill active" id="fp-open" onclick="setFilter('open')">Open</button>
+                        <button class="fpill active" id="fp-active" onclick="setFilter('active')">Open + Doing</button>
+                        <button class="fpill" id="fp-open" onclick="setFilter('open')">Open</button>
+                        <button class="fpill" id="fp-in_progress" onclick="setFilter('in_progress')">Doing</button>
                         <button class="fpill" id="fp-done" onclick="setFilter('done')">Done</button>
                         <button class="fpill" id="fp-all" onclick="setFilter('all')">All</button>
                     </div>
+                </div>
+
+                <div class="agenda-search-shell">
+                <div class="agenda-search-row">
+                    <input id="task-search-input" class="agenda-search-input" type="search" placeholder="Search tasks by contact, employer, or task text" oninput="setAgendaSearch(this.value)">
+                    <button id="task-search-clear" class="agenda-search-clear" type="button" onclick="clearAgendaSearch()" hidden>Clear</button>
+                </div>
+                <div id="task-search-context" class="agenda-search-context" hidden></div>
                 </div>
 
                 <div id="week-strip-wrap" style="display:none;">
@@ -88,17 +93,17 @@
     <div class="overlay" id="modal" onclick="overlayClose(event)">
         <div class="sheet">
             <div class="handle"></div>
-            <div class="modal-title">➕ New Task</div>
+            <div class="modal-title">New Task</div>
 
             <div class="fgroup">
                 <label class="flabel">Task Description *</label>
-                <textarea class="ftarea" id="f-text" placeholder="Call Ahmed re: Q2 plan, Send brief to Maysa…"
+                <textarea class="ftarea" id="f-text" placeholder="Call Ahmed re: Q2 plan, send brief to Maysa..."
                     rows="2"></textarea>
             </div>
 
             <div class="fgroup psearch-wrap">
                 <label class="flabel">Link to Contact (optional)</label>
-                <input class="finput" id="f-person-q" placeholder="Search by name…" oninput="personSearch(this.value)"
+                <input class="finput" id="f-person-q" placeholder="Search by name..." oninput="personSearch(this.value)"
                     autocomplete="off">
                 <div class="person-drop" id="person-drop" style="display:none;"></div>
                 <input type="hidden" id="f-person-id">
@@ -111,16 +116,10 @@
                 <!-- Segment quick-select -->
                 <div class="seg-quick" id="seg-quick">
                     <button class="seg-q-btn" id="sq-morning" onclick="setSegment('morning')">
-                        <span class="seg-q-icon">🌅</span><span>Morning</span><span class="seg-q-time">09:00</span>
+                        <span class="seg-q-icon">AM</span><span>Morning</span><span class="seg-q-time">09:00</span>
                     </button>
                     <button class="seg-q-btn" id="sq-afternoon" onclick="setSegment('afternoon')">
-                        <span class="seg-q-icon">☀️</span><span>Afternoon</span><span class="seg-q-time">13:00</span>
-                    </button>
-                    <button class="seg-q-btn" id="sq-evening" onclick="setSegment('evening')">
-                        <span class="seg-q-icon">🌙</span><span>Evening</span><span class="seg-q-time">18:00</span>
-                    </button>
-                    <button class="seg-q-btn" id="sq-anytime" onclick="setSegment('anytime')">
-                        <span class="seg-q-icon">📌</span><span>Anytime</span><span class="seg-q-time">No time</span>
+                        <span class="seg-q-icon">PM</span><span>Afternoon</span><span class="seg-q-time">13:00</span>
                     </button>
                 </div>
                 <div class="datetime-row">
@@ -132,9 +131,9 @@
             <div class="fgroup">
                 <label class="flabel">Priority</label>
                 <div class="pri-row">
-                    <button class="pbtn" id="pb-high" onclick="setPri('high')">🔴 High</button>
-                    <button class="pbtn" id="pb-medium" onclick="setPri('medium')">🟡 Medium</button>
-                    <button class="pbtn" id="pb-low" onclick="setPri('low')">🟢 Low</button>
+                    <button class="pbtn" id="pb-high" onclick="setPri('high')">High</button>
+                    <button class="pbtn" id="pb-medium" onclick="setPri('medium')">Medium</button>
+                    <button class="pbtn" id="pb-low" onclick="setPri('low')">Low</button>
                 </div>
             </div>
 
@@ -148,7 +147,7 @@
     <!-- TOAST -->
     <div class="toast" id="toast"></div>
 
-    <script src="/js/agenda.js"></script>
+    <script src="/js/agenda.js?v=20260311u"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             renderUniversalLayout('agenda', 'AGENDA & STRATEGIC TASKS');
@@ -157,3 +156,5 @@
 </body>
 
 </html>
+
+

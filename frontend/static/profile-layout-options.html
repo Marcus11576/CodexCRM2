@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Layout Studies</title>
+    <link rel="stylesheet" href="/static/design-system.css?v=20260313a">
+    <link rel="stylesheet" href="/static/profile.css?v=20260313d">
+    <style>
+        .layout-studies {
+            width: min(1380px, calc(100% - 1.25rem));
+            margin: 5rem auto 2rem;
+        }
+
+        .studies-head {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .studies-head h1 {
+            margin: 0;
+            font-size: clamp(2rem, 3vw, 2.7rem);
+        }
+
+        .studies-head p {
+            margin: 0.28rem 0 0;
+            color: var(--text-secondary);
+            max-width: 60ch;
+        }
+
+        .studies-kicker {
+            padding: 0.34rem 0.68rem;
+            border-radius: 999px;
+            border: 1px solid rgba(53, 232, 255, 0.22);
+            color: var(--accent-cyan);
+            background: rgba(53, 232, 255, 0.08);
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .studies-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.9rem;
+        }
+
+        .study {
+            background: var(--glass-opaque);
+            border: 1px solid var(--glass-border);
+            border-radius: 22px;
+            box-shadow: var(--shadow-md);
+            padding: 0.9rem;
+            overflow: hidden;
+        }
+
+        .study.wide {
+            grid-column: 1 / -1;
+        }
+
+        .study-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .study-id {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            font-size: 0.9rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .study-id span {
+            width: 24px;
+            height: 24px;
+            border-radius: 9px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(53, 232, 255, 0.1);
+            color: var(--accent-cyan);
+        }
+
+        .study-note {
+            color: var(--text-muted);
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .mock {
+            border-radius: 20px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015));
+            border: 1px solid rgba(255,255,255,0.07);
+            padding: 0.9rem;
+            position: relative;
+        }
+
+        .mock-photo {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 20px;
+            border: 2px solid rgba(53, 232, 255, 0.6);
+            background:
+                linear-gradient(135deg, rgba(53, 232, 255, 0.08), rgba(53, 232, 255, 0.02)),
+                url('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=800&auto=format&fit=crop') center/cover;
+            box-shadow: 0 14px 28px rgba(2, 8, 23, 0.2);
+        }
+
+        .mock-photo.sm {
+            width: 132px;
+            min-width: 132px;
+            height: 132px;
+        }
+
+        .mock-photo.md {
+            width: 150px;
+            min-width: 150px;
+            height: 150px;
+        }
+
+        .identity-line {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.55rem;
+        }
+
+        .identity-line h2 {
+            margin: 0;
+            font-size: clamp(1.35rem, 2vw, 1.85rem);
+            line-height: 1;
+        }
+
+        .micro-btn,
+        .micro-chip,
+        .meta-chip,
+        .tax-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+
+        .micro-btn {
+            min-height: 30px;
+            padding: 0.28rem 0.72rem;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.05);
+            color: var(--text-primary);
+            font-size: 0.64rem;
+            text-transform: uppercase;
+        }
+
+        .micro-btn.xs {
+            min-height: 24px;
+            padding: 0.14rem 0.46rem;
+            font-size: 0.56rem;
+            letter-spacing: 0.07em;
+        }
+
+        .micro-btn.primary {
+            border-color: rgba(53, 232, 255, 0.28);
+            background: rgba(53, 232, 255, 0.1);
+            color: var(--accent-cyan);
+        }
+
+        .role-line {
+            color: rgba(226, 232, 240, 0.9);
+            font-size: 0.96rem;
+        }
+
+        .contact-strip,
+        .action-strip,
+        .chip-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+
+        .meta-chip {
+            min-height: 32px;
+            padding: 0.3rem 0.62rem;
+            background: rgba(255,255,255,0.045);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: rgba(248, 250, 252, 0.92);
+            font-size: 0.7rem;
+        }
+
+        .meta-chip.green {
+            color: #4ade80;
+            background: rgba(16, 185, 129, 0.14);
+            border-color: rgba(16, 185, 129, 0.18);
+        }
+
+        .tax-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.65rem;
+        }
+
+        .tax-cell {
+            display: grid;
+            gap: 0.28rem;
+        }
+
+        .tax-label {
+            color: var(--text-muted);
+            font-size: 0.6rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .tax-pill {
+            min-height: 30px;
+            width: fit-content;
+            max-width: 100%;
+            padding: 0.24rem 0.62rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--text-primary);
+            font-size: 0.68rem;
+        }
+
+        .tax-pill.hot {
+            background: linear-gradient(180deg, rgba(239, 68, 68, 0.28), rgba(153, 27, 27, 0.16));
+            border-color: rgba(248, 113, 113, 0.7);
+            color: #ffe3e3;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 1px rgba(248, 113, 113, 0.18), 0 8px 18px rgba(220, 38, 38, 0.14);
+        }
+
+        .tax-pill.warm {
+            background: linear-gradient(180deg, rgba(53, 232, 255, 0.18), rgba(14, 165, 233, 0.1));
+            border-color: rgba(103, 232, 249, 0.28);
+            color: #d8fbff;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 8px 18px rgba(14, 165, 233, 0.1);
+        }
+
+        .tax-pill.cold {
+            background: linear-gradient(180deg, rgba(96, 165, 250, 0.16), rgba(37, 99, 235, 0.08));
+            border-color: rgba(147, 197, 253, 0.22);
+            color: #dbeafe;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        .tax-pill.frozen {
+            background: linear-gradient(180deg, rgba(226, 232, 240, 0.16), rgba(148, 163, 184, 0.1));
+            border-color: rgba(203, 213, 225, 0.22);
+            color: #f8fafc;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+        }
+
+        .panel {
+            border-radius: 18px;
+            padding: 0.82rem 0.9rem;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.52));
+            box-shadow: 0 10px 20px rgba(2, 8, 23, 0.14);
+        }
+
+        .panel.health {
+            border-color: rgba(53, 232, 255, 0.22);
+        }
+
+        .panel-kicker {
+            color: var(--text-muted);
+            font-size: 0.6rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 0.28rem;
+        }
+
+        .panel-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 0.75rem;
+        }
+
+        .panel-title {
+            font-size: 1.02rem;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .panel-copy {
+            margin-top: 0.18rem;
+            color: rgba(226, 232, 240, 0.78);
+            font-size: 0.74rem;
+            line-height: 1.4;
+        }
+
+        .panel-score {
+            color: var(--accent-cyan);
+            font-size: 0.82rem;
+            font-weight: 900;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .panel-score.lg {
+            font-size: 2.3rem;
+            line-height: 0.88;
+            letter-spacing: -0.03em;
+            align-self: center;
+        }
+
+        .panel-score span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 0.6rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .section-row {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .section-row.two {
+            grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+        }
+
+        .section-row.triple {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+            align-items: center;
+        }
+
+        .study-caption {
+            margin-top: 0.7rem;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            line-height: 1.45;
+        }
+
+        .layout-a {
+            display: grid;
+            grid-template-columns: 150px minmax(0, 1fr);
+            gap: 0.95rem;
+            align-items: start;
+        }
+
+        .layout-b {
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .layout-c {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.7rem;
+        }
+
+        .layout-d {
+            display: grid;
+            grid-template-columns: 170px minmax(0, 1fr);
+            gap: 1rem;
+            align-items: start;
+        }
+
+        .layout-e {
+            max-width: 430px;
+            margin: 0 auto;
+            display: grid;
+            gap: 0.65rem;
+        }
+
+        .inline-health {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.38rem;
+        }
+
+        .inline-health .micro-chip {
+            min-height: 28px;
+            padding: 0.22rem 0.56rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--text-muted);
+            font-size: 0.62rem;
+            text-transform: uppercase;
+        }
+
+        .stack-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            min-height: 42px;
+            padding: 0.72rem 0.82rem;
+            border-radius: 15px;
+            background: rgba(255,255,255,0.045);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .stack-link strong {
+            font-size: 0.8rem;
+        }
+
+        .stack-link span {
+            color: var(--text-muted);
+            font-size: 0.62rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 1100px) {
+            .studies-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .study.wide {
+                grid-column: auto;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .layout-a,
+            .layout-d,
+            .section-row.two {
+                grid-template-columns: 1fr;
+            }
+
+            .tax-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .layout-studies {
+                width: min(100%, calc(100% - 0.8rem));
+            }
+
+            .studies-head {
+                flex-direction: column;
+                align-items: start;
+            }
+
+            .tax-grid,
+            .section-row.triple {
+                grid-template-columns: 1fr;
+            }
+
+            .contact-strip,
+            .action-strip,
+            .chip-strip {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .study:nth-of-type(1) .mock.layout-a,
+            .study:nth-of-type(4) .mock.layout-d {
+                padding: 0.8rem;
+                gap: 0.75rem;
+            }
+
+            .study:nth-of-type(1) .mock-photo.md,
+            .study:nth-of-type(4) .mock-photo {
+                width: 124px;
+                min-width: 124px;
+                height: 124px;
+                margin: 0 auto;
+            }
+
+            .study:nth-of-type(1) .identity-line,
+            .study:nth-of-type(4) .identity-line {
+                justify-content: center;
+            }
+
+            .study:nth-of-type(1) .role-line,
+            .study:nth-of-type(4) .role-line {
+                text-align: center;
+            }
+
+            .study:nth-of-type(1) .micro-btn.primary,
+            .study:nth-of-type(4) .micro-btn.primary {
+                justify-self: center;
+            }
+
+            .study:nth-of-type(1) .tax-grid,
+            .study:nth-of-type(4) .chip-strip,
+            .study:nth-of-type(4) .contact-strip {
+                grid-template-columns: 1fr;
+            }
+
+            .study:nth-of-type(1) .panel,
+            .study:nth-of-type(4) .panel {
+                padding: 0.78rem 0.82rem;
+            }
+
+            .study:nth-of-type(1) .panel-head,
+            .study:nth-of-type(4) .panel-head {
+                align-items: center;
+            }
+
+            .study:nth-of-type(1) .panel-score.lg,
+            .study:nth-of-type(4) .panel-score.lg {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="platinum-bg"></div>
+    <div class="platinum-frosted"></div>
+
+    <main class="layout-studies">
+        <div class="studies-head">
+            <div>
+                <h1>Profile Layout Studies</h1>
+                <p>Same visual language, same glass theme, same restrained control styling. These only change the layout and hierarchy.</p>
+            </div>
+            <div class="studies-kicker">Layout Only</div>
+        </div>
+
+        <section class="studies-grid">
+            <article class="study wide">
+                <div class="study-meta">
+                    <div class="study-id"><span>1</span> Command Split</div>
+                    <div class="study-note">Most balanced</div>
+                </div>
+                <div class="mock layout-a">
+                    <div class="mock-photo md"></div>
+                    <div class="section-row">
+                        <div class="identity-line">
+                            <h2>Nathan Hones</h2>
+                            <div class="micro-btn primary xs">Edit Profile</div>
+                        </div>
+                        <div class="role-line">Chief Operating Officer &amp; Partner @ Carter Hones</div>
+                        <div class="contact-strip">
+                            <div class="meta-chip">nathan@carterhones.com</div>
+                            <div class="meta-chip">+971 501 245 220</div>
+                            <div class="meta-chip green">WhatsApp</div>
+                            <div class="meta-chip">LinkedIn</div>
+                        </div>
+                        <div class="tax-grid">
+                            <div class="tax-cell"><div class="tax-label">Environment</div><div class="tax-pill">Consultant</div></div>
+                            <div class="tax-cell"><div class="tax-label">Discipline</div><div class="tax-pill">Corporate</div></div>
+                            <div class="tax-cell"><div class="tax-label">Category</div><div class="tax-pill">OBE Member</div></div>
+                            <div class="tax-cell"><div class="tax-label">Relationship</div><div class="tax-pill hot">Hot</div></div>
+                        </div>
+                        <div class="section-row two">
+                            <div class="panel health">
+                                <div class="panel-kicker">Relationship Health</div>
+                                <div class="panel-head">
+                                    <div>
+                                        <div class="panel-title">On Track</div>
+                                        <div class="panel-copy">Cadence 15d | no next step booked</div>
+                                    </div>
+                                    <div class="panel-score lg">84%<span>Score</span></div>
+                                </div>
+                            </div>
+                            <div class="panel">
+                                <div class="panel-kicker">Current Task</div>
+                                <div class="panel-title" style="font-size:0.92rem;">No active task linked</div>
+                                <div class="panel-copy">Suggested next step: reconnect this week.</div>
+                                <div class="action-strip" style="margin-top:0.5rem;">
+                                    <div class="micro-btn primary">Add Task</div>
+                                    <div class="micro-btn">Agenda</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="study-caption">Keeps the current premium shell, but makes the top read in the right order: identity, metadata, health, then action.</div>
+            </article>
+
+            <article class="study">
+                <div class="study-meta">
+                    <div class="study-id"><span>2</span> Signal Strip</div>
+                    <div class="study-note">Sharper density</div>
+                </div>
+                <div class="mock layout-b">
+                    <div class="identity-line">
+                        <h2>Nathan Hones</h2>
+                        <div class="micro-btn primary">Edit Profile</div>
+                    </div>
+                    <div class="role-line">Chief Operating Officer &amp; Partner @ Carter Hones</div>
+                    <div class="section-row triple">
+                        <div class="contact-strip">
+                            <div class="meta-chip">Email</div>
+                            <div class="meta-chip">Phone</div>
+                            <div class="meta-chip green">WhatsApp</div>
+                        </div>
+                        <div class="inline-health">
+                            <div class="micro-chip">On Track 84%</div>
+                            <div class="micro-chip">Cadence 15d</div>
+                            <div class="micro-chip">No next step</div>
+                        </div>
+                        <div class="action-strip">
+                            <div class="micro-btn primary">Add Task</div>
+                        </div>
+                    </div>
+                    <div class="tax-grid">
+                        <div class="tax-cell"><div class="tax-label">Environment</div><div class="tax-pill">Consultant</div></div>
+                        <div class="tax-cell"><div class="tax-label">Discipline</div><div class="tax-pill">Corporate</div></div>
+                        <div class="tax-cell"><div class="tax-label">Category</div><div class="tax-pill">OBE Member</div></div>
+                        <div class="tax-cell"><div class="tax-label">Relationship</div><div class="tax-pill">Hot</div></div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-kicker">Current Task</div>
+                        <div class="panel-title" style="font-size:0.92rem;">No active task linked</div>
+                        <div class="panel-copy">Minimal, low-noise, and more dashboard-like.</div>
+                    </div>
+                </div>
+                <div class="study-caption">Feels closest to a slick command bar. Good if you want maximum information density without big blocks.</div>
+            </article>
+
+            <article class="study">
+                <div class="study-meta">
+                    <div class="study-id"><span>3</span> Stacked Hero</div>
+                    <div class="study-note">Most elegant on mobile</div>
+                </div>
+                <div class="mock layout-c">
+                    <div class="identity-line">
+                        <h2>Nathan Hones</h2>
+                        <div class="micro-btn primary">Edit Profile</div>
+                    </div>
+                    <div class="role-line">Chief Operating Officer &amp; Partner @ Carter Hones</div>
+                    <div class="contact-strip">
+                        <div class="meta-chip">nathan@carterhones.com</div>
+                        <div class="meta-chip">+971 501 245 220</div>
+                        <div class="meta-chip green">WhatsApp</div>
+                    </div>
+                    <div class="panel health">
+                        <div class="panel-head">
+                            <div>
+                                <div class="panel-kicker">Relationship Health</div>
+                                <div class="panel-title">On Track</div>
+                                <div class="panel-copy">84% score. Cadence 15d. No next step booked.</div>
+                            </div>
+                            <div class="micro-btn">63d Past</div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-kicker">Next Action</div>
+                        <div class="panel-title" style="font-size:0.92rem;">No active task linked</div>
+                        <div class="action-strip" style="margin-top:0.55rem;">
+                            <div class="micro-btn primary">Add Task</div>
+                            <div class="micro-btn">Open Agenda</div>
+                        </div>
+                    </div>
+                    <div class="tax-grid">
+                        <div class="tax-cell"><div class="tax-label">Environment</div><div class="tax-pill">Consultant</div></div>
+                        <div class="tax-cell"><div class="tax-label">Discipline</div><div class="tax-pill">Corporate</div></div>
+                        <div class="tax-cell"><div class="tax-label">Category</div><div class="tax-pill">OBE Member</div></div>
+                        <div class="tax-cell"><div class="tax-label">Relationship</div><div class="tax-pill">Hot</div></div>
+                    </div>
+                </div>
+                <div class="study-caption">Very clean and calm. The health/task stack becomes the center of gravity instead of the tag row.</div>
+            </article>
+
+            <article class="study">
+                <div class="study-meta">
+                    <div class="study-id"><span>4</span> Photo Rail</div>
+                    <div class="study-note">Best visual presence</div>
+                </div>
+                <div class="mock layout-d">
+                    <div class="section-row">
+                        <div class="mock-photo"></div>
+                        <div class="chip-strip">
+                            <div class="tax-pill">Consultant</div>
+                            <div class="tax-pill">Corporate</div>
+                            <div class="tax-pill">OBE Member</div>
+                            <div class="tax-pill hot">Hot</div>
+                        </div>
+                    </div>
+                    <div class="section-row">
+                        <div class="identity-line">
+                            <h2>Nathan Hones</h2>
+                            <div class="micro-btn primary">Edit Profile</div>
+                        </div>
+                        <div class="role-line">Chief Operating Officer &amp; Partner @ Carter Hones</div>
+                        <div class="contact-strip">
+                            <div class="meta-chip">Email</div>
+                            <div class="meta-chip">Call</div>
+                            <div class="meta-chip green">WhatsApp</div>
+                        </div>
+                            <div class="panel health">
+                                <div class="panel-head">
+                                    <div>
+                                        <div class="panel-kicker">Relationship Health</div>
+                                        <div class="panel-title">On Track</div>
+                                        <div class="panel-copy">Cadence 15d | no next step booked</div>
+                                    </div>
+                                <div class="panel-score lg">84%<span>Score</span></div>
+                                </div>
+                            </div>
+                        <div class="panel">
+                            <div class="panel-kicker">Current Task</div>
+                            <div class="panel-title" style="font-size:0.92rem;">No active task linked</div>
+                            <div class="action-strip" style="margin-top:0.5rem;">
+                                <div class="micro-btn primary">Add Task</div>
+                                <div class="micro-btn">Agenda</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="study-caption">This keeps the photo premium and anchored without introducing big loud controls or breaking the theme.</div>
+            </article>
+
+            <article class="study">
+                <div class="study-meta">
+                    <div class="study-id"><span>5</span> Phone-First Control Stack</div>
+                    <div class="study-note">Small-screen winner</div>
+                </div>
+                <div class="mock layout-e">
+                    <div class="mock-photo sm" style="margin:0 auto;"></div>
+                    <div class="identity-line" style="justify-content:center;">
+                        <h2>Nathan Hones</h2>
+                    </div>
+                    <div class="role-line" style="text-align:center;">Chief Operating Officer @ Carter Hones</div>
+                    <div class="action-strip" style="justify-content:center;">
+                        <div class="micro-btn primary">Edit Profile</div>
+                    </div>
+                    <div class="stack-link"><strong>Email</strong><span>Open</span></div>
+                    <div class="stack-link"><strong>Phone</strong><span>Call</span></div>
+                    <div class="stack-link"><strong>WhatsApp</strong><span>Chat</span></div>
+                    <div class="panel health">
+                        <div class="panel-head">
+                            <div>
+                                <div class="panel-kicker">Health</div>
+                                <div class="panel-title">On Track</div>
+                            </div>
+                            <div class="panel-score">84%<span>Score</span></div>
+                        </div>
+                        <div class="panel-copy">Cadence 15d. No next step booked.</div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-kicker">Task</div>
+                        <div class="panel-title" style="font-size:0.92rem;">No active task linked</div>
+                        <div class="action-strip" style="margin-top:0.5rem;">
+                            <div class="micro-btn primary">Add Task</div>
+                            <div class="micro-btn">Agenda</div>
+                        </div>
+                    </div>
+                    <div class="stack-link"><strong>Intelligence Databank</strong><span>Expand</span></div>
+                    <div class="stack-link"><strong>Recent Interactions</strong><span>Expand</span></div>
+                </div>
+                <div class="study-caption">Cleanest mobile-first composition. It still feels like your system, just better ordered and more disciplined.</div>
+            </article>
+        </section>
+    </main>
+</body>
+</html>

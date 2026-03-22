@@ -1,9 +1,7 @@
-// ── CONSTANTS ─────────────────────────────────────────────────
+﻿// â”€â”€ CONSTANTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SEG = {
-    morning: { start: 0, end: 720, icon: '🌅', label: 'Morning', color: 'var(--morning-col)', defaultTime: '09:00', cls: 'sel-morning' },
-    afternoon: { start: 720, end: 1020, icon: '☀️', label: 'Afternoon', color: 'var(--afternoon-col)', defaultTime: '13:00', cls: 'sel-afternoon' },
-    evening: { start: 1020, end: 1440, icon: '🌙', label: 'Evening', color: 'var(--evening-col)', defaultTime: '18:00', cls: 'sel-evening' },
-    anytime: { start: -1, end: -1, icon: '📌', label: 'Anytime', color: 'var(--anytime-col)', defaultTime: '', cls: 'sel-anytime' }
+    morning: { start: 0, end: 720, icon: 'AM', label: 'Morning', color: 'var(--morning-col)', defaultTime: '09:00', cls: 'sel-morning' },
+    afternoon: { start: 720, end: 1440, icon: 'PM', label: 'Afternoon', color: 'var(--afternoon-col)', defaultTime: '13:00', cls: 'sel-afternoon' }
 };
 
 function timeToMins(t) {
@@ -13,21 +11,24 @@ function timeToMins(t) {
 }
 function getSegment(timeStr) {
     const mins = timeToMins(timeStr);
-    if (mins < 0) return 'anytime';
+    if (mins < 0) return 'morning';
     if (mins < 720) return 'morning';
-    if (mins < 1020) return 'afternoon';
-    return 'evening';
+    return 'afternoon';
 }
 
-// ── STATE ─────────────────────────────────────────────────────
+// â”€â”€ STATE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let allTasks = [];
 let currentView = 'day';
-let currentFilter = 'open';
+let currentFilter = 'active';
 let selectedDate = new Date();
 let calYear = selectedDate.getFullYear();
 let calMonth = selectedDate.getMonth();
 let selectedPrio = 'medium';
 let taskDotMap = {};
+let agendaSearchTerm = '';
+let agendaPersonId = '';
+let agendaEmployer = '';
+let agendaContactName = '';
 
 const toDateStr = d => {
     const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
@@ -54,10 +55,89 @@ function restoreStateFromURL() {
     calMonth = selectedDate.getMonth();
 }
 
+function restoreAgendaSearchFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    agendaSearchTerm = (params.get('q') || '').trim();
+    agendaPersonId = (params.get('person_id') || '').trim();
+    agendaEmployer = (params.get('employer') || '').trim();
+    agendaContactName = (params.get('contact_name') || '').trim();
+    if (agendaSearchTerm || agendaPersonId || agendaEmployer) {
+        currentView = 'all';
+        currentFilter = 'all';
+    }
+}
+
+function hasAgendaSearchScope() {
+    return Boolean(agendaSearchTerm || agendaPersonId || agendaEmployer);
+}
+
 function formatDisplay(str) {
     if (!str) return '';
     const d = new Date(str + 'T00:00:00');
     return d.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function normalizeTaskSearchValue(value) {
+    return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function taskMatchesAgendaSearch(task) {
+    const haystack = [
+        task.task_text,
+        task.person_name,
+        task.company_name_raw,
+        task.cat,
+    ].map(normalizeTaskSearchValue).filter(Boolean).join(' ');
+    const term = normalizeTaskSearchValue(agendaSearchTerm);
+    const employer = normalizeTaskSearchValue(agendaEmployer);
+    const personIdMatch = agendaPersonId && String(task.person_id || '') === agendaPersonId;
+    const employerMatch = employer && normalizeTaskSearchValue(task.company_name_raw).includes(employer);
+    const profileScopeMatch = (agendaPersonId || employer) ? (personIdMatch || employerMatch) : true;
+    const termMatch = !term || haystack.includes(term);
+    return profileScopeMatch && termMatch;
+}
+
+function syncAgendaSearchUI() {
+    const input = document.getElementById('task-search-input');
+    const clear = document.getElementById('task-search-clear');
+    const context = document.getElementById('task-search-context');
+    if (input) input.value = agendaSearchTerm;
+    if (clear) clear.hidden = !(agendaSearchTerm || agendaPersonId || agendaEmployer);
+    if (context) {
+        const parts = [];
+        if (agendaPersonId && agendaContactName) parts.push(`Contact: ${agendaContactName}`);
+        else if (agendaSearchTerm) parts.push(`Search: ${agendaSearchTerm}`);
+        if (agendaEmployer) parts.push(`Employer: ${agendaEmployer}`);
+        if (parts.length) {
+            context.hidden = false;
+            context.textContent = parts.join(' · ');
+        } else {
+            context.hidden = true;
+            context.textContent = '';
+        }
+    }
+}
+
+function setAgendaSearch(value) {
+    agendaSearchTerm = String(value || '').trim();
+    syncAgendaSearchUI();
+    renderTasks();
+}
+
+function clearAgendaSearch() {
+    agendaSearchTerm = '';
+    agendaPersonId = '';
+    agendaEmployer = '';
+    agendaContactName = '';
+    currentView = 'all';
+    currentFilter = 'all';
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('vb-all')?.classList.add('active');
+    document.querySelectorAll('.fpill').forEach(p => p.classList.remove('active'));
+    document.getElementById('fp-all')?.classList.add('active');
+    syncAgendaSearchUI();
+    renderTasks();
+    updateStateURL();
 }
 function formatRelative(str) {
     if (!str) return { label: '', cls: '' };
@@ -77,7 +157,26 @@ function fmt12(t) {
     return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-// ── DATA ──────────────────────────────────────────────────────
+function getTaskSortWeight(task) {
+    if (task.status === 'open') return 0;
+    if (task.status === 'in_progress') return 1;
+    if (task.status === 'done') return 2;
+    return 3;
+}
+
+function sortTasksForDisplay(tasks) {
+    return tasks.sort((a, b) => {
+        const timeCompare = (a.due_time || '').localeCompare(b.due_time || '');
+        if (timeCompare !== 0) return timeCompare;
+
+        const statusCompare = getTaskSortWeight(a) - getTaskSortWeight(b);
+        if (statusCompare !== 0) return statusCompare;
+
+        return (a.created_at || '').localeCompare(b.created_at || '');
+    });
+}
+
+// â”€â”€ DATA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function loadTasks() {
     try {
         const r = await fetch('/api/tasks?status=all');
@@ -98,7 +197,7 @@ function buildDotMap() {
     taskDotMap = {};
     const now = new Date(); now.setHours(0, 0, 0, 0);
     allTasks.forEach(t => {
-        if (!t.due_date || t.status === 'done') return;
+        if (!t.due_date || t.status === 'done' || t.status === 'cancelled') return;
         const d = t.due_date.slice(0, 10);
         if (!taskDotMap[d]) taskDotMap[d] = { count: 0, hasOverdue: false };
         taskDotMap[d].count++;
@@ -106,7 +205,7 @@ function buildDotMap() {
     });
 }
 
-// ── CALENDAR ──────────────────────────────────────────────────
+// â”€â”€ CALENDAR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function renderCalendar() {
@@ -160,10 +259,10 @@ function renderCalendar() {
 function prevMonth() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
 function nextMonth() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
 
-// ── MINI LIST ─────────────────────────────────────────────────
+// â”€â”€ MINI LIST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderMini() {
     const el = document.getElementById('mini-list');
-    const up = allTasks.filter(t => t.status === 'open' && t.due_date)
+    const up = allTasks.filter(t => ['open', 'in_progress'].includes(t.status) && t.due_date)
         .sort((a, b) => (a.due_date + a.due_time || '').localeCompare(b.due_date + b.due_time || '')).slice(0, 5);
     if (!up.length) { el.innerHTML = '<div style="font-size:.73rem;color:var(--text-muted);padding:6px 0;">No upcoming tasks</div>'; return; }
     el.innerHTML = up.map(t => {
@@ -183,7 +282,7 @@ function jumpTo(ds) {
     updateStateURL();
 }
 
-// ── VIEW / FILTER ─────────────────────────────────────────────
+// â”€â”€ VIEW / FILTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function setView(v) {
     currentView = v;
     document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
@@ -218,13 +317,21 @@ function renderWeekStrip() {
     }
 }
 
-// ── TASK RENDERING ────────────────────────────────────────────
+// â”€â”€ TASK RENDERING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function getFiltered() {
     let tasks = [...allTasks];
-    if (currentFilter !== 'all') tasks = tasks.filter(t => t.status === currentFilter);
+    tasks = tasks.filter(taskMatchesAgendaSearch);
+    if (currentFilter === 'active') {
+        tasks = tasks.filter(t => ['open', 'in_progress'].includes(t.status));
+    } else if (currentFilter !== 'all') {
+        tasks = tasks.filter(t => t.status === currentFilter);
+    }
+    if (hasAgendaSearchScope()) {
+        return tasks;
+    }
     if (currentView === 'day') {
         const ds = toDateStr(selectedDate);
-        tasks = tasks.filter(t => t.due_date ? t.due_date.slice(0, 10) === ds : (currentFilter === 'open' && ds === today));
+        tasks = tasks.filter(t => t.due_date ? t.due_date.slice(0, 10) === ds : (!['done', 'cancelled'].includes(currentFilter) && ds === today));
     } else if (currentView === 'week') {
         const mon = new Date(selectedDate); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
         const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
@@ -239,23 +346,30 @@ function renderTasks() {
     const ptitle = document.getElementById('panel-title');
     const psub = document.getElementById('panel-sub');
     const open = tasks.filter(t => t.status === 'open').length;
+    const inProgress = tasks.filter(t => t.status === 'in_progress').length;
     const done = tasks.filter(t => t.status === 'done').length;
 
-    if (currentView === 'day') {
+    if (hasAgendaSearchScope()) {
+        ptitle.textContent = 'Task Search';
+    } else if (currentView === 'day') {
         const ds = toDateStr(selectedDate);
-        ptitle.textContent = ds === today ? '📌 Today' : formatDisplay(ds);
+        ptitle.textContent = ds === today ? 'Today' : formatDisplay(ds);
     } else if (currentView === 'week') {
-        ptitle.textContent = '📆 This Week';
+        ptitle.textContent = 'This Week';
     } else {
-        ptitle.textContent = '📋 All Tasks';
+        ptitle.textContent = 'All Tasks';
     }
-    psub.textContent = `${open} open${done ? `, ${done} done` : ''}`;
+    const summaryParts = [`${open} open`];
+    if (inProgress) summaryParts.push(`${inProgress} in progress`);
+    if (done) summaryParts.push(`${done} done`);
+    if (agendaSearchTerm || agendaPersonId || agendaEmployer) summaryParts.push('filtered');
+    psub.textContent = summaryParts.join(', ');
 
     const container = document.getElementById('task-list');
 
     if (!tasks.length) {
         container.innerHTML = `<div class="empty-state">
-      <div class="empty-icon">✅</div>
+      <div class="empty-icon">OK</div>
       <div class="empty-title">All clear</div>
       <div class="empty-sub">No tasks for this ${currentView === 'day' ? 'day' : currentView === 'week' ? 'week' : 'period'}.<br>
       <button onclick="openModal()" style="margin-top:.75rem;padding:6px 16px;border-radius:9px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.07);color:var(--accent-cyan);font-size:.78rem;font-weight:700;cursor:pointer;">+ Add a task</button></div>
@@ -265,18 +379,17 @@ function renderTasks() {
 
     // For day view, split into Morning / Afternoon / Evening / Anytime
     if (currentView === 'day') {
-        const groups = { morning: [], afternoon: [], evening: [], anytime: [] };
+        const groups = { morning: [], afternoon: [] };
         tasks.forEach(t => {
             const seg = getSegment(t.due_time);
             groups[seg].push(t);
         });
-        // Sort each group by time
-        ['morning', 'afternoon', 'evening'].forEach(s => {
-            groups[s].sort((a, b) => (a.due_time || '').localeCompare(b.due_time || ''));
+        ['morning', 'afternoon'].forEach(s => {
+            sortTasksForDisplay(groups[s]);
         });
 
         let html = '';
-        const order = ['morning', 'afternoon', 'evening', 'anytime'];
+        const order = ['morning', 'afternoon'];
         order.forEach(s => {
             if (!groups[s].length) return;
             const sg = SEG[s];
@@ -303,11 +416,11 @@ function renderTasks() {
         let html = '';
         sortedDates.forEach(dk => {
             const dayTasks = dateGroups[dk];
-            const dayLabel = dk === 'no-date' ? '📌 No Date' : (dk === today ? '📌 Today — ' : '') + formatDisplay(dk);
+            const dayLabel = dk === 'no-date' ? 'No Date' : (dk === today ? 'Today - ' : '') + formatDisplay(dk);
             // Sub-group by segment within each day
-            const segs = { morning: [], afternoon: [], evening: [], anytime: [] };
+            const segs = { morning: [], afternoon: [] };
             dayTasks.forEach(t => segs[getSegment(t.due_time)].push(t));
-            const hasSegs = Object.values(segs).some(a => a.length > 0);
+            Object.values(segs).forEach(sortTasksForDisplay);
 
             html += `<div class="seg-block">
         <div class="seg-header">
@@ -316,7 +429,7 @@ function renderTasks() {
           <div class="seg-line"></div>
         </div>`;
 
-            const order = ['morning', 'afternoon', 'evening', 'anytime'];
+            const order = ['morning', 'afternoon'];
             order.forEach(s => {
                 if (!segs[s].length) return;
                 const sg = SEG[s];
@@ -336,74 +449,120 @@ function renderTasks() {
 
 function renderCard(t) {
     const isDone = t.status === 'done';
+    const isInProgress = t.status === 'in_progress';
     const rel = t.due_date ? formatRelative(t.due_date.slice(0, 10)) : { label: '', cls: '' };
-    const timeBadge = t.due_time ? `<span class="task-time-badge">🕐 ${fmt12(t.due_time)}</span>` : '';
+    const timeBadge = t.due_time ? `<span class="task-time-badge">${fmt12(t.due_time)}</span>` : '';
     const personHtml = t.person_name && t.person_id
         ? `<span class="task-person" onclick="event.stopPropagation(); goToContact('${t.person_id}')" style="cursor:pointer;text-decoration:underline;text-underline-offset:2px;" title="Open profile"><span style="width:5px;height:5px;border-radius:50%;background:var(--accent-cyan);display:inline-block;"></span>${esc(t.person_name)}</span>`
         : (t.person_name ? `<span class="task-person"><span style="width:5px;height:5px;border-radius:50%;background:var(--accent-cyan);display:inline-block;"></span>${esc(t.person_name)}</span>` : '');
     const dueHtml = rel.label && currentView !== 'day'
         ? `<span class="task-due ${rel.cls}">${rel.label}</span>` : '';
+    const statusHtml = isInProgress ? '<span class="task-status-badge in-progress">In Progress</span>' : '';
     const checkMark = isDone ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>` : '';
-
+    const progressAction = isDone
+        ? ''
+        : `<button class="tact status ${isInProgress ? 'active' : ''}" onclick="event.stopPropagation(); setTaskStatus('${t.task_id}', '${isInProgress ? 'open' : 'in_progress'}')" title="${isInProgress ? 'Move back to open' : 'Mark in progress'}">${isInProgress ? 'Open' : 'Doing'}</button>`;
+    const segment = getSegment(t.due_time);
+    const nextSegment = segment === 'morning' ? 'afternoon' : 'morning';
+    const segmentAction = isDone
+        ? ''
+        : `<button class="tact segment ${segment}" onclick="event.stopPropagation(); setTaskSegment('${t.task_id}', '${nextSegment}')" title="Move to ${nextSegment}">${nextSegment === 'afternoon' ? 'Afternoon' : 'Morning'}</button>`;
     const linkedinHtml = t.linkedin_url
         ? `<div class="task-linkedin" onclick="event.stopPropagation(); window.open('${t.linkedin_url}', '_blank')" title="View LinkedIn">
                      <svg viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
                    </div>` : '';
 
-    return `<div class="task-card priority-${t.priority || 'medium'}${rel.cls === 'overdue' ? ' overdue' : ''}${isDone ? ' done' : ''}" 
-                id="tc-${t.task_id}" 
+    return `<div class="task-card priority-${t.priority || 'medium'}${rel.cls === 'overdue' ? ' overdue' : ''}${isDone ? ' done' : ''}${isInProgress ? ' in-progress' : ''}"
+                id="tc-${t.task_id}"
                 onclick="handleTaskClick(event, '${t.task_id}', '${t.person_id || ''}', '${t.linkedin_url || ''}')">
     <div class="chk${isDone ? ' on' : ''}" onclick="event.stopPropagation(); toggleDone('${t.task_id}',${isDone})">${checkMark}</div>
     <div class="task-body">
       <div class="task-text">${esc(t.task_text)}</div>
-      <div class="task-meta">${timeBadge}${personHtml}${dueHtml}</div>
+      <div class="task-meta">${timeBadge}${statusHtml}${personHtml}${dueHtml}</div>
     </div>
     <div class="task-actions" style="display:flex; align-items:center; gap:0.5rem;">
+      ${progressAction}
+      ${segmentAction}
       ${linkedinHtml}
-      <button class="tact del" onclick="event.stopPropagation(); deleteTask('${t.task_id}')" title="Delete">🗑️</button>
+      <button class="tact del" onclick="event.stopPropagation(); deleteTask('${t.task_id}')" title="Delete">Del</button>
     </div>
   </div>`;
 }
 
 function goToContact(personId) {
     if (!personId) return;
-    // Save agenda state so user can return via back button
     sessionStorage.setItem('agendaScrollPos', window.scrollY);
     updateStateURL();
-    // Navigate to profile with referrer marker for back button support
     window.location.href = `/person/${personId}?from=agenda`;
 }
 
 function handleTaskClick(e, taskId, personId, linkedinUrl) {
-    // Only navigate if clicking on the card body (not person name or actions)
     if (e.target.closest('.task-person') || e.target.closest('.task-actions') || e.target.closest('.chk')) return;
     if (!personId) return;
     goToContact(personId);
 }
 
-// ── TASK ACTIONS ──────────────────────────────────────────────
-async function toggleDone(id, isDone) {
-    const newS = isDone ? 'open' : 'done';
+async function setTaskStatus(id, status) {
     try {
-        await fetch(`/api/tasks/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newS }) });
+        await fetch(`/api/tasks/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+        });
         const t = allTasks.find(x => x.task_id === id);
-        if (t) t.status = newS;
-        buildDotMap(); renderCalendar(); renderMini(); renderTasks();
-        toast(isDone ? 'Reopened' : '✅ Done!', 'success');
-    } catch (e) { toast('Update failed', 'error'); }
+        if (t) t.status = status;
+        buildDotMap();
+        renderCalendar();
+        renderMini();
+        renderTasks();
+        const messages = {
+            open: 'Task moved to open',
+            in_progress: 'Task marked in progress',
+            done: 'Done!'
+        };
+        toast(messages[status] || 'Task updated', 'success');
+    } catch (e) {
+        toast('Update failed', 'error');
+    }
 }
 
+async function toggleDone(id, isDone) {
+    await setTaskStatus(id, isDone ? 'open' : 'done');
+}
+
+
+async function setTaskSegment(id, segment) {
+    const due_time = segment === 'afternoon' ? '13:00' : '09:00';
+    try {
+        await fetch(`/api/tasks/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ due_time })
+        });
+        const t = allTasks.find(x => x.task_id === id);
+        if (t) t.due_time = due_time;
+        renderMini();
+        renderTasks();
+        toast(`Task moved to ${segment}`, 'success');
+    } catch (e) {
+        toast('Move failed', 'error');
+    }
+}
 async function deleteTask(id) {
     if (!confirm('Delete this task?')) return;
     try {
         await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
         allTasks = allTasks.filter(t => t.task_id !== id);
-        buildDotMap(); renderCalendar(); renderMini(); renderTasks();
+        buildDotMap();
+        renderCalendar();
+        renderMini();
+        renderTasks();
         toast('Task deleted', 'success');
-    } catch (e) { toast('Delete failed', 'error'); }
+    } catch (e) {
+        toast('Delete failed', 'error');
+    }
 }
 
-// ── ADD TASK MODAL ────────────────────────────────────────────
 function openModal() {
     document.getElementById('f-date').value = toDateStr(selectedDate);
     document.getElementById('f-time').value = '';
@@ -414,6 +573,7 @@ function openModal() {
     document.getElementById('person-drop').style.display = 'none';
     // Reset segment buttons
     document.querySelectorAll('.seg-q-btn').forEach(b => b.className = 'seg-q-btn');
+    setSegment('morning');
     setPri('medium');
     document.getElementById('modal').classList.add('open');
     setTimeout(() => document.getElementById('f-text').focus(), 350);
@@ -423,7 +583,7 @@ function overlayClose(e) { if (e.target.id === 'modal') closeModal(); }
 
 function setSegment(s) {
     // Reset all buttons
-    ['morning', 'afternoon', 'evening', 'anytime'].forEach(x => {
+    ['morning', 'afternoon'].forEach(x => {
         document.getElementById(`sq-${x}`).className = 'seg-q-btn';
     });
     document.getElementById(`sq-${s}`).classList.add(SEG[s].cls);
@@ -465,7 +625,7 @@ async function personSearch(q) {
         drop.innerHTML = people.map(p =>
             `<div class="pdrop-item" onclick="selPerson('${p.person_id}','${esc(p.full_name)}','${esc(p.company_name_raw || '')}')">
         <div class="pdrop-name">${esc(p.full_name)}</div>
-        <div class="pdrop-sub">${esc(p.title_current || '')}${p.company_name_raw ? ` · ${esc(p.company_name_raw)}` : ''}</div>
+        <div class="pdrop-sub">${esc(p.title_current || '')}${p.company_name_raw ? ` Â· ${esc(p.company_name_raw)}` : ''}</div>
       </div>`).join('');
         drop.style.display = 'block';
     }, 220);
@@ -475,7 +635,7 @@ function selPerson(id, name, company) {
     document.getElementById('f-person-q').value = name;
     document.getElementById('person-drop').style.display = 'none';
     const chip = document.getElementById('f-person-chip');
-    chip.textContent = `✓ ${name}${company ? ` · ${company}` : ''}`;
+    chip.textContent = `âœ“ ${name}${company ? ` Â· ${company}` : ''}`;
     chip.style.display = 'block';
 }
 
@@ -484,7 +644,7 @@ async function saveTask() {
     if (!text) { document.getElementById('f-text').focus(); return; }
     const personId = document.getElementById('f-person-id').value || null;
     const dueDate = document.getElementById('f-date').value || null;
-    const dueTime = document.getElementById('f-time').value || null;
+    const dueTime = document.getElementById('f-time').value || '09:00';
     try {
         const r = await fetch('/api/tasks', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -493,11 +653,11 @@ async function saveTask() {
         if (!r.ok) throw new Error();
         closeModal();
         await loadTasks();
-        toast('✅ Task created', 'success');
+        toast('Task created', 'success');
     } catch (e) { toast('Save failed', 'error'); }
 }
 
-// ── UTILS ─────────────────────────────────────────────────────
+// â”€â”€ UTILS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function toast(msg, type = '') {
     const t = document.getElementById('toast');
@@ -505,12 +665,23 @@ function toast(msg, type = '') {
     setTimeout(() => t.className = 'toast', 3000);
 }
 
-// ── INIT ──────────────────────────────────────────────────────
+// â”€â”€ INIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 restoreStateFromURL();
+restoreAgendaSearchFromQuery();
 document.getElementById('f-date').value = today;
 document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
 document.getElementById(`vb-${currentView}`).classList.add('active');
 document.querySelectorAll('.fpill').forEach(p => p.classList.remove('active'));
 document.getElementById(`fp-${currentFilter}`).classList.add('active');
+syncAgendaSearchUI();
 
 loadTasks();
+
+
+
+
+
+
+
+
+

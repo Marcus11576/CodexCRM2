@@ -4,7 +4,14 @@ async def run_integrity_audit():
     """
     Performs a deep audit of the DB and auto-repairs common issues.
     """
-    stats = {"repaired_labels": 0, "orphans_removed": 0, "status": "clean"}
+    stats = {
+        "repaired_labels": 0,
+        "orphans_removed": 0,
+        "normalized_event_statuses": 0,
+        "stale_jobs_requeued": 0,
+        "artifacts_flagged_for_review": 0,
+        "status": "clean",
+    }
     
     async with get_db() as db:
 
@@ -22,6 +29,40 @@ async def run_integrity_audit():
             WHERE person_id NOT IN (SELECT person_id FROM PERSON)
         """)
         stats["orphans_removed"] += res.rowcount
+
+        for raw_status, canonical_status in {
+            "invited": "Invited",
+            "target": "Target",
+            "confirmed": "Confirmed",
+            "registered": "Registered",
+        }.items():
+            res = await db.execute(
+                "UPDATE PERSON_EVENT SET status = ? WHERE LOWER(TRIM(status)) = ?",
+                (canonical_status, raw_status),
+            )
+            stats["normalized_event_statuses"] += res.rowcount
+
+        res = await db.execute(
+            """
+            UPDATE AI_JOB
+            SET status = 'queued', started_at = NULL, updated_at = CURRENT_TIMESTAMP
+            WHERE status = 'running'
+              AND started_at IS NOT NULL
+              AND datetime(started_at) < datetime('now', '-30 minutes')
+            """
+        )
+        stats["stale_jobs_requeued"] += res.rowcount
+
+        res = await db.execute(
+            """
+            UPDATE AI_ARTIFACT
+            SET status = 'needs_review'
+            WHERE status = 'processed'
+              AND input_type IN ('document', 'screenshot')
+              AND (extracted_text IS NULL OR TRIM(extracted_text) = '')
+            """
+        )
+        stats["artifacts_flagged_for_review"] += res.rowcount
 
         # 3. Clear stale briefing caches (older than 48h)
         # This ensures briefings are always freshly generated for active contacts.

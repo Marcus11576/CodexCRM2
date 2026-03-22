@@ -6,6 +6,9 @@ let isEditingDisc = false;
 let isEditingStatus = false;
 let isEditingCat = false;
 let isAdvisoryState = false;
+const PROFILE_NAV_STORAGE_KEY = 'crm.profile.nav.v1';
+let profileNavigationState = { people: [], index: -1 };
+let profileSwipeBound = false;
 
 function getPersonIdFromUrl() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -17,6 +20,134 @@ function getPersonIdFromUrl() {
     return match ? match[1] : null;
 }
 
+function readProfileNavigationContext() {
+    try {
+        const raw = window.sessionStorage.getItem(PROFILE_NAV_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (_error) {
+        return null;
+    }
+}
+
+function writeProfileNavigationContext(context) {
+    try {
+        window.sessionStorage.setItem(PROFILE_NAV_STORAGE_KEY, JSON.stringify(context));
+    } catch (error) {
+        console.error('Failed to save profile navigation context', error);
+    }
+}
+
+async function fetchProfileNavigationContext() {
+    const response = await fetch(`${API_BASE}/api/people?limit=500`, {
+        headers: { 'Accept': 'application/json' }
+    });
+    if (!response.ok) {
+        throw new Error('Failed to load profile navigation');
+    }
+    const payload = await response.json();
+    const people = Array.isArray(payload.people) ? payload.people : [];
+    const context = {
+        source: 'global',
+        updatedAt: Date.now(),
+        people: people.map((person) => ({
+            person_id: person.person_id,
+            full_name: person.full_name || 'Unknown Contact',
+            title_current: person.title_current || '',
+            company_name_raw: person.company_name_raw || '',
+        })),
+    };
+    writeProfileNavigationContext(context);
+    return context;
+}
+
+async function ensureProfileNavigationContext(currentId) {
+    let context = readProfileNavigationContext();
+    const people = Array.isArray(context?.people) ? context.people : [];
+    const hasCurrent = people.some((person) => String(person.person_id) === String(currentId));
+
+    if (!context || !people.length || (!hasCurrent && context.source === 'dashboard')) {
+        context = await fetchProfileNavigationContext();
+    }
+
+    const resolvedPeople = Array.isArray(context?.people) ? context.people : [];
+    const index = resolvedPeople.findIndex((person) => String(person.person_id) === String(currentId));
+    profileNavigationState = { people: resolvedPeople, index };
+    if (typeof window.renderProfileNavigationControls === 'function') {
+        window.renderProfileNavigationControls(profileNavigationState);
+    }
+    return profileNavigationState;
+}
+
+function getProfileNavigationTarget(offset) {
+    const { people, index } = profileNavigationState;
+    if (!Array.isArray(people) || index < 0) return null;
+    const targetIndex = index + offset;
+    if (targetIndex < 0 || targetIndex >= people.length) return null;
+    return people[targetIndex];
+}
+
+function navigateProfileTo(person) {
+    if (!person?.person_id) return;
+    const hash = window.location.hash || '';
+    window.location.href = `/person/${person.person_id}?from=profile-nav${hash}`;
+}
+
+function navigateProfileByOffset(offset) {
+    const target = getProfileNavigationTarget(offset);
+    if (!target) return;
+    navigateProfileTo(target);
+}
+
+function shouldIgnoreSwipeTarget(target) {
+    if (!target || !(target instanceof Element)) return false;
+    if (target.closest('a, button, input, textarea, select, label, [role="button"], [contenteditable="true"]')) {
+        return true;
+    }
+    let current = target;
+    while (current && current !== document.body) {
+        const style = window.getComputedStyle(current);
+        const canScrollX = /(auto|scroll)/.test(style.overflowX) && current.scrollWidth > current.clientWidth + 4;
+        if (canScrollX) return true;
+        current = current.parentElement;
+    }
+    return false;
+}
+
+function bindProfileSwipeNavigation() {
+    if (profileSwipeBound) return;
+    profileSwipeBound = true;
+
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+
+    document.addEventListener('touchstart', (event) => {
+        if (!window.matchMedia('(max-width: 768px)').matches) return;
+        if (!event.touches || event.touches.length !== 1) return;
+        if (shouldIgnoreSwipeTarget(event.target)) return;
+        startX = event.touches[0].clientX;
+        startY = event.touches[0].clientY;
+        tracking = true;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (event) => {
+        if (!tracking || !window.matchMedia('(max-width: 768px)').matches) return;
+        tracking = false;
+        if (!event.changedTouches || event.changedTouches.length !== 1) return;
+        const deltaX = event.changedTouches[0].clientX - startX;
+        const deltaY = event.changedTouches[0].clientY - startY;
+        if (Math.abs(deltaX) < 72) return;
+        if (Math.abs(deltaY) > Math.abs(deltaX) * 0.7) return;
+        if (deltaX < 0) {
+            navigateProfileByOffset(1);
+        } else {
+            navigateProfileByOffset(-1);
+        }
+    }, { passive: true });
+}
+
+window.navigateProfileByOffset = navigateProfileByOffset;
+
 function getCategoryBadgeClass(cat) {
     if (!cat) return 'gen';
     const map = {
@@ -25,6 +156,7 @@ function getCategoryBadgeClass(cat) {
         'TGT': 'tgt',
         'EXT': 'ext',
         'HPC': 'hpc',
+        'TSA': 'tsa',
         'GEN': 'gen'
     };
     return map[cat.toUpperCase()] || 'gen';
@@ -77,14 +209,14 @@ function setAdvisory(isAdvisory) {
     isAdvisoryState = !!isAdvisory;
     const checkbox = document.getElementById('advisory-checkbox');
     if (checkbox) checkbox.checked = !!isAdvisory;
-
-    if (personId) {
-        updatePersonField('is_ts_advisory_candidate', isAdvisory ? 1 : 0);
-    }
 }
 
 function toggleAdvisoryCheckbox(el) {
-    setAdvisory(el.checked);
+    const isAdvisory = !!(el && el.checked);
+    setAdvisory(isAdvisory);
+    if (personId) {
+        updatePersonField('is_ts_advisory_candidate', isAdvisory ? 1 : 0);
+    }
 }
 
 async function logAiFeedback(targetType, eventType, details = {}) {
@@ -152,8 +284,13 @@ async function loadPerson() {
 
         renderPerson(personData.person, {
             recent_history: personData.history || [],
-            open_loops: personData.tasks || []
+            open_loops: personData.tasks || [],
+            relationships: personData.relationships || []
         });
+        await ensureProfileNavigationContext(personId);
+        if (typeof window.initProfileSectionChrome === 'function') {
+            window.initProfileSectionChrome();
+        }
         if (typeof loadProfileEvents === 'function') {
             loadProfileEvents();
         }
@@ -168,7 +305,6 @@ async function loadPerson() {
         if (!window.hasLoadedBriefing) {
             window.hasLoadedBriefing = true;
             loadBriefing();
-            loadPropensityData();
         }
     } catch (error) {
         console.error('Error loading person:', error);
@@ -189,8 +325,13 @@ async function loadPersonQuiet() {
         if (data.person) {
             renderPerson(data.person, {
                 recent_history: data.history || [],
-                open_loops: data.tasks || []
+                open_loops: data.tasks || [],
+                relationships: data.relationships || []
             });
+            await ensureProfileNavigationContext(personId);
+            if (typeof window.initProfileSectionChrome === 'function') {
+                window.initProfileSectionChrome();
+            }
             if (typeof loadProfileEvents === 'function') {
                 loadProfileEvents();
             }
@@ -202,6 +343,10 @@ async function loadPersonQuiet() {
         console.error('Quiet load failed:', e);
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    bindProfileSwipeNavigation();
+});
 
 async function updateAdvisory() {
     const isAdvisory = document.getElementById('advisory-checkbox').checked;
@@ -240,7 +385,7 @@ async function updatePersonField(field, value) {
         return true;
     } catch (err) {
         console.error(err);
-        alert('Error updating profile: ' + err.message);
+        toast(`Error updating profile: ${err.message}`, 'error');
         return false;
     }
 }

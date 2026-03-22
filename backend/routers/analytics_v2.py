@@ -22,3 +22,8 @@ async def get_recent_intel(limit: int = 10):
 @router.get("/category-trends")
 async def get_category_trends():
     return await analytics_service.get_category_sentiment()
+
+@router.get("/category-sentiment")
+async def get_category_sentiment_compat():
+    """Compatibility alias for older frontend pages."""
+    return await analytics_service.get_category_sentiment()

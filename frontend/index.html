@@ -3,20 +3,16 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#020617">
     <title>Relationship Intelligence</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap"
-        rel="stylesheet">
     <link rel="manifest" href="/static/manifest.json">
-    <script src="/static/utils.js"></script>
+    <script src="/static/utils.js?v=20260318d"></script>
     <script src="/js/background.js"></script>
-    <link rel="stylesheet" href="/static/design-system.css">
-    <link rel="stylesheet" href="/static/index.css">
+    <link rel="stylesheet" href="/static/design-system.css?v=20260318b">
+    <link rel="stylesheet" href="/static/index.css?v=20260321d">
     <link rel="stylesheet" href="/static/events.css">
 </head>
 
@@ -32,136 +28,153 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Cat Filter -->
-            <div class="filter-bar" id="cat-filters">
-                <button class="filter-chip active" onclick="toggleCat('all')">All</button>
-                <button class="filter-chip" onclick="toggleCat('OBE Member')">OBE Member</button>
-                <button class="filter-chip" onclick="toggleCat('OBE Target')">OBE Target</button>
+            <div class="dashboard-utility-strip">
+                <div class="dashboard-utility-copy">
+                    <div class="dashboard-kicker">Relationship Command</div>
+                    <h2 id="dashboard-mode-title">Dashboard</h2>
+                </div>
+                <a id="event-dashboard-widget" class="event-dashboard-mini" href="/events" style="display:none;">
+                    <span class="event-mini-dot"></span>
+                    <span class="event-dashboard-mini-copy">
+                        <span class="event-dashboard-mini-label">Next Event</span>
+                        <strong id="event-dashboard-mini-title">No upcoming events</strong>
+                        <span id="event-dashboard-mini-meta">Open events</span>
+                    </span>
+                </a>
+            </div>
+
+            <button id="dashboard-mobile-controls-toggle" class="dashboard-mobile-controls-toggle" type="button" onclick="toggleDashboardMobileControls()" aria-expanded="false">
+                Filters
+            </button>
+
+            <div id="dashboard-mobile-controls-panel" class="dashboard-mobile-controls-panel">
+            <div class="relationship-age-filter" id="relationship-age-filter">
+                <div class="relationship-age-filter-header">
+                    <div class="relationship-age-filter-copy">
+                        <div class="dashboard-filter-label">Action Priority</div>
+                        <div class="relationship-age-legend" id="relationship-age-legend">Action Priority: Stable 0-39, In Motion 40-69, Needs Action 70-100.</div>
+                    </div>
+                    <div class="relationship-age-summary" id="relationship-age-summary">Action priority map loading...</div>
+                    <button class="filter-chip relationship-age-reset" type="button" onclick="resetRelationshipAgeFilter()">Reset</button>
+                </div>
+                <div class="relationship-age-slider">
+                    <input id="relationship-age-min" type="range" min="0" max="100" step="1" value="0" oninput="handleRelationshipAgeSliderChange()">
+                    <input id="relationship-age-max" type="range" min="0" max="100" step="1" value="100" oninput="handleRelationshipAgeSliderChange()">
+                    <div class="relationship-age-track">
+                        <div class="relationship-age-track-fill" id="relationship-age-track-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="compact-filter-bar">
+                <div class="compact-filter-group" id="cat-filter-group">
+                    <button class="compact-filter-trigger" type="button" onclick="toggleFilterDropdown('cat')">
+                        <span class="compact-filter-kicker">Category</span>
+                        <strong id="cat-filter-label">All</strong>
+                    </button>
+                    <div class="compact-filter-menu" id="cat-filter-menu">
+                        <div class="filter-bar compact-filter-options" id="cat-filters">
+                            <button class="filter-chip active" onclick="toggleCat('all')">All</button>
+                            <button class="filter-chip" onclick="toggleCat('OBE Member')">OBE Member</button>
+                            <button class="filter-chip" onclick="toggleCat('OBE Target')">OBE Target</button>
                 <button class="filter-chip" onclick="toggleCat('Client Target')">Client Target</button>
                 <button class="filter-chip" onclick="toggleCat('Existing Client')">Existing Client</button>
                 <button class="filter-chip" onclick="toggleCat('Candidate')">Candidate</button>
+                <button class="filter-chip" onclick="toggleCat('TS Advisory')">TS Advisory</button>
                 <button class="filter-chip" onclick="toggleCat('General')">General</button>
-            </div>
-
-            <!-- Env Filter -->
-            <div class="filter-bar" id="env-filters" style="margin-top: -0.5rem; margin-bottom: 1rem;">
-                <span style="font-size: 0.75rem; font-weight: 800; color: white; text-transform: uppercase;">Env:</span>
-                <div class="filter-scroll">
-                    <button class="filter-chip active" onclick="toggleEnv('all')">All</button>
-                    <button class="filter-chip" onclick="toggleEnv('DevMaster')"
-                        style="border: 1px solid var(--accent-blue);">Dev</button>
-                    <button class="filter-chip" onclick="toggleEnv('Gov Dev')">Gov Dev</button>
-                    <button class="filter-chip" onclick="toggleEnv('Semi-Gov Dev')">Semi-Gov Dev</button>
-                    <button class="filter-chip" onclick="toggleEnv('Private Dev')">Private Dev</button>
-                    <button class="filter-chip" onclick="toggleEnv('Consultant')">Consultant</button>
-                    <button class="filter-chip" onclick="toggleEnv('Main Contractor')">Main Contractor</button>
-                    <button class="filter-chip" onclick="toggleEnv('Sub Contractor')">Sub Contractor</button>
-                    <button class="filter-chip" onclick="toggleEnv('PMO')">PMO</button>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Disc Filter -->
-            <div class="filter-bar" id="disc-filters" style="margin-top: -0.5rem; margin-bottom: 1rem;">
-                <span
-                    style="font-size: 0.75rem; font-weight: 800; color: white; text-transform: uppercase;">Disc:</span>
-                <div class="filter-scroll">
-                    <button class="filter-chip active" onclick="toggleDisc('all')">All</button>
-                    <button class="filter-chip" onclick="toggleDisc('Commercial')">Commercial</button>
-                    <button class="filter-chip" onclick="toggleDisc('Delivery')">Delivery</button>
-                    <button class="filter-chip" onclick="toggleDisc('Design')">Design</button>
-                    <button class="filter-chip" onclick="toggleDisc('Corporate')">Corporate</button>
-                    <button class="filter-chip" onclick="toggleDisc('Support')">Support</button>
-                    <button class="filter-chip" onclick="toggleDisc('Others')">Others</button>
+                <div class="compact-filter-group" id="env-filter-group">
+                    <button class="compact-filter-trigger" type="button" onclick="toggleFilterDropdown('env')">
+                        <span class="compact-filter-kicker">Environment</span>
+                        <strong id="env-filter-label">All</strong>
+                    </button>
+                    <div class="compact-filter-menu" id="env-filter-menu">
+                        <div class="filter-bar compact-filter-options" id="env-filters">
+                            <button class="filter-chip active" onclick="toggleEnv('all')">All</button>
+                            <button class="filter-chip" onclick="toggleEnv('DevMaster')" style="border: 1px solid var(--accent-blue);">Dev</button>
+                            <button class="filter-chip" onclick="toggleEnv('Gov Dev')">Gov Dev</button>
+                            <button class="filter-chip" onclick="toggleEnv('Semi-Gov Dev')">Semi-Gov Dev</button>
+                            <button class="filter-chip" onclick="toggleEnv('Private Dev')">Private Dev</button>
+                            <button class="filter-chip" onclick="toggleEnv('Consultant')">Consultant</button>
+                            <button class="filter-chip" onclick="toggleEnv('Main Contractor')">Main Contractor</button>
+                            <button class="filter-chip" onclick="toggleEnv('Sub Contractor')">Sub Contractor</button>
+                            <button class="filter-chip" onclick="toggleEnv('PMO')">PMO</button>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Status Filter -->
-            <div class="filter-bar" id="status-filters" style="margin-top: -0.5rem; margin-bottom: 1rem;">
-                <span style="font-size: 0.8rem; color: white; align-self: center; margin-right: 0.5rem;">Status:</span>
-                <button class="filter-chip" onclick="toggleStatus('Hot')" title="Hot">🔥</button>
-                <button class="filter-chip" onclick="toggleStatus('Soon')" title="Soon">⚡</button>
-                <button class="filter-chip" onclick="toggleStatus('Cold')" title="Cold">🧊</button>
-                <button class="filter-chip" onclick="toggleStatus(null)" style="opacity: 0.6;">All</button>
-            </div>
+                <div class="compact-filter-group" id="disc-filter-group">
+                    <button class="compact-filter-trigger" type="button" onclick="toggleFilterDropdown('disc')">
+                        <span class="compact-filter-kicker">Discipline</span>
+                        <strong id="disc-filter-label">All</strong>
+                    </button>
+                    <div class="compact-filter-menu" id="disc-filter-menu">
+                        <div class="filter-bar compact-filter-options" id="disc-filters">
+                            <button class="filter-chip active" onclick="toggleDisc('all')">All</button>
+                            <button class="filter-chip" onclick="toggleDisc('Commercial')">Commercial</button>
+                            <button class="filter-chip" onclick="toggleDisc('Delivery')">Delivery</button>
+                            <button class="filter-chip" onclick="toggleDisc('Design')">Design</button>
+                            <button class="filter-chip" onclick="toggleDisc('Corporate')">Corporate</button>
+                            <button class="filter-chip" onclick="toggleDisc('Support')">Support</button>
+                            <button class="filter-chip" onclick="toggleDisc('Others')">Others</button>
+                        </div>
+                    </div>
+                </div>
 
-            <!-- Pipeline Filter -->
-            <div class="filter-bar" id="pipeline-filters"
-                style="display:none; margin-top: -0.5rem; margin-bottom: 1.5rem;">
-                <span style="font-size: 0.8rem; color: white; align-self: center; margin-right: 0.5rem;">Pipeline
-                    View:</span>
-                <button class="filter-chip" onclick="showPipeline(0)">Today</button>
-                <button class="filter-chip" onclick="showPipeline(3)">3 Days</button>
-                <button class="filter-chip" onclick="showPipeline(7)">7 Days</button>
-                <button class="filter-chip" onclick="showPipeline(14)">14 Days</button>
-                <button class="filter-chip active" id="pipeline-btn-30" onclick="showPipeline(30)">1 Month</button>
-                <button class="filter-chip" onclick="showPipeline(90)">3 Months</button>
+                <div class="compact-filter-group compact-filter-group-right" id="status-filter-group">
+                    <button class="compact-filter-trigger" type="button" onclick="toggleFilterDropdown('status')">
+                        <span class="compact-filter-kicker">Status</span>
+                        <strong id="status-filter-label">All</strong>
+                    </button>
+                    <div class="compact-filter-menu compact-filter-menu-right" id="status-filter-menu">
+                        <div class="filter-bar compact-filter-options" id="status-filters">
+                            <button class="filter-chip" onclick="toggleStatus('Hot')" title="Hot">Hot</button>
+                            <button class="filter-chip" onclick="toggleStatus('Warm')" title="Warm">Warm</button>
+                            <button class="filter-chip" onclick="toggleStatus('Cold')" title="Cold">Cold</button>
+                            <button class="filter-chip" onclick="toggleStatus('Frozen')" title="Frozen">Frozen</button>
+                            <button class="filter-chip" onclick="toggleStatus(null)" title="All" style="opacity: 0.6;">All</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Stats -->
-            <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
-                <div class="stat-card status-past" onclick="filterByStatus('overdue')">
+            <div class="stats-grid">
+                <div class="stat-card status-past" onclick="filterByStatus('act_now')">
                     <div class="stat-value" id="stat-overdue">0</div>
-                    <div class="stat-label">Past</div>
+                    <div class="stat-label">Act Now</div>
                 </div>
-                <div class="stat-card status-soon" onclick="filterByStatus('soon')">
+                <div class="stat-card status-soon" onclick="filterByStatus('maintain')">
                     <div class="stat-value" id="stat-soon">0</div>
-                    <div class="stat-label">Soon</div>
+                    <div class="stat-label">Maintain</div>
                 </div>
-                <div class="stat-card status-on_track" onclick="filterByStatus('on_track')">
+                <div class="stat-card status-on_track" onclick="filterByStatus('preserve')">
                     <div class="stat-value" id="stat-ontrack">0</div>
-                    <div class="stat-label">On Track</div>
+                    <div class="stat-label">Preserve</div>
                 </div>
-                <div class="stat-card status-not_scheduled" onclick="filterByStatus('not_scheduled')">
+                <div class="stat-card status-not_scheduled" onclick="filterByStatus('monitor')">
                     <div class="stat-value" id="stat-not-scheduled">0</div>
-                    <div class="stat-label">Not Sched</div>
-                </div>
+                    <div class="stat-label">Monitor</div>
+            </div>
             </div>
 
-            <div id="event-dashboard-widget" class="section-card event-dashboard-widget" style="margin-top: 1rem; display:none;">
-                <div class="event-dashboard-header">
-                    <div>
-                        <div class="events-kicker">Events Visibility</div>
-                        <h2 style="margin:0;">Upcoming Events</h2>
-                    </div>
-                    <a href="/events" class="events-ghost-btn compact" style="text-decoration:none;">Open Events</a>
-                </div>
-                <div id="event-dashboard-stats" class="event-detail-meta"></div>
-                <div id="event-dashboard-cards" class="event-dashboard-cards"></div>
+            <div id="dashboard-overlay-summary" class="relationship-age-summary" style="margin: 0.75rem 0 1rem;">
+                Overlay checks loading...
+            </div>
             </div>
 
             <div id="loading-state" class="loading">
                 <div class="spinner"></div>
                 <p>Loading contacts...</p>
             </div>
-
-            <!-- Pipeline Section -->
-            <div id="pipeline-section" style="display:none;">
-                <div class="section-header">
-                    <span class="icon">🚀</span>
-                    <h2>Upcoming Commitments</h2>
-                    <span class="section-count" id="pipeline-count">0</span>
-                </div>
-                <div class="contact-list" id="pipeline-list"></div>
-            </div>
-
-            <!-- Action Gaps Section -->
-            <div id="gaps-section" style="display:none;">
-                <div class="section-header" style="border-bottom-color: var(--accent-red); margin-top: 1rem;">
-                    <span class="icon">⚠️</span>
-                    <h2>Engagement Gaps</h2>
-                    <span class="section-count" id="gaps-count">0</span>
-                </div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: -0.5rem; margin-bottom: 1rem;">
-                    High-priority contacts with no tasks scheduled in the next 3 months.
-                </p>
-                <div class="contact-list" id="gaps-list"></div>
-            </div>
-
             <!-- Overdue Section -->
             <div id="overdue-section" style="display:none;">
                 <div class="section-header">
                     <span class="icon">🔴</span>
-                    <h2>Past</h2>
+                    <h2>Act Now</h2>
                     <span class="section-count" id="overdue-count">0</span>
                 </div>
                 <div class="contact-list" id="overdue-list"></div>
@@ -171,7 +184,7 @@
             <div id="not-scheduled-section" style="display:none;">
                 <div class="section-header">
                     <span class="icon">⚪</span>
-                    <h2>Not Sched / No Date</h2>
+                    <h2>Monitor</h2>
                     <span class="section-count" id="not-scheduled-count">0</span>
                 </div>
                 <div class="contact-list" id="not-scheduled-list"></div>
@@ -181,7 +194,7 @@
             <div id="soon-section" style="display:none;">
                 <div class="section-header">
                     <span class="icon">🟠</span>
-                    <h2>Coming Soon</h2>
+                    <h2>Maintain</h2>
                     <span class="section-count" id="soon-count">0</span>
                 </div>
                 <div class="contact-list" id="soon-list"></div>
@@ -191,7 +204,7 @@
             <div id="ontrack-section" style="display:none;">
                 <div class="section-header">
                     <span class="icon">🔵</span>
-                    <h2>On Track</h2>
+                    <h2>Preserve</h2>
                     <span class="section-count" id="ontrack-count">0</span>
                 </div>
                 <div class="contact-list" id="ontrack-list"></div>
@@ -200,8 +213,8 @@
             <!-- Empty State -->
             <div id="empty-state" class="empty-state" style="display:none;">
                 <div class="empty-state-icon">📅</div>
-                <p>No scheduled meetings</p>
-                <p style="font-size: 0.85rem; margin-top: 0.5rem;">Tap contacts to schedule your first meeting</p>
+                <p>No contacts match the current filters</p>
+                <p style="font-size: 0.85rem; margin-top: 0.5rem;">Clear a filter or switch queues to see more relationships.</p>
             </div>
         </main>
 
@@ -211,8 +224,8 @@
                 <h3>📝 Quick Capture</h3>
 
                 <div class="form-group">
-                    <input list="person-list" id="qc-person-input" class="form-control" placeholder="Search contact...">
-                    <datalist id="person-list"></datalist>
+                    <input id="qc-person-input" class="form-control" autocomplete="off" placeholder="Search contact...">
+                    <div id="qc-person-results" class="ag-picker-panel" hidden></div>
                 </div>
 
                 <div class="form-group">
@@ -234,9 +247,13 @@
         <div id="twin-chat-modal" class="floating-chat" style="display:none;">
             <div class="floating-chat-content">
                 <div class="chat-header">
-                    <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:0.5rem;">
-                        Twin Assistant
-                    </h3>
+                    <div class="chat-header-copy">
+                        <div class="chat-kicker">Relationship AI</div>
+                        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:0.5rem;">
+                            Twin Assistant
+                        </h3>
+                        <p class="chat-subtitle">Search people, create actions, and turn inputs into live CRM work.</p>
+                    </div>
                     <button onclick="closeTwinChat()" class="close-btn">&times;</button>
                 </div>
 
@@ -274,10 +291,7 @@
 
         <!-- Twin Floating Action Button -->
         <div class="fab twin-fab" onclick="openTwinChat()" title="Talk to Twin">
-            <svg class="ombre-icon" width="32" height="32" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L14.7 8.6L21.3 11.3L14.7 14L12 20.6L9.3 14L2.7 11.3L9.3 8.6L12 2Z"
-                    fill="url(#ombre-grad)" />
-            </svg>
+            <span class="twin-fab-label">AI</span>
         </div>
 
         <!-- Scroll to Top Button -->
@@ -285,14 +299,8 @@
             ^
         </div>
 
-        <!-- Quick Capture Modal -->
-        <div id="quick-capture-modal" class="modal" style="display:none;">
-            <!-- ... (Existing content) ... -->
-        </div>
-
         <!-- Floating Action Button (Quick Capture) - REMOVED AS PER USER REQUEST -->
 
-        </div>
     </div>
     
     <script>
@@ -302,9 +310,9 @@
             renderUniversalLayout(isPipeline ? 'pipeline' : 'dashboard', 'RELATIONSHIP INTELLIGENCE');
         });
     </script>
-    </div>
 
-    <script src="/js/index.js"></script>
+    <script src="/static/relationship-temperature.js"></script>
+  <script src="/js/index.js?v=20260321i"></script>
     <script>
         // --- Drag & Drop for PDF ---
         const twinModal = document.getElementById('twin-chat-modal');
@@ -392,7 +400,7 @@
                         // It's a created person!
                         appendMessage('twin', `✅ Profile Created: <strong>${data.data.full_name}</strong>. Opening...`);
                         setTimeout(() => {
-                            window.location.href = `/people/${data.data.person_id}`;
+                            window.location.href = `/person/${data.data.person_id}`;
                         }, 1500);
                     }
                 }
@@ -415,10 +423,7 @@
         }
     </script>
 
-    <!-- Scroll to Top Button -->
-    <div id="scroll-top-btn" class="scroll-top-btn" onclick="scrollToTop()" title="Return to Top">
-        ↑
-    </div>
 </body>
 
 </html>
+

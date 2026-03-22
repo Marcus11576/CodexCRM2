@@ -5,202 +5,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CRM Settings | Antigravity</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
-    <script src="/static/utils.js"></script>
-    <script src="/js/background.js"></script>
-    <link rel="stylesheet" href="/static/design-system.css">
-    <link rel="stylesheet" href="/static/settings.css">
+    <script src="/static/utils.js?v=20260318d"></script>
+    <script src="/js/background.js?v=20260313a"></script>
+    <link rel="stylesheet" href="/static/design-system.css?v=20260318b">
+    <link rel="stylesheet" href="/static/settings.css?v=20260318g">
 </head>
 
-<body class="platinum-body">
+<body class="platinum-body" data-page="settings">
     <div class="platinum-bg">
         <div class="platinum-frosted"></div>
     </div>
 
     <!-- Universal components will be injected here -->
-    
+
     <div class="main-content-wrap">
         <div class="app">
 
             <!-- Stats Bar -->
             <div class="stats-bar" id="stats-bar">
                 <div class="stat-card">
-                    <div class="val" id="stat-cat">—</div>
+                    <div class="val" id="stat-cat">&mdash;</div>
                     <div class="lbl"><span class="dot" style="background:#6366f1"></span>Contact Categories</div>
                 </div>
                 <div class="stat-card">
-                    <div class="val" id="stat-env">—</div>
+                    <div class="val" id="stat-env">&mdash;</div>
                     <div class="lbl"><span class="dot" style="background:#22d3ee"></span>Environments</div>
                 </div>
                 <div class="stat-card">
-                    <div class="val" id="stat-disc">—</div>
+                    <div class="val" id="stat-disc">&mdash;</div>
                     <div class="lbl"><span class="dot" style="background:#34d399"></span>Disciplines</div>
                 </div>
                 <div class="stat-card">
-                    <div class="val" id="stat-total">—</div>
+                    <div class="val" id="stat-total">&mdash;</div>
                     <div class="lbl">Total Active Entries</div>
                 </div>
             </div>
 
-            <!-- AI Configuration -->
             <div class="section-container" style="margin-bottom: 2rem;">
-                <h2 class="section-title"><i style="font-style:normal; margin-right:8px;">🤖</i> Strategic AI
-                    Configuration</h2>
-
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem;">
-                    <!-- Keys & Models -->
-                    <div
-                        style="background:var(--bg-card); padding:1.5rem; border-radius:12px; border:1px solid var(--border);">
-                        <h3 style="margin-top:0; margin-bottom:1rem; font-size:0.95rem; color:var(--text-primary);">Core
-                            Engine</h3>
-
-                        <div style="margin-bottom: 1rem;">
-                            <label
-                                style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.4rem; font-weight:600;">OpenAI
-                                API Key (GPT-4o, Whisper, TTS)</label>
-                            <input type="password" id="setting-openai-key" placeholder="sk-..." class="tag-input"
-                                style="width:100%; font-family:monospace; font-size:0.85rem; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white; padding:8px; border-radius:6px;">
-                        </div>
-
-                        <div style="margin-bottom: 1rem;">
-                            <label
-                                style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.4rem; font-weight:600;">Meeting
-                                Brief TTS Voice</label>
-                            <select id="setting-tts-voice" class="tag-input"
-                                style="width:100%; font-size:0.85rem; padding:8px; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white; border-radius:6px;">
-                                <option value="nova">Nova (Balanced/Female)</option>
-                                <option value="shimmer">Shimmer (Sharp/Female)</option>
-                                <option value="onyx">Onyx (Deep/Male)</option>
-                                <option value="alloy">Alloy (Neutral)</option>
-                            </select>
-                        </div>
-
-                        <div style="margin-bottom: 1rem;">
-                            <label
-                                style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.4rem; font-weight:600;">Recruitment
-                                Section Label</label>
-                            <input type="text" id="setting-label-recruitment" placeholder="Recruitment & Talent"
-                                class="tag-input"
-                                style="width:100%; font-size:0.85rem; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white; padding:8px; border-radius:6px;">
-                        </div>
-
-                        <div style="margin-bottom: 0;">
-                            <label
-                                style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.4rem; font-weight:600;">OBE
-                                Section Label</label>
-                            <input type="text" id="setting-label-obe" placeholder="OBE Focus" class="tag-input"
-                                style="width:100%; font-size:0.85rem; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white; padding:8px; border-radius:6px;">
-                        </div>
-                    </div>
-
-                    <!-- Strategic Intelligence -->
-                    <div
-                        style="background:var(--bg-card); padding:1.5rem; border-radius:12px; border:1px solid var(--border);">
-                        <h3 style="margin-top:0; margin-bottom:1rem; font-size:0.95rem; color:var(--text-primary);">
-                            Strategic Hypotheses</h3>
-
-                        <div>
-                            <label
-                                style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.4rem; font-weight:600;">Core
-                                Hypothesis Questions (One per line)</label>
-                            <textarea id="setting-hypothesis-questions" class="tag-input"
-                                style="width:100%; height:120px; font-family:monospace; font-size:0.75rem; padding:0.5rem; resize:vertical; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white; border-radius:6px;"
-                                placeholder="What are their specific recruitment challenges?&#10;What project wins are they currently targeting?"></textarea>
-                            <div style="font-size:0.65rem; color:var(--text-secondary); margin-top:8px;">The AI will use
-                                these questions to identify 'Shadow Areas' and generate strategic follow-ups in every
-                                meeting brief.</div>
-                        </div>
-                    </div>
-                </div>
-                <div style="margin-top:1rem; text-align:right;">
-                    <button class="btn btn-save btn-primary" onclick="saveAISettings()">Save Configuration</button>
+                <h2 class="section-title"><i style="font-style:normal; margin-right:8px;">&#128274;</i> Baseline Freeze</h2>
+                <div style="background:var(--bg-card); padding:1.5rem; border-radius:12px; border:1px solid var(--border); margin-top:1rem; line-height:1.7; color:var(--text-secondary);">
+                    Runtime controls below let you rotate the OpenAI API key without editing files manually.
+                    Intelligence framework controls are saved centrally for all users.
+                    Low-level prompt engineering remains server-managed.
                 </div>
             </div>
 
-            <!-- Contact Categories -->
+            <div id="section-runtime-api"></div>
+            <div id="section-intelligence-framework"></div>
             <div id="section-cat"></div>
-
-            <!-- Environments -->
             <div id="section-env"></div>
-
-            <!-- Disciplines -->
             <div id="section-disc"></div>
+            <div id="section-backups"></div>
+            <div id="section-relationship-health"></div>
+            <div id="section-visual-theme"></div>
 
         </div>
     </div>
 
-    <!-- TOAST -->
     <div id="toast"></div>
 
-    <script>
-        async function loadAISettings() {
-            try {
-                const res = await fetch('/api/config/ai');
-                if (!res.ok) throw new Error('Failed to load settings');
-                const config = await res.json();
-
-                if (config.openai_key) document.getElementById('setting-openai-key').value = config.openai_key;
-                if (config.tts_voice) document.getElementById('setting-tts-voice').value = config.tts_voice;
-                if (config.hypothesis_questions) document.getElementById('setting-hypothesis-questions').value = config.hypothesis_questions;
-                if (config.recruitment_label) document.getElementById('setting-label-recruitment').value = config.recruitment_label;
-                if (config.obe_label) document.getElementById('setting-label-obe').value = config.obe_label;
-            } catch (err) {
-                console.error('Settings load error:', err);
-            }
-        }
-
-        async function saveAISettings() {
-            const btn = document.querySelector('.btn-save');
-            const originalText = btn.innerText;
-            const openaiKey = document.getElementById('setting-openai-key').value;
-            const ttsVoice = document.getElementById('setting-tts-voice').value;
-            const hypothesisQuestions = document.getElementById('setting-hypothesis-questions').value;
-            const recruitmentLabel = document.getElementById('setting-label-recruitment').value;
-            const obeLabel = document.getElementById('setting-label-obe').value;
-
-            btn.innerText = 'Saving...';
-            btn.style.opacity = '0.7';
-
-            try {
-                const res = await fetch('/api/config/ai', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        openai_key: openaiKey || null,
-                        tts_voice: ttsVoice || null,
-                        hypothesis_questions: hypothesisQuestions || null,
-                        recruitment_label: recruitmentLabel || null,
-                        obe_label: obeLabel || null
-                    })
-                });
-
-                if (!res.ok) throw new Error('Failed to save settings');
-
-                btn.innerText = 'Saved Successfully';
-                btn.style.background = '#10b981';
-
-                const toast = document.getElementById('toast');
-                toast.innerText = 'Configuration securely saved.';
-                toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 3000);
-
-            } catch (err) {
-                alert('Error: ' + err.message);
-                btn.innerText = 'Save Failed';
-            } finally {
-                setTimeout(() => {
-                    btn.innerText = originalText;
-                    btn.style.background = '';
-                    btn.style.opacity = '1';
-                }, 2000);
-            }
-        }
-
-        // Boot
-        document.addEventListener('DOMContentLoaded', loadAISettings);
-    </script>
-    <script src="/js/settings.js"></script>
+    <script src="/static/relationship-temperature.js"></script>
+    <script src="/js/settings.js?v=20260319c"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             renderUniversalLayout('settings', 'SYSTEM CONFIGURATION');
@@ -209,4 +74,4 @@
 </body>
 
 </html>
-```
+

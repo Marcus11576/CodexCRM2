@@ -6,7 +6,7 @@ import json
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import List
+from typing import Any, List
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
@@ -23,8 +23,14 @@ from backend.services.ai_jobs import (
     JOB_TYPE_SIGNAL_EXTRACTION,
     JOB_TYPE_TRANSCRIPTION,
     enqueue_job,
+    get_job,
     list_jobs,
 )
+from backend.services.ai_foundation import compute_duplicate_hash
+from backend.services.ai_pipeline_service import create_or_update_artifact
+from backend.services.ai_pipeline_service import load_profile_signals
+from backend.services.preference_learning import record_feedback_event
+from backend.services.transcript_guardrails import is_non_transcript_chat_input
 
 router = APIRouter(prefix="/api/intelligence", tags=["intelligence"])
 
@@ -32,6 +38,65 @@ router = APIRouter(prefix="/api/intelligence", tags=["intelligence"])
 class ChatRequest(BaseModel):
     message: str
     history: List[dict] = []
+    assistant_context: dict[str, Any] | None = None
+
+
+def _infer_chat_feedback_event(message: str) -> tuple[str, dict] | tuple[None, None]:
+    text = str(message or "").strip()
+    lowered = text.lower()
+    correction_markers = (
+        "should have",
+        "should've",
+        "you should",
+        "not intuitive",
+        "not intuative",
+        "missed",
+        "failed to suggest",
+        "should suggest",
+        "make sure it learns",
+    )
+    if not any(marker in lowered for marker in correction_markers):
+        return None, None
+
+    details = {
+        "text": text,
+        "source": "profile_chat_correction",
+        "reason_code": "user_correction",
+    }
+    if any(term in lowered for term in ("task", "follow up", "follow-up", "call", "coffee", "after eid", "catch up", "catch-up")):
+        details["preferred_behavior"] = "proactive_follow_up"
+        return "missed_follow_up", details
+    return "edit", details
+
+
+def _build_topic_resolution_evidence_text(message: str, operation: dict) -> str:
+    lines = [
+        "Manual relationship topic update captured via profile assistant.",
+        f"Topic: {str(operation.get('title') or 'Relationship topic').strip()}",
+    ]
+    if operation.get("situation_id"):
+        lines.append(f"Situation ID: {str(operation.get('situation_id')).strip()}")
+    state_line = " | ".join(
+        part for part in (
+            str(operation.get("status_label") or "").strip(),
+            str(operation.get("stage") or "").strip(),
+            str(operation.get("momentum") or "").strip(),
+        )
+        if part
+    )
+    if state_line:
+        lines.append(f"Tracked state: {state_line}")
+    if operation.get("current_read"):
+        lines.append(f"Current read: {str(operation.get('current_read')).strip()}")
+    if operation.get("why_it_matters"):
+        lines.append(f"Why it matters: {str(operation.get('why_it_matters')).strip()}")
+    if operation.get("resolution_note"):
+        lines.append(f"Resolution note: {str(operation.get('resolution_note')).strip()}")
+    if operation.get("recommended_action"):
+        lines.append(f"Recommended action: {str(operation.get('recommended_action')).strip()}")
+    lines.append("Operator update:")
+    lines.append(str(message or "").strip())
+    return "\n".join(line for line in lines if line)
 
 
 class TtsRequest(BaseModel):
@@ -44,12 +109,60 @@ class WhatsAppImport(BaseModel):
     conversation_text: str
 
 
+def _brief_section_to_text(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list):
+        return " ".join(str(item).strip() for item in value if str(item).strip()).strip()
+    if isinstance(value, dict):
+        return " ".join(str(item).strip() for item in value.values() if str(item).strip()).strip()
+    return str(value).strip()
+
+
+def _normalize_brief_payload(payload: dict | None, brief_id: str | None = None) -> dict | None:
+    if not payload:
+        return payload
+    normalized = dict(payload)
+    normalized["business_focus"] = _brief_section_to_text(
+        normalized.get("business_focus") or normalized.get("business_focus_summary")
+    )
+    normalized["recruitment_talent"] = _brief_section_to_text(
+        normalized.get("recruitment_talent") or normalized.get("recruitment_talent_summary")
+    )
+    normalized["personal_rapport"] = _brief_section_to_text(
+        normalized.get("personal_rapport") or normalized.get("family_personal_summary")
+    )
+    normalized["obe_focus"] = _brief_section_to_text(
+        normalized.get("obe_focus") or normalized.get("obe_focus_summary")
+    )
+    normalized["overall_brief_summary"] = _brief_section_to_text(
+        normalized.get("overall_brief_summary")
+        or " ".join(
+            section for section in (
+                normalized.get("business_focus"),
+                normalized.get("recruitment_talent"),
+                normalized.get("personal_rapport"),
+                normalized.get("obe_focus"),
+            )
+            if section
+        )
+    )
+    normalized["audio_script"] = _brief_section_to_text(
+        normalized.get("audio_script") or normalized.get("overall_brief_summary")
+    )
+    if brief_id and not normalized.get("brief_id"):
+        normalized["brief_id"] = brief_id
+    return normalized
+
+
 async def _get_cached_brief_state(person_id: str):
     async def _load_person_and_brief(db):
         async with db.execute("SELECT * FROM PERSON WHERE person_id=?", (person_id,)) as cursor:
             person_row = await cursor.fetchone()
         async with db.execute(
-            "SELECT brief_id, content_json FROM AI_BRIEF WHERE person_id=? ORDER BY created_at DESC LIMIT 1",
+            "SELECT brief_id, content_json, is_stale FROM AI_BRIEF WHERE person_id=? ORDER BY created_at DESC LIMIT 1",
             (person_id,),
         ) as cursor:
             brief_row = await cursor.fetchone()
@@ -59,6 +172,7 @@ async def _get_cached_brief_state(person_id: str):
     if not row:
         raise HTTPException(404, "Person not found")
     person = dict(row)
+    brief_row = dict(brief_row) if brief_row else None
 
     cached = None
     if person.get("cached_briefing"):
@@ -66,8 +180,17 @@ async def _get_cached_brief_state(person_id: str):
             cached = json.loads(person["cached_briefing"])
         except Exception:
             cached = None
-    if cached and brief_row and not cached.get("brief_id"):
-        cached["brief_id"] = brief_row["brief_id"]
+
+    if brief_row and brief_row.get("is_stale"):
+        cached = None
+
+    if not cached and brief_row and brief_row["content_json"]:
+        try:
+            cached = json.loads(brief_row["content_json"])
+        except Exception:
+            cached = None
+
+    cached = _normalize_brief_payload(cached, brief_row["brief_id"] if brief_row else None)
     return person, cached
 
 async def _latest_brief_job(person_id: str):
@@ -92,22 +215,26 @@ async def get_brief(person_id: str, force_refresh: bool = False, request: Reques
     if existing_job and existing_job["status"] in {JOB_STATUS_QUEUED, JOB_STATUS_RUNNING, JOB_STATUS_RETRYING}:
         return {"status": existing_job["status"], "job_id": existing_job["job_id"], "cached": False}
 
-    if existing_job and existing_job["status"] == JOB_STATUS_COMPLETED and cached:
-        return {"status": "completed", "briefing": cached, "cached": True}
-
     if force_refresh or not existing_job or existing_job["status"] == JOB_STATUS_FAILED:
         job = await enqueue_job(
             JOB_TYPE_BRIEF_GENERATION,
             {"person_id": person_id, "force_refresh": force_refresh},
             person_id=person_id,
+            dedupe_key=f"{JOB_TYPE_BRIEF_GENERATION}:{person_id}",
         )
         return {"status": job["status"], "job_id": job["job_id"], "cached": False}
+
+    if existing_job and existing_job["status"] == JOB_STATUS_COMPLETED and cached:
+        return {"status": "completed", "briefing": cached, "cached": True}
 
     return {"status": "processing", "job_id": existing_job["job_id"], "cached": False}
 
 
 @router.post("/chat/{person_id}")
 async def chat_with_profile(person_id: str, req: ChatRequest):
+    if not settings.OPENAI_CONFIGURED:
+        raise HTTPException(503, "AI assistant is unavailable until a valid OpenAI API key is configured")
+
     async def _load_person(db):
         async with db.execute("SELECT * FROM PERSON WHERE person_id=?", (person_id,)) as cursor:
             return await cursor.fetchone()
@@ -119,25 +246,202 @@ async def chat_with_profile(person_id: str, req: ChatRequest):
 
     from backend.services.ai_service import profile_chat
 
-    response = await profile_chat(person_id, person, req.message, req.history)
+    if req.assistant_context is None:
+        chat_result = await profile_chat(person_id, person, req.message, req.history)
+    else:
+        chat_result = await profile_chat(person_id, person, req.message, req.history, req.assistant_context)
+    response_text = chat_result.get('response') if isinstance(chat_result, dict) else str(chat_result)
+    operations = chat_result.get('operations', []) if isinstance(chat_result, dict) else []
+    active_topic_context = (
+        isinstance(req.assistant_context, dict)
+        and str(req.assistant_context.get("type") or "").strip().lower() == "relationship_topic_resolution"
+        and str(req.assistant_context.get("situation_record_id") or "").strip() != ""
+    )
 
-    iid = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
+    resolution_op = next(
+        (
+            op for op in operations
+            if op.get("type") == "resolve_relationship_topic" and op.get("status") == "completed"
+        ),
+        None,
+    )
 
-    async def _log_chat(db):
-        await db.execute(
-            "INSERT INTO INTERACTION (interaction_id, person_id, channel, raw_text, summary, action_items, topics, created_at, interaction_at) VALUES (?,?,?,?,?,?,?,?,?)",
-            (iid, person_id, "chat", req.message, req.message[:200], "[]", "[]", now, now),
+    logged_interaction_id: str | None = None
+
+    if resolution_op:
+        iid = str(uuid.uuid4())
+        raw_text = _build_topic_resolution_evidence_text(req.message, resolution_op)
+        action_items = []
+        if resolution_op.get("recommended_action") and resolution_op.get("status") != "closed":
+            action_items.append(str(resolution_op["recommended_action"]).strip())
+        topics = ["relationship_topic_resolution"]
+        if resolution_op.get("title"):
+            topics.append(str(resolution_op["title"]).strip())
+
+        async def _log_topic_resolution(db):
+            nonlocal iid
+            async with db.execute(
+                """
+                SELECT interaction_id
+                FROM INTERACTION
+                WHERE person_id = ?
+                  AND channel = 'chat'
+                  AND TRIM(COALESCE(raw_text, '')) = TRIM(?)
+                ORDER BY datetime(created_at) DESC, interaction_id DESC
+                LIMIT 1
+                """,
+                (person_id, req.message),
+            ) as cursor:
+                existing_chat = await cursor.fetchone()
+
+            if existing_chat:
+                iid = str(existing_chat["interaction_id"])
+                await db.execute(
+                    """
+                    UPDATE INTERACTION
+                    SET channel = ?, raw_text = ?, summary = ?, action_items = ?, topics = ?,
+                        sentiment = ?, interaction_at = ?, direction = ?, meaningful_flag = ?,
+                        outcome_type = ?, response_flag = ?, follow_up_committed_flag = ?
+                    WHERE interaction_id = ?
+                    """,
+                    (
+                        "chat_topic_resolution",
+                        raw_text,
+                        str(resolution_op.get("current_read") or resolution_op.get("title") or req.message[:200]).strip(),
+                        json.dumps(action_items),
+                        json.dumps(topics),
+                        "neutral",
+                        now,
+                        "inbound",
+                        1,
+                        str(resolution_op.get("resolution_type") or resolution_op.get("status") or "updated"),
+                        1,
+                        1 if action_items else 0,
+                        iid,
+                    ),
+                )
+            else:
+                await db.execute(
+                    """
+                    INSERT INTO INTERACTION (
+                        interaction_id, person_id, channel, raw_text, summary, action_items, topics,
+                        sentiment, created_at, interaction_at, direction, meaningful_flag, outcome_type,
+                        response_flag, follow_up_committed_flag
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        iid,
+                        person_id,
+                        "chat_topic_resolution",
+                        raw_text,
+                        str(resolution_op.get("current_read") or resolution_op.get("title") or req.message[:200]).strip(),
+                        json.dumps(action_items),
+                        json.dumps(topics),
+                        "neutral",
+                        now,
+                        now,
+                        "inbound",
+                        1,
+                        str(resolution_op.get("resolution_type") or resolution_op.get("status") or "updated"),
+                        1,
+                        1 if action_items else 0,
+                    ),
+                )
+            await db.execute(
+                "UPDATE PERSON SET cached_briefing=NULL, last_contact_datetime=?, last_updated_at=? WHERE person_id=?",
+                (now, now, person_id),
+            )
+
+        await run_write(_log_topic_resolution, label=f"log topic resolution chat {person_id}")
+        logged_interaction_id = iid
+
+        duplicate_hash = compute_duplicate_hash(person_id, "chat_topic_resolution", raw_text)
+        artifact = await create_or_update_artifact(
+            person_id=person_id,
+            channel="chat_topic_resolution",
+            source_interaction_id=iid,
+            raw_content=raw_text,
+            source_name="chat_topic_resolution.txt",
+            source_type="text",
+            extracted_metadata={
+                "assistant_context": req.assistant_context or {},
+                "situation_record_id": resolution_op.get("situation_record_id"),
+                "situation_id": resolution_op.get("situation_id"),
+                "tracking_status": resolution_op.get("status"),
+                "resolution_type": resolution_op.get("resolution_type"),
+            },
+            duplicate_hash=duplicate_hash,
+            status="queued",
         )
-        await db.execute("UPDATE PERSON SET cached_briefing=NULL, last_updated_at=? WHERE person_id=?", (now, person_id))
+        resolution_op["interaction_id"] = iid
+        resolution_op["artifact_id"] = artifact.get("artifact_id")
+        if artifact.get("status") != "duplicate" and settings.LEGACY_SCORING_ENABLED:
+            job = await enqueue_job(
+                JOB_TYPE_SIGNAL_EXTRACTION,
+                {
+                    "interaction_id": iid,
+                    "person_id": person_id,
+                    "channel": "chat_topic_resolution",
+                    "raw_text": raw_text,
+                    "source_kind": "text",
+                    "artifact_id": artifact["artifact_id"],
+                },
+                person_id=person_id,
+                interaction_id=iid,
+                related_artifact_id=artifact["artifact_id"],
+                dedupe_key=f"{JOB_TYPE_SIGNAL_EXTRACTION}:{artifact['artifact_id']}",
+            )
+            resolution_op["job"] = job
+    else:
+        control_prompt = (
+            not active_topic_context
+            and is_non_transcript_chat_input(req.message, channel="chat")
+        )
+        if not control_prompt:
+            iid = str(uuid.uuid4())
 
-    await run_write(_log_chat, label=f"log profile chat {person_id}")
-    return {"response": response, "interaction_id": iid}
+            async def _log_chat(db):
+                channel = "chat_topic_resolution" if active_topic_context else "chat"
+                topics = ["relationship_topic_resolution"] if active_topic_context else []
+                summary = (
+                    str(req.assistant_context.get("title") or req.message[:200]).strip()
+                    if active_topic_context
+                    else req.message[:200]
+                )
+                await db.execute(
+                    "INSERT INTO INTERACTION (interaction_id, person_id, channel, raw_text, summary, action_items, topics, created_at, interaction_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                    (iid, person_id, channel, req.message, summary, "[]", json.dumps(topics), now, now),
+                )
+                await db.execute(
+                    "UPDATE PERSON SET cached_briefing=NULL, last_contact_datetime=?, last_updated_at=? WHERE person_id=?",
+                    (now, now, person_id),
+                )
+
+            await run_write(_log_chat, label=f"log profile chat {person_id}")
+            logged_interaction_id = iid
+    feedback_event, feedback_details = _infer_chat_feedback_event(req.message)
+    if feedback_event and logged_interaction_id:
+        await record_feedback_event(
+            target_type="interaction",
+            target_id=logged_interaction_id,
+            event_type=feedback_event,
+            details={"person_id": person_id, **(feedback_details or {})},
+        )
+    return {"response": response_text, "interaction_id": logged_interaction_id, "operations": operations}
+
+
+@router.get("/jobs/{job_id}")
+async def get_intelligence_job(job_id: str):
+    job = await get_job(job_id)
+    if not job:
+        raise HTTPException(404, "Job not found")
+    return job
 
 
 @router.post("/tts/{person_id}")
 async def generate_audio_brief(person_id: str, req: TtsRequest):
-    if not settings.OPENAI_API_KEY:
+    if not settings.OPENAI_CONFIGURED:
         raise HTTPException(503, "OpenAI API key not configured")
 
     from backend.services.ai_service import generate_tts
@@ -156,7 +460,7 @@ async def generate_audio_brief(person_id: str, req: TtsRequest):
 
 @router.post("/transcribe")
 async def transcribe(file: UploadFile = File(...)):
-    if not settings.OPENAI_API_KEY:
+    if not settings.OPENAI_CONFIGURED:
         raise HTTPException(503, "OpenAI API key not configured")
 
     transcription_dir = os.path.join(settings.UPLOADS_DIR, "transcriptions")
@@ -179,6 +483,11 @@ async def transcribe(file: UploadFile = File(...)):
 
 @router.post("/whatsapp-import")
 async def import_whatsapp(req: WhatsAppImport):
+    if settings.CHATBOT_ONLY_MODE:
+        raise HTTPException(410, "WhatsApp import is disabled in chatbot-only mode. Use chat text, screenshots, or voice uploads.")
+    if not settings.OPENAI_CONFIGURED:
+        raise HTTPException(503, "AI import is unavailable until a valid OpenAI API key is configured")
+
     now = datetime.now(timezone.utc).isoformat()
     interaction_id = str(uuid.uuid4())
 
@@ -196,6 +505,23 @@ async def import_whatsapp(req: WhatsAppImport):
         await db.execute("UPDATE PERSON SET cached_briefing=NULL, last_contact_datetime=?, last_updated_at=? WHERE person_id=?", (now, now, req.person_id))
 
     await run_write(_create_placeholder, label=f"queue whatsapp import {req.person_id}")
+    artifact = await create_or_update_artifact(
+        person_id=req.person_id,
+        channel="whatsapp",
+        source_interaction_id=interaction_id,
+        raw_content=req.conversation_text,
+        source_name="whatsapp_import.txt",
+        source_type="chat_transcript",
+        extracted_metadata={"import_source": "whatsapp"},
+        duplicate_hash=compute_duplicate_hash(req.person_id, "whatsapp", req.conversation_text),
+        status="queued",
+    )
+    if artifact.get("status") == "duplicate":
+        return {
+            "status": "duplicate",
+            "interaction_id": interaction_id,
+            "artifact_id": artifact["artifact_id"],
+        }
 
     job = await enqueue_job(
         JOB_TYPE_SIGNAL_EXTRACTION,
@@ -205,28 +531,27 @@ async def import_whatsapp(req: WhatsAppImport):
             "channel": "whatsapp",
             "raw_text": req.conversation_text,
             "source_kind": "text",
+            "artifact_id": artifact["artifact_id"],
         },
         person_id=req.person_id,
         interaction_id=interaction_id,
+        related_artifact_id=artifact["artifact_id"],
+        dedupe_key=f"{JOB_TYPE_SIGNAL_EXTRACTION}:{artifact['artifact_id']}",
     )
-    return {"status": "queued", "interaction_id": interaction_id, "job": job}
+    return {"status": "queued", "interaction_id": interaction_id, "artifact_id": artifact["artifact_id"], "job": job}
 
 
 @router.post("/assistant/{person_id}/review")
 async def intelligence_review(person_id: str):
     """Run the intelligence assistant over existing stored signals and upcoming events."""
-    # load person and signals
+    if not settings.OPENAI_CONFIGURED:
+        raise HTTPException(503, "AI review is unavailable until a valid OpenAI API key is configured")
+
     async def _load(db):
         async with db.execute("SELECT * FROM PERSON WHERE person_id=?", (person_id,)) as c:
             person = await c.fetchone()
         if not person:
             raise HTTPException(404, "Person not found")
-        async with db.execute(
-            "SELECT intel_id, topic AS category, intel_text AS text, confidence, created_at AS date, status, source_snippet AS snippet "
-            "FROM TOPIC_INTELLIGENCE WHERE person_id=? ORDER BY created_at DESC",
-            (person_id,),
-        ) as c:
-            signals = [dict(r) for r in await c.fetchall()]
         # upcoming events
         today = datetime.now(timezone.utc).isoformat()
         async with db.execute(
@@ -236,12 +561,13 @@ async def intelligence_review(person_id: str):
             (person_id, today),
         ) as c:
             events = [dict(r) for r in await c.fetchall()]
-        return dict(person=dict(person), signals=signals, events=events)
+        return dict(person=dict(person), events=events)
 
     data = await run_read(_load, label=f"load intel review context {person_id}")
+    signals = await load_profile_signals(person_id, include_rejected=False, limit=60)
     from backend.services.ai_service import review_signals
 
-    result = await review_signals(data["person"], data["signals"], data["events"])
+    result = await review_signals(data["person"], signals, data["events"])
     return result
 
 @router.post("/backfill/{person_id}")
@@ -269,6 +595,8 @@ async def admin_backfill_person(person_id: str):
             interaction_id=interaction["interaction_id"],
         ))
     return {"status": "queued", "jobs": jobs, "count": len(jobs)}
+
+
 
 
 

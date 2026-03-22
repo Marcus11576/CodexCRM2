@@ -28,6 +28,9 @@
 - This deployment is intended for a single running web instance while SQLite remains the database.
 - Do not scale horizontally with SQLite background jobs.
 - Move to Postgres before multi-instance deployment or heavier AI concurrency.
+- Serve the app over `https://` in production. Microphone capture on Android/tablet browsers will be blocked on insecure origins.
+- Verify `OPENAI_API_KEY` before enabling voice transcription, AI chat, and generated meeting audio.
+- Use `/api/health/status` after deploy to confirm the new `deployment_checks` values before opening the system to users.
 
 ## Render steps
 1. Push this repo to GitHub.
@@ -35,4 +38,6 @@
 3. Attach the persistent disk defined in `render.yaml`.
 4. Set `SECRET_KEY` and any AI/M365 keys.
 5. Confirm `AUTH_DISABLED=false` before public access.
-6. Deploy and run first-time admin setup from `/login` if no users exist.
+6. Confirm the public URL is HTTPS and that secure cookies are being set.
+7. Deploy and run first-time admin setup from `/login` if no users exist.
+8. Check `/api/health/status` and `/api/health/backups/status` after first boot.

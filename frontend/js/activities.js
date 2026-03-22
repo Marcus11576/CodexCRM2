@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Activities Dashboard - Intelligence Momentum Logic
  * Handles real-time data fetching and rendering for the Pulse and Trends.
  */
@@ -24,7 +24,7 @@ async function loadMomentum() {
         const now = new Date();
         const isAfternoon = now.getHours() >= 13;
         const period = isAfternoon ? 'afternoon' : 'morning';
-        const stats = data[period];
+        const stats = data?.[period] || data?.summary || { people: 0, interactions: 0, intel: 0 };
 
         // Update Dial
         document.getElementById('total-momentum').textContent = stats.people + stats.interactions + stats.intel;
@@ -47,10 +47,11 @@ async function loadMomentum() {
 }
 
 async function loadRecentIntel() {
+    const container = document.getElementById('intel-feed');
+    if (!container) return;
     try {
         const res = await fetch('/api/v2/analytics/recent-intel');
         const data = await res.json();
-        const container = document.getElementById('intel-feed');
         container.innerHTML = '';
 
         if (data.length === 0) {
@@ -83,5 +84,47 @@ async function loadRecentIntel() {
     } catch (err) {
         console.error('Failed to load intel feed:', err);
         container.innerHTML = '<p style="color: var(--accent-red); grid-column: 1/-1; text-align: center;">Error loading intelligence.</p>';
+    }
+}
+
+async function loadCategorySentiment() {
+    const trendGrid = document.getElementById('trend-grid');
+    if (!trendGrid) return;
+
+    try {
+        const res = await fetch('/api/v2/analytics/category-sentiment');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : (data.categories || []);
+
+        if (items.length === 0) {
+            trendGrid.innerHTML = '<div class="trend-card" style="color: var(--text-muted);">No category sentiment yet.</div>';
+            return;
+        }
+
+        trendGrid.innerHTML = items.map(item => {
+            const label = item.label || item.category || item.topic || 'General';
+            const sentiment = Number(item.sentiment ?? 0.5);
+            const confidence = Math.round(Number(item.confidence ?? 0.5) * 100);
+            const sentimentPct = Math.round(sentiment * 100);
+            return `
+                <div class="trend-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                        <div style="font-weight:800; letter-spacing:0.5px;">${label}</div>
+                        <div style="font-size:0.75rem; color: var(--accent-cyan);">${confidence}% confidence</div>
+                    </div>
+                    <div style="height:8px; border-radius:999px; background:rgba(255,255,255,0.06); overflow:hidden; margin-bottom:0.65rem;">
+                        <div style="height:100%; width:${sentimentPct}%; background:linear-gradient(90deg, rgba(16,185,129,0.75), rgba(53,232,255,0.9));"></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.72rem; color: var(--text-muted);">
+                        <span>Sentiment</span>
+                        <span>${sentimentPct}% positive</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error('Failed to load category sentiment:', err);
+        trendGrid.innerHTML = '<div class="trend-card" style="color: var(--accent-red);">Category sentiment is unavailable right now.</div>';
     }
 }

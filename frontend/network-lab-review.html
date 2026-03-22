@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Lab Review Queue - Antigravity</title>
+    <script src="/static/utils.js?v=20260318d"></script>
+    <script src="/js/background.js?v=20260315n"></script>
+    <link rel="stylesheet" href="/static/design-system.css?v=20260318b">
+    <link rel="stylesheet" href="/static/network-lab.css?v=20260318c">
+</head>
+<body>
+    <div class="platinum-bg">
+        <div class="platinum-frosted"></div>
+    </div>
+    <div class="main-content-wrap">
+        <main class="network-lab-container">
+            <section class="network-lab-hero">
+                <div class="network-lab-kicker">Experimental Review Queue</div>
+                <div id="network-lab-review-status" class="network-lab-status" role="status">Loading review queue...</div>
+                <div class="network-lab-title-row">
+                    <div>
+                        <h1 style="margin:0 0 0.3rem;">Memory and Market Review</h1>
+                        <div class="network-lab-meta">Approve, reject, or archive promoted memory and market intel. Correspondence older than 4 years is excluded from this queue.</div>
+                    </div>
+                    <div class="network-lab-actions">
+                        <a class="network-lab-button secondary" href="/network-lab">Back to Lab</a>
+                        <a class="network-lab-button secondary" href="/network-lab/databank">Expanded Databank</a>
+                        <button class="network-lab-button secondary" type="button" id="review-scope-btn" onclick="toggleReviewScope()">Showing Pilot Cohort</button>
+                        <button class="network-lab-button secondary" type="button" onclick="refreshReviewQueue()">Refresh</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="network-lab-grid" id="review-summary-cards"></section>
+
+            <section class="network-lab-panel">
+                <div class="network-lab-toolbar">
+                    <div>
+                        <h3 id="review-section-title">Enduring Memory</h3>
+                        <div class="network-lab-subtle" id="review-section-subtitle">Review retained memory before it becomes trusted operating intelligence.</div>
+                    </div>
+                    <select id="review-domain-filter" onchange="renderReviewList()">
+                        <option value="interpreted_drafts">Draft Interpretations</option>
+                        <option value="enduring_memory">Enduring Memory</option>
+                        <option value="market_intel">Market Intel</option>
+                        <option value="market_themes">Market Themes</option>
+                    </select>
+                </div>
+                <div class="network-lab-list" id="review-list"></div>
+            </section>
+        </main>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            renderUniversalLayout('network-lab', 'NETWORK LAB REVIEW');
+        });
+    </script>
+    <script src="/js/network-lab-review.js?v=20260315n"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Preference learning helpers for AI signal ranking and meeting brief prioritisation.
 Learns from explicit user actions and preserves user overrides as first-class signals.
 """
@@ -6,7 +6,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from backend.database import get_sync_db, run_write
+from backend.database import get_sync_db, init_db, run_write
 
 CANONICAL_FEEDBACK_EVENTS = {
     "approve",
@@ -15,6 +15,12 @@ CANONICAL_FEEDBACK_EVENTS = {
     "promote",
     "demote",
     "manual_add",
+    "relink_profile",
+    "reclassify_category",
+    "correct_sentiment",
+    "exclude_from_brief",
+    "include_in_brief",
+    "missed_follow_up",
 }
 
 FEEDBACK_EVENT_ALIASES = {
@@ -35,6 +41,22 @@ FEEDBACK_EVENT_ALIASES = {
     "manual_add": "manual_add",
     "manual add": "manual_add",
     "manually_add": "manual_add",
+    "relink_profile": "relink_profile",
+    "relink profile": "relink_profile",
+    "reclassify_category": "reclassify_category",
+    "reclassify category": "reclassify_category",
+    "correct_sentiment": "correct_sentiment",
+    "correct sentiment": "correct_sentiment",
+    "exclude_from_brief": "exclude_from_brief",
+    "exclude from brief": "exclude_from_brief",
+    "include_in_brief": "include_in_brief",
+    "include in brief": "include_in_brief",
+    "missed_follow_up": "missed_follow_up",
+    "missed follow up": "missed_follow_up",
+    "missed follow-up": "missed_follow_up",
+    "missed_task_suggestion": "missed_follow_up",
+    "missed task suggestion": "missed_follow_up",
+    "should_have_suggested_follow_up": "missed_follow_up",
 }
 
 EVENT_WEIGHTS = {
@@ -44,6 +66,12 @@ EVENT_WEIGHTS = {
     "promote": 2.5,
     "demote": -2.5,
     "manual_add": 3.0,
+    "relink_profile": 0.5,
+    "reclassify_category": 1.25,
+    "correct_sentiment": 0.75,
+    "exclude_from_brief": -1.75,
+    "include_in_brief": 1.75,
+    "missed_follow_up": 3.25,
 }
 
 PREFERENCE_KEYS = (
@@ -52,6 +80,7 @@ PREFERENCE_KEYS = (
     "relationship_relevant_content",
     "minimal_fluff",
     "practical_meeting_preparation",
+    "proactive_follow_through",
 )
 
 
@@ -119,6 +148,18 @@ def _estimate_preference_dimensions(target_type: str, target_snapshot: dict, det
         dimensions["practical_meeting_preparation"] += 1.0
         dimensions["concise_summaries"] += 0.5
 
+    lowered_text = text.lower()
+    if any(term in lowered_text for term in ("coffee", "call", "catch up", "catch-up", "follow up", "follow-up", "after eid")):
+        dimensions["relationship_relevant_content"] += 0.75
+        dimensions["practical_meeting_preparation"] += 0.75
+        dimensions["proactive_follow_through"] += 1.0
+
+    event_hint = str(details.get("normalized_event") or "").strip().lower()
+    if event_hint == "missed_follow_up":
+        dimensions["practical_meeting_preparation"] += 1.25
+        dimensions["relationship_relevant_content"] += 1.0
+        dimensions["proactive_follow_through"] += 2.0
+
     return dimensions
 
 
@@ -147,6 +188,15 @@ def _load_feedback_target_snapshot(target_type: str, target_id: str) -> dict:
                 """,
                 (target_id,),
             )
+        elif target_type == "interaction":
+            c.execute(
+                """
+                SELECT interaction_id AS target_id, person_id, channel AS category, raw_text AS content, summary AS source_snippet, created_at, 'interaction' AS source_kind
+                FROM INTERACTION WHERE interaction_id = ?
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (target_id,),
+            )
         else:
             return {}
         row = c.fetchone()
@@ -156,6 +206,7 @@ def _load_feedback_target_snapshot(target_type: str, target_id: str) -> dict:
 
 
 async def record_feedback_event(*, target_type: str, target_id: str, event_type: str, details=None, user_id: str = None) -> dict:
+    init_db()
     normalized_event = normalize_feedback_event(event_type)
     snapshot = _load_feedback_target_snapshot(target_type, target_id)
     payload = dict(details or {})
@@ -168,7 +219,7 @@ async def record_feedback_event(*, target_type: str, target_id: str, event_type:
             if snapshot.get(key) is not None
         })
     payload.setdefault("preference_dimensions", _estimate_preference_dimensions(target_type, snapshot, payload))
-    payload.setdefault("user_override", normalized_event in {"edit", "manual_add", "promote", "demote"})
+    payload.setdefault("user_override", normalized_event in {"edit", "manual_add", "promote", "demote", "missed_follow_up"})
 
     feedback_id = str(uuid.uuid4())
     created_at = _now()
@@ -176,17 +227,34 @@ async def record_feedback_event(*, target_type: str, target_id: str, event_type:
     async def _insert(db):
         await db.execute(
             """
-            INSERT INTO AI_FEEDBACK (feedback_id, target_type, target_id, event_type, details_json, user_id, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO AI_FEEDBACK (
+                feedback_id, target_type, target_id, event_type, action_type, details_json,
+                user_id, created_at, profile_id, artifact_id, signal_id, brief_id,
+                before_text, after_text, before_category, after_category, before_profile_id,
+                after_profile_id, reason_code
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 feedback_id,
                 target_type,
                 target_id,
                 normalized_event,
+                normalized_event,
                 json.dumps(payload),
                 user_id,
                 created_at,
+                payload.get("person_id"),
+                payload.get("artifact_id"),
+                target_id if target_type == "signal" else None,
+                target_id if target_type == "brief" else None,
+                payload.get("old") or payload.get("before_text"),
+                payload.get("new") or payload.get("after_text") or payload.get("text"),
+                payload.get("before_category"),
+                payload.get("after_category") or payload.get("category"),
+                payload.get("before_profile_id"),
+                payload.get("after_profile_id") or payload.get("person_id"),
+                payload.get("reason_code"),
             ),
         )
 
@@ -217,9 +285,13 @@ def _load_feedback_rows(person_id: str) -> list:
                     f.target_id = ?
                     OR f.target_id IN (SELECT brief_id FROM AI_BRIEF WHERE person_id = ?)
                 ))
+                OR
+                (f.target_type = 'interaction' AND f.target_id IN (
+                    SELECT interaction_id FROM INTERACTION WHERE person_id = ?
+                ))
             ORDER BY f.created_at DESC
             """,
-            (person_id, person_id, person_id, person_id),
+            (person_id, person_id, person_id, person_id, person_id),
         )
         return [dict(row) for row in c.fetchall()]
     finally:
@@ -258,8 +330,10 @@ def preference_guidance_lines(preference_profile: dict) -> list:
         "relationship_relevant_content": "Keep relationship-relevant context visible",
         "minimal_fluff": "Remove fluff and generic filler",
         "practical_meeting_preparation": "Optimise for practical meeting preparation",
+        "proactive_follow_through": "Proactively surface concrete next-step follow-ups when the evidence is explicit",
     }
     lines = [f"- {labels[key]} (learned strength {score:.1f})" for key, score in ordered if score > 0]
     if not lines:
         lines.append("- Default to concise, commercially useful, relationship-relevant, practical summaries with minimal fluff")
     return lines
+

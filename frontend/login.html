@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign In — Antigravity CRM</title>
     <meta name="description" content="Relationship Intelligence Platform — Sign in to your account">
-    <link rel="stylesheet" href="/static/design-system.css">
+    <link rel="stylesheet" href="/static/design-system.css?v=20260318b">
     <style>
         .login-page {
             min-height: 100vh;
@@ -20,6 +20,37 @@
             width: 100%;
             max-width: 420px;
             padding: var(--space-8);
+        }
+
+        .login-card .input-label {
+            color: rgba(15, 23, 42, 0.36);
+            font-weight: 700;
+        }
+
+        .login-card .input {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(59, 130, 246, 0.14);
+            color: #0f172a;
+            font-weight: 600;
+        }
+
+        .login-card .input::placeholder {
+            color: rgba(15, 23, 42, 0.24);
+        }
+
+        .login-card .input:focus {
+            border-color: rgba(59, 130, 246, 0.45);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+        }
+
+        .login-card input:-webkit-autofill,
+        .login-card input:-webkit-autofill:hover,
+        .login-card input:-webkit-autofill:focus,
+        .login-card input:-webkit-autofill:active {
+            -webkit-text-fill-color: #0f172a;
+            -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.92) inset;
+            transition: background-color 9999s ease-in-out 0s;
+            caret-color: #0f172a;
         }
 
         .logo-area {
@@ -69,8 +100,28 @@
         .setup-note strong {
             color: var(--accent-cyan);
         }
+
+        .login-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: var(--space-5) 0;
+            color: var(--text-muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+
+        .login-divider::before,
+        .login-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
     </style>
-    <script src="/js/background.js"></script>
+    <script src="/js/background.js?v=20260313a"></script>
+    <script src="/static/utils.js?v=20260318d"></script>
 </head>
 
 <body class="platinum-body">
@@ -126,23 +177,41 @@
                     </div>
                 </button>
             </form>
+
+            <div id="microsoft-wrap" style="display:none">
+                <div class="login-divider">or</div>
+                <button type="button" id="microsoft-btn" class="btn btn-secondary w-full btn-lg">
+                    Sign In With Microsoft
+                </button>
+            </div>
         </div>
     </div>
 
-    <script type="module">
-        import { auth, post, toast } from '/static/utils.js';
-
-        // Redirect if already logged in
-        if (auth.isLoggedIn()) {
-            window.location.href = '/';
-        }
-
+    <script>
         let isSetupMode = false;
+        let microsoftOauthEnabled = false;
+
+        async function validateExistingSession() {
+            if (!auth.getUser()) return;
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+                if (!res.ok) {
+                    throw new Error(`Session check failed (${res.status})`);
+                }
+                const user = await res.json();
+                auth.setUser(user);
+                window.location.replace('/');
+            } catch (_err) {
+                localStorage.removeItem('ag_user');
+            }
+        }
 
         async function checkSetup() {
             try {
                 const res = await fetch('/api/auth/status');
                 const data = await res.json();
+                microsoftOauthEnabled = !!data.microsoft_oauth_enabled;
+                document.getElementById('microsoft-wrap').style.display = microsoftOauthEnabled ? 'block' : 'none';
                 if (data.needs_setup) {
                     isSetupMode = true;
                     document.getElementById('setup-note').style.display = 'block';
@@ -155,6 +224,10 @@
                 console.error('Status check failed:', e);
             }
         }
+
+        document.getElementById('microsoft-btn').addEventListener('click', () => {
+            window.location.href = '/api/auth/microsoft/start';
+        });
 
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -194,8 +267,17 @@
             }
         });
 
-        checkSetup();
+        const loginParams = new URLSearchParams(window.location.search);
+        const oauthError = loginParams.get('error');
+        if (oauthError) {
+            const errEl = document.getElementById('error-msg');
+            errEl.textContent = oauthError.replaceAll('_', ' ');
+            errEl.style.display = 'block';
+        }
+
+        validateExistingSession().finally(checkSetup);
     </script>
 </body>
 
 </html>
+

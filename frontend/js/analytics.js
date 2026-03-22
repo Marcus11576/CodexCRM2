@@ -1,5 +1,5 @@
 /**
- * Antigravity CRM — Network Intelligence Pulse
+ * Antigravity CRM - Network Intelligence Pulse
  * Handles date slider, Chart.js visualizations, and category-based filtering.
  */
 
@@ -7,37 +7,30 @@ var API_BASE = window.API_BASE || '';
 let effortChart = null;
 let profileDonut = null;
 let dateSlider = null;
-let activeCategory = null; // null means all
+let activeCategory = null;
+let activeVizMode = 'profiles';
 
-// Settings / Config
 const CHANNELS = ['meeting', 'call', 'whatsapp', 'email'];
 const CHANNEL_COLORS = {
-    'meeting': '#8b5cf6', // Violet
-    'call': '#3b82f6',    // Blue
-    'whatsapp': '#22c55e', // Green
-    'email': '#f59e0b'     // Amber
+    meeting: '#8b5cf6',
+    call: '#3b82f6',
+    whatsapp: '#22c55e',
+    email: '#f59e0b'
 };
 
-// State
 let startDate = new Date();
 startDate.setDate(startDate.getDate() - 30);
 let endDate = new Date();
+let activePreset = '1m';
 
-/**
- * BOOT
- */
 async function boot() {
     initCharts();
     initSlider();
-    await loadData();
     setupEventListeners();
+    await applyPresetRange(activePreset, true);
 }
 
-/**
- * INITIALIZE CHARTS
- */
 function initCharts() {
-    // 1. Effort Line Chart
     const effortCtx = document.getElementById('effortChart').getContext('2d');
     effortChart = new Chart(effortCtx, {
         type: 'line',
@@ -86,7 +79,6 @@ function initCharts() {
         }
     });
 
-    // 2. Profile Donut Chart
     const donutCtx = document.getElementById('profileDonut').getContext('2d');
     profileDonut = new Chart(donutCtx, {
         type: 'doughnut',
@@ -108,111 +100,183 @@ function initCharts() {
     });
 }
 
-/**
- * INITIALIZE DATE SLIDER
- */
 function initSlider() {
     const slider = document.getElementById('date-slider');
-    const startTs = new Date();
-    startTs.setDate(startTs.getDate() - 90); // 90 days range
-    
+    const minDate = new Date();
+    minDate.setMonth(minDate.getMonth() - 3);
+
     dateSlider = noUiSlider.create(slider, {
         start: [startDate.getTime(), endDate.getTime()],
         connect: true,
         range: {
-            'min': startTs.getTime(),
-            'max': new Date().getTime()
+            min: minDate.getTime(),
+            max: new Date().getTime()
         },
-        step: 24 * 60 * 60 * 1000, // 1 day steps
+        step: 24 * 60 * 60 * 1000,
         format: wNumb({ decimals: 0 })
     });
 
-    dateSlider.on('update', (values) => {
-        const d1 = new Date(parseInt(values[0]));
-        const d2 = new Date(parseInt(values[1]));
+    dateSlider.on('update', values => {
+        const d1 = new Date(parseInt(values[0], 10));
+        const d2 = new Date(parseInt(values[1], 10));
         document.getElementById('slider-start').textContent = d1.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
         document.getElementById('slider-end').textContent = d2.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-        
-        const rangeStr = `${d1.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} - ${d2.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`;
-        document.getElementById('currentDateRangeStr').textContent = rangeStr;
+        document.getElementById('currentDateRangeStr').textContent = `${d1.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} - ${d2.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`;
     });
 
-    dateSlider.on('change', async (values) => {
-        startDate = new Date(parseInt(values[0]));
-        endDate = new Date(parseInt(values[1]));
+    dateSlider.on('change', async values => {
+        startDate = new Date(parseInt(values[0], 10));
+        endDate = new Date(parseInt(values[1], 10));
+        activePreset = null;
+        syncPresetButtons();
+        updatePeriodLabel();
         await loadData();
     });
 }
 
-/**
- * LOAD DATA
- */
+function applyPresetRange(preset, shouldLoad) {
+    const now = new Date();
+    const start = new Date(now);
+
+    if (preset === '1d') start.setDate(now.getDate() - 1);
+    else if (preset === '2d') start.setDate(now.getDate() - 2);
+    else if (preset === '1w') start.setDate(now.getDate() - 7);
+    else if (preset === '3m') start.setMonth(now.getMonth() - 3);
+    else start.setMonth(now.getMonth() - 1);
+
+    startDate = start;
+    endDate = now;
+    activePreset = preset;
+    syncPresetButtons();
+    updatePeriodLabel();
+    if (dateSlider) {
+        dateSlider.set([startDate.getTime(), endDate.getTime()]);
+    }
+    return shouldLoad ? loadData() : Promise.resolve();
+}
+
+function updatePeriodLabel() {
+    let label = 'Custom Range';
+    if (activePreset === '1d') label = 'Last 24 Hours';
+    else if (activePreset === '2d') label = 'Last 2 Days';
+    else if (activePreset === '1w') label = 'Last 7 Days';
+    else if (activePreset === '1m') label = 'Last 30 Days';
+    else if (activePreset === '3m') label = 'Last 3 Months';
+    const period = document.getElementById('periodLabel');
+    if (period) period.textContent = label;
+}
+
+function syncPresetButtons() {
+    document.querySelectorAll('[data-range]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.range === activePreset);
+    });
+}
+
 async function loadData() {
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
     const catQuery = activeCategory ? `&cat=${encodeURIComponent(activeCategory)}` : '';
 
     try {
-        const [effortRes, profileRes] = await Promise.all([
+        const requests = [
             fetch(`${API_BASE}/api/analytics/effort-stats?start_date=${startStr}&end_date=${endStr}${catQuery}`),
-            fetch(`${API_BASE}/api/analytics/profile-growth-stats?start_date=${startStr}&end_date=${endStr}`)
-        ]);
+            fetch(`${API_BASE}/api/analytics/profile-growth-stats?start_date=${startStr}&end_date=${endStr}`),
+        ];
+        if (activeVizMode === 'temperature') {
+            requests.push(fetch(`${API_BASE}/api/dashboard/meeting-feed`));
+        }
+
+        const [effortRes, profileRes, temperatureRes] = await Promise.all(requests);
 
         const effortData = await effortRes.json();
         const profileData = await profileRes.json();
-
         updateEffortUI(effortData);
-        updateProfileUI(profileData);
+        if (activeVizMode === 'temperature' && temperatureRes) {
+            updateTemperatureUI(await temperatureRes.json());
+        } else {
+            updateProfileUI(profileData);
+        }
     } catch (err) {
         console.error('Data load error:', err);
     }
 }
 
-/**
- * UPDATE EFFORT UI
- */
+function formatTrend(current, previous) {
+    if (!previous && !current) {
+        return { text: '0%', className: 'stat-change' };
+    }
+    if (!previous && current > 0) {
+        return { text: 'New', className: 'stat-change up' };
+    }
+    const change = Math.round(((current - previous) / previous) * 100);
+    if (change === 0) {
+        return { text: '0%', className: 'stat-change' };
+    }
+    return {
+        text: `${change > 0 ? '+' : ''}${change}%`,
+        className: `stat-change ${change > 0 ? 'up' : 'down'}`
+    };
+}
+
 function updateEffortUI(data) {
-    // 1. Update Cards
     CHANNELS.forEach(ch => {
         const count = data.totals[ch] || 0;
         document.getElementById(`count-${ch}`).textContent = count.toLocaleString();
-        
-        // Mocking trend for UI polish (real trend would need previous period comparison)
         const trend = document.getElementById(`change-${ch}`);
-        const fakeVal = Math.floor(Math.random() * 15) + 1;
-        trend.textContent = (fakeVal > 7 ? '+' : '-') + fakeVal + '%';
-        trend.className = 'stat-change ' + (fakeVal > 7 ? 'up' : 'down');
+        const previous = data.comparison_totals ? (data.comparison_totals[ch] || 0) : 0;
+        const trendMeta = formatTrend(count, previous);
+        trend.textContent = trendMeta.text;
+        trend.className = trendMeta.className;
     });
 
-    // 2. Update Graph
     const days = [...new Set(data.daily_breakdown.map(d => d.day))].sort();
     effortChart.data.labels = days.map(d => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }));
-    
     CHANNELS.forEach((ch, idx) => {
         effortChart.data.datasets[idx].data = days.map(d => {
             const entry = data.daily_breakdown.find(row => row.day === d && row.channel === ch);
             return entry ? entry.count : 0;
         });
     });
-    
     effortChart.update();
 }
 
-/**
- * UPDATE PROFILE UI
- */
 function updateProfileUI(data) {
-    const total = data.stats.reduce((acc, s) => acc + s.count, 0);
-    document.getElementById('totalProfiles').textContent = total;
+    const note = document.getElementById('temperatureVizNote');
+    const slider = document.getElementById('date-slider-container');
+    const label = document.getElementById('totalProfilesLabel');
+    if (note) note.hidden = true;
+    if (slider) slider.hidden = false;
+    if (label) label.innerHTML = 'Manual<br>Profiles';
+    const title = document.getElementById('profileBreakdownTitle');
+    if (title) title.textContent = 'Manual Profile Growth';
 
-    profileDonut.data.labels = data.stats.map(s => s.label || s.cat);
-    profileDonut.data.datasets[0].data = data.stats.map(s => s.count);
-    profileDonut.data.datasets[0].backgroundColor = data.stats.map(s => s.color || '#666');
+    const stats = [...data.stats].sort((a, b) => b.count - a.count);
+    const total = data.total_profiles ?? stats.reduce((acc, s) => acc + s.count, 0);
+    document.getElementById('totalProfiles').textContent = total.toLocaleString();
+    const subtitle = document.getElementById('profileBreakdownSubtitle');
+    if (subtitle) {
+        const excluded = data.excluded_profiles || 0;
+        subtitle.textContent = excluded > 0
+            ? 'Profiles personally added in the selected period. Bulk imports and test records are excluded.'
+            : 'Profiles personally added in the selected period';
+    }
+
+    profileDonut.data.labels = stats.map(s => s.label || s.cat);
+    profileDonut.data.datasets[0].data = stats.map(s => s.count);
+    profileDonut.data.datasets[0].backgroundColor = stats.map(s => s.color || '#666');
     profileDonut.update();
 
-    // Update Legend
     const legend = document.getElementById('profileLegend');
-    legend.innerHTML = data.stats.map(s => {
+    if (stats.length === 0) {
+        legend.innerHTML = `
+            <div class="legend-item active">
+                <div class="legend-label">No manual profile additions in this period</div>
+            </div>
+        `;
+        return;
+    }
+
+    legend.innerHTML = stats.map(s => {
         const pct = total > 0 ? Math.round((s.count / total) * 100) : 0;
         const isActive = activeCategory === s.cat;
         return `
@@ -230,20 +294,82 @@ function updateProfileUI(data) {
     `;
 }
 
-/**
- * FILTER BY CATEGORY
- */
+function updateTemperatureUI(feed) {
+    const note = document.getElementById('temperatureVizNote');
+    const slider = document.getElementById('date-slider-container');
+    const label = document.getElementById('totalProfilesLabel');
+    const title = document.getElementById('profileBreakdownTitle');
+    const subtitle = document.getElementById('profileBreakdownSubtitle');
+    if (note) note.hidden = false;
+    if (slider) slider.hidden = true;
+    if (label) label.innerHTML = 'Live<br>Network';
+    if (title) title.textContent = 'Relationship Temperature';
+    if (subtitle) subtitle.textContent = 'Live distribution across cadence pressure, cover, and freeze-aware status handling';
+
+    const contacts = [
+        ...(feed?.overdue || []),
+        ...(feed?.not_scheduled || []),
+        ...(feed?.soon || []),
+        ...(feed?.on_track || []),
+    ];
+    const totals = { critical: 0, needs_attention: 0, due_soon: 0, on_track: 0, frozen: 0 };
+    contacts.forEach((contact) => {
+        const state = window.RelationshipTemperature.getTemperature(contact).stateKey;
+        totals[state] += 1;
+    });
+
+    const ordered = [
+        { key: 'critical', label: 'Critical', color: '#ef4444' },
+        { key: 'needs_attention', label: 'Needs Attention', color: '#f97316' },
+        { key: 'due_soon', label: 'Due Soon', color: '#f59e0b' },
+        { key: 'on_track', label: 'On Track', color: '#38bdf8' },
+        { key: 'frozen', label: 'Frozen', color: '#94a3b8' },
+    ].filter((item) => totals[item.key] > 0);
+
+    const total = contacts.length;
+    document.getElementById('totalProfiles').textContent = total.toLocaleString();
+    profileDonut.data.labels = ordered.map((item) => item.label);
+    profileDonut.data.datasets[0].data = ordered.map((item) => totals[item.key]);
+    profileDonut.data.datasets[0].backgroundColor = ordered.map((item) => item.color);
+    profileDonut.update();
+
+    const legend = document.getElementById('profileLegend');
+    legend.innerHTML = ordered.map((item) => {
+        const pct = total > 0 ? Math.round((totals[item.key] / total) * 100) : 0;
+        return `
+            <div class="legend-item">
+                <div class="legend-dot" style="background: ${item.color}"></div>
+                <div class="legend-label">${item.label}</div>
+                <div class="legend-pct">${pct}%</div>
+            </div>
+        `;
+    }).join('') + `
+        <div class="legend-item active" style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px;">
+            <div class="legend-dot" style="background: transparent; border: 1px dashed #666"></div>
+            <div class="legend-label">${window.RelationshipTemperature.buildLegend()}</div>
+        </div>
+    `;
+}
+
 window.filterByCategory = async function(cat) {
     activeCategory = cat;
     await loadData();
 };
 
-/**
- * SETUP EVENT LISTENERS
- */
 function setupEventListeners() {
-    // Add any specific UI interactions here
+    document.querySelectorAll('.segment-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (btn.dataset.vizMode) {
+                activeVizMode = btn.dataset.vizMode;
+                document.querySelectorAll('[data-viz-mode]').forEach((toggle) => {
+                    toggle.classList.toggle('active', toggle.dataset.vizMode === activeVizMode);
+                });
+                await loadData();
+                return;
+            }
+            await applyPresetRange(btn.dataset.range, true);
+        });
+    });
 }
 
-// Boot up
 document.addEventListener('DOMContentLoaded', boot);

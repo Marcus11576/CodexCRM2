@@ -19,6 +19,7 @@ build/
 *.db-journal
 *.db-wal
 *.db-shm
+pilot/
 
 # Uploads (user data - never commit)
 uploads/
@@ -36,9 +37,8 @@ Thumbs.db
 # Logs
 *.log
 logs/
-.codex_server.err
-.codex_server.out
-.codex_server.pid
+.codex_server*
+.codex_*_served.*
 
 # Backups
 *.backup
@@ -51,7 +51,9 @@ backups_external/
 temp/
 _restore_temp/
 .pytest_cache/
+tests/artifacts/
 
 # Codex local artifacts
 .brain/
 _agents/
+

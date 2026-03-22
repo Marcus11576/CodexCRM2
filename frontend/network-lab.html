@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Lab - Antigravity</title>
+    <script src="/static/utils.js?v=20260318d"></script>
+    <script src="/js/background.js?v=20260318a"></script>
+    <link rel="stylesheet" href="/static/design-system.css?v=20260318b">
+    <link rel="stylesheet" href="/static/network-lab.css?v=20260318c">
+</head>
+<body>
+    <div class="platinum-bg">
+        <div class="platinum-frosted"></div>
+    </div>
+    <div class="main-content-wrap">
+        <main class="network-lab-container">
+            <section class="network-lab-hero">
+                <div class="network-lab-kicker">Experimental Workspace</div>
+                <div id="network-lab-status" class="network-lab-status" role="status">Loading workspace...</div>
+                <div class="network-lab-title-row">
+                    <div>
+                        <h1 style="margin:0 0 0.3rem;">Network Lab</h1>
+                        <div class="network-lab-meta">Separate orchestration model with queue logic, review workspace, bulk actions, traceable tiering, and retained score.</div>
+                        <div class="network-lab-meta" id="pilot-cohort-summary" style="margin-top:0.45rem;">Pilot cohort loading...</div>
+                    </div>
+                    <div class="network-lab-actions">
+                        <a class="network-lab-button secondary" href="/network-lab/databank">Expanded Databank</a>
+                        <a class="network-lab-button secondary" href="/network-lab/review">Review Queue</a>
+                        <button class="network-lab-button secondary" type="button" id="pilot-toggle-btn" onclick="togglePilotView()">Pilot Cohort View</button>
+                        <button class="network-lab-button secondary" type="button" onclick="selectPilotCohort()">Select Pilot Cohort</button>
+                        <button class="network-lab-button secondary" type="button" id="pilot-lock-btn" onclick="setSelectedAsPilotCohort()">Lock Selected as Pilot</button>
+                        <button class="network-lab-button secondary" type="button" id="pilot-clear-btn" onclick="clearExplicitPilotCohort()">Return to Recommended Pilot</button>
+                        <button class="network-lab-button secondary" type="button" onclick="selectVisibleContacts()">Select Visible</button>
+                        <button class="network-lab-button secondary" type="button" onclick="clearSelectedContacts()">Clear Selection</button>
+                        <button class="network-lab-button secondary" type="button" onclick="refreshNetworkLab()">Refresh</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="network-lab-grid" id="queue-cards"></section>
+
+            <section class="network-lab-panel">
+                <div class="network-lab-toolbar">
+                    <div>
+                        <h3>Quick Bulk Action Bar</h3>
+                        <div class="network-lab-subtle">Fast updates for selected contacts only. Use the Select control on each card or row.</div>
+                    </div>
+                    <div class="network-score-badge"><span id="selected-count">0</span><span>selected</span></div>
+                </div>
+                <div class="network-lab-form-row">
+                    <label>Network Tier
+                        <select id="bulk-network-tier">
+                            <option value="">Leave unchanged</option>
+                            <option value="T1">T1 - Strategic Core</option>
+                            <option value="T2">T2 - Active Opportunity</option>
+                            <option value="T3">T3 - Strategic Network</option>
+                            <option value="T4">T4 - Keep Warm</option>
+                            <option value="T5">T5 - Monitor</option>
+                        </select>
+                    </label>
+                    <label>Maintenance Mode
+                        <select id="bulk-maintenance-mode">
+                            <option value="">Leave unchanged</option>
+                            <option value="work">Work</option>
+                            <option value="maintain">Maintain</option>
+                            <option value="preserve">Preserve</option>
+                            <option value="monitor">Monitor</option>
+                        </select>
+                    </label>
+                    <label>Relationship Owner
+                        <select id="bulk-owner"></select>
+                    </label>
+                    <label>Account Priority
+                        <select id="bulk-account-priority">
+                            <option value="">Leave unchanged</option>
+                            <option value="Hot">Hot</option>
+                            <option value="Warm">Warm</option>
+                            <option value="Cold">Cold</option>
+                            <option value="Freezing">Freezing</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="network-lab-form-row">
+                    <label>Optional Follow-up Task
+                        <input id="bulk-task-text" type="text" placeholder="Create a task for all selected contacts">
+                    </label>
+                    <label>Task Due Date
+                        <input id="bulk-task-due-date" type="date">
+                    </label>
+                </div>
+                <div class="network-lab-actions">
+                    <button class="network-lab-button" type="button" onclick="applyQuickBulkAction()">Apply Quick Bulk Action</button>
+                </div>
+            </section>
+
+            <section class="network-lab-panel">
+                <div class="network-lab-toolbar">
+                    <div>
+                        <h3>Review Workspace</h3>
+                        <div class="network-lab-subtle">Second bulk pattern: work the missing-coverage queues in one focused place.</div>
+                    </div>
+                    <div class="network-lab-toolbar-actions">
+                        <select id="review-filter" onchange="renderReviewTable()">
+                            <option value="missing_tier">Missing Tier</option>
+                            <option value="missing_owner">Missing Owner</option>
+                            <option value="missing_mode">Missing Mode</option>
+                            <option value="invisible_contacts">Invisible Contacts</option>
+                        </select>
+                        <button class="network-lab-button secondary" type="button" id="review-workspace-toggle-btn" onclick="toggleReviewWorkspace()">
+                            Collapse
+                        </button>
+                    </div>
+                </div>
+                <div id="review-workspace-body">
+                <div class="network-lab-form-row">
+                    <label>Search Review + Queue Cards
+                        <input id="network-search-input" type="text" placeholder="Search by name, company, owner, queue reason, or tier">
+                    </label>
+                </div>
+                <div class="network-lab-table-wrap">
+                    <table class="network-table">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>Person</th>
+                                <th>Queue</th>
+                                <th>Score</th>
+                                <th>Why surfaced</th>
+                                <th>Tier trace</th>
+                            </tr>
+                        </thead>
+                        <tbody id="review-table-body"></tbody>
+                    </table>
+                </div>
+                </div>
+            </section>
+
+            <section class="network-lab-panel">
+                <div class="network-lab-toolbar">
+                    <div>
+                        <h3 id="active-queue-title">Act Now</h3>
+                        <div class="network-lab-subtle" id="active-queue-subtitle">Each card has a large Select button. Use that to add contacts to bulk actions.</div>
+                    </div>
+                </div>
+                <div class="network-lab-list" id="queue-list"></div>
+            </section>
+        </main>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            renderUniversalLayout('network-lab', 'NETWORK LAB');
+        });
+    </script>
+    <script src="/js/network-lab.js?v=20260318a"></script>
+</body>
+</html>

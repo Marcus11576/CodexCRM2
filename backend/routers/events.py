@@ -8,9 +8,12 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from backend.database import get_db
+from backend.services.ai_foundation import canonical_event_status
+from backend.services.ai_pipeline_service import export_event_participants_csv
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -68,7 +71,9 @@ def _normalize_topics(topics: Optional[List[str]]) -> str:
 
 
 def _validate_status(status: str) -> str:
-    if status not in EVENT_STATUSES:
+    try:
+        status = canonical_event_status(status)
+    except ValueError:
         raise HTTPException(400, f"Invalid event status. Expected one of: {', '.join(EVENT_STATUSES)}")
     return status
 
@@ -124,7 +129,8 @@ async def _get_event_detail(db, event_id: str):
 
     grouped = {status: [] for status in EVENT_STATUSES}
     for row in rows:
-        grouped[row['status']].append(dict(row))
+        status = row['status'] if row['status'] in grouped else _validate_status(row['status'])
+        grouped[status].append({**dict(row), "status": status})
 
     event['people_by_status'] = grouped
     return event
@@ -295,6 +301,20 @@ async def get_event_people(event_id: str):
     async with get_db() as db:
         detail = await _get_event_detail(db, event_id)
     return {'event_id': event_id, 'people_by_status': detail['people_by_status'], 'status_counts': detail['status_counts']}
+
+
+@router.get('/{event_id}/participants/export')
+async def export_event_participants(event_id: str, status_filter: str = Query("all")):
+    try:
+        csv_text = await export_event_participants_csv(event_id, status_filter=status_filter)
+    except ValueError as exc:
+        raise HTTPException(404 if "not found" in str(exc).lower() else 400, str(exc))
+    filename_suffix = status_filter if status_filter.lower() != "all" else "all"
+    return Response(
+        content=csv_text,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="event_{event_id}_{filename_suffix}.csv"'},
+    )
 
 
 @router.post('/{event_id}/people')

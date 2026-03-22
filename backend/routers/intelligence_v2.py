@@ -15,9 +15,10 @@ async def run_synthesis(person_id: str):
     that can be viewed in the V2 dashboard.
     """
     try:
-        result = await synthesize_strategic_intel(person_id)
-        if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
-        return result
+        return await synthesize_strategic_intel(person_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

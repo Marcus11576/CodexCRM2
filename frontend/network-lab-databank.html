@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Lab Databank - Antigravity</title>
+    <script src="/static/utils.js?v=20260318d"></script>
+    <script src="/js/background.js?v=20260315n"></script>
+    <link rel="stylesheet" href="/static/design-system.css?v=20260318b">
+    <link rel="stylesheet" href="/static/network-lab.css?v=20260318c">
+</head>
+<body>
+    <div class="platinum-bg">
+        <div class="platinum-frosted"></div>
+    </div>
+    <div class="main-content-wrap">
+        <main class="network-lab-container">
+            <section class="network-lab-hero">
+                <div class="network-lab-kicker">Experimental Databank</div>
+                <div id="network-lab-databank-status" class="network-lab-status" role="status">Loading databank...</div>
+                <div class="network-lab-title-row">
+                    <div>
+                        <h1 style="margin:0 0 0.3rem;">Expanded Intel Databank</h1>
+                        <div class="network-lab-meta">Monitored intelligence across the pilot cohort: market intel, opportunity movement, rapport memory, friction, and influence.</div>
+                    </div>
+                    <div class="network-lab-actions">
+                        <a class="network-lab-button secondary" href="/network-lab">Back to Lab</a>
+                        <a class="network-lab-button secondary" href="/network-lab/review">Review Queue</a>
+                        <button class="network-lab-button secondary" type="button" id="databank-scope-btn" onclick="toggleDatabankScope()">Showing Pilot Cohort</button>
+                        <button class="network-lab-button secondary" type="button" onclick="refreshNetworkDatabank()">Refresh</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="network-lab-grid" id="databank-summary-cards"></section>
+
+            <section class="network-lab-panel">
+                <div class="network-lab-toolbar">
+                    <div>
+                        <h3 id="databank-section-title">Market Intel</h3>
+                        <div class="network-lab-subtle" id="databank-section-subtitle">Monitoring the strongest market signals across the selected cohort.</div>
+                    </div>
+                    <select id="databank-domain-filter" onchange="renderDatabankList()">
+                        <option value="market_intel">Market Intel</option>
+                        <option value="market_themes">Market Themes</option>
+                        <option value="opportunity_watch">Opportunity Watch</option>
+                        <option value="intent_watch">Intent Watch</option>
+                        <option value="rapport_memory">Rapport Memory</option>
+                        <option value="relationship_trajectory">Relationship Trajectory</option>
+                        <option value="timing_triggers">Timing Triggers</option>
+                        <option value="friction_watch">Friction Watch</option>
+                        <option value="influence_map">Influence Map</option>
+                    </select>
+                </div>
+                <div class="network-lab-list" id="databank-list"></div>
+            </section>
+        </main>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            renderUniversalLayout('network-lab', 'NETWORK LAB DATABANK');
+        });
+    </script>
+    <script src="/js/network-lab-databank.js?v=20260315n"></script>
+</body>
+</html>

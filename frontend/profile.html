@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -17,7 +17,7 @@
     <script src="/static/utils.js"></script>
     <script src="/js/background.js"></script>
     <link rel="stylesheet" href="/static/design-system.css">
-    <link rel="stylesheet" href="/static/profile.css">
+    <link rel="stylesheet" href="/static/profile.css?v=20260321d">
     <link rel="stylesheet" href="/static/events.css">
 </head>
 
@@ -51,40 +51,30 @@
 
             <!-- Right body -->
             <div class="profile-header-body">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.25rem;">
+                <div class="profile-header-top" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.25rem;">
                     <h1 class="profile-name" id="profile-name">Loading...</h1>
-                    <div style="display:flex; align-items:center; gap:0.5rem;">
-                        <input type="checkbox" id="advisory-checkbox" onchange="toggleAdvisoryCheckbox(this)"
-                            style="cursor:pointer; width:1.1rem; height:1.1rem; accent-color:var(--accent-cyan);">
-                        <label for="advisory-checkbox"
-                            style="color:white; font-weight:700; font-size:0.72rem; cursor:pointer; text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap;">TS
-                            Advisory</label>
-                    </div>
+                    <div id="profile-nav-controls" class="profile-nav-controls" aria-label="Profile navigation"></div>
                 </div>
                 <div class="profile-title" id="profile-title">Loading title...</div>
                 <div class="v1-tags-row">
                     <!-- Env Group -->
                     <div class="tag-group">
-                        <div class="tag-label" id="label-env">Env ↘ <span onclick="toggleEnvEdit()"
-                                style="cursor:pointer; opacity:0.6; font-size:0.6rem;">✎</span></div>
+                        <div class="tag-label" id="label-env">Env <span onclick="toggleEnvEdit()" style="cursor:pointer; opacity:0.7; font-size:0.62rem;">Edit</span></div>
                         <div id="env-toggles" class="tag-chips"></div>
                     </div>
                     <!-- Disc Group -->
                     <div class="tag-group">
-                        <div class="tag-label" id="label-disc">Disc ↘ <span onclick="toggleDiscEdit()"
-                                style="cursor:pointer; opacity:0.6; font-size:0.6rem;">✎</span></div>
+                        <div class="tag-label" id="label-disc">Disc <span onclick="toggleDiscEdit()" style="cursor:pointer; opacity:0.7; font-size:0.62rem;">Edit</span></div>
                         <div id="disc-toggles" class="tag-chips"></div>
                     </div>
                     <!-- Cat Group -->
                     <div class="tag-group">
-                        <div class="tag-label" id="label-cat">Cat ↘ <span onclick="toggleCatEdit()"
-                                style="cursor:pointer; opacity:0.6; font-size:0.6rem;">✎</span></div>
+                        <div class="tag-label" id="label-cat">Cat <span onclick="toggleCatEdit()" style="cursor:pointer; opacity:0.7; font-size:0.62rem;">Edit</span></div>
                         <div id="cat-toggles" class="tag-chips"></div>
                     </div>
                     <!-- Status Group -->
                     <div class="tag-group">
-                        <div class="tag-label" id="label-status">Status ↘ <span onclick="toggleStatusEdit()"
-                                style="cursor:pointer; opacity:0.6; font-size:0.6rem;">✎</span></div>
+                        <div class="tag-label" id="label-status">Status <span onclick="toggleStatusEdit()" style="cursor:pointer; opacity:0.7; font-size:0.62rem;">Edit</span></div>
                         <div id="status-toggles" class="tag-chips"></div>
                     </div>
                 </div>
@@ -92,6 +82,7 @@
                 <!-- Header Bottom Strip (SIT-REP & Action Cluster) -->
                 <div class="header-bottom-strip">
                     <div id="meeting-status-display" style="flex:1;"></div>
+                    <div id="profile-action-priority-widget" class="profile-action-priority-widget is-loading">Calculating action priority...</div>
                     <div class="icon-actions" id="header-icon-actions">
                         <!-- Redefined Action Button Cluster -->
                     </div>
@@ -99,86 +90,26 @@
             </div><!-- /profile-header-body -->
         </div>
 
-        <!-- Executive Interaction Log -->
-        <div class="section-card executive-log"
-            style="margin-top: 1.5rem; border: 1px solid rgba(53,232,255,0.2); background: linear-gradient(145deg, rgba(12,20,38,0.4) 0%, rgba(12,20,38,0.1) 100%);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                <h3
-                    style="margin:0; font-size:0.85rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--accent-cyan); font-weight:800;">
-                    <i class="fas fa-pen-nib" style="margin-right:8px;"></i> Log Intelligence
-                </h3>
-                <div style="font-size:0.7rem; color:var(--text-muted); font-weight:600;">PLATINUM STANDARD ENTRY</div>
-            </div>
-
-            <div class="log-input-wrapper" style="position:relative;">
-                <textarea id="interaction-input"
-                    placeholder="Paste meeting notes, call SIT-REPs, or quick updates here... AI will extract intelligence automatically."
-                    style="width:100%; min-height:120px; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:1rem; color:white; font-family:'Inter', sans-serif; font-size:0.92rem; line-height:1.6; resize:vertical; outline:none; transition:border-color 0.2s; padding-bottom: 3rem;"
-                    onfocus="this.style.borderColor='rgba(53,232,255,0.5)'"
-                    onblur="this.style.borderColor='rgba(255,255,255,0.08)'"></textarea>
-
-                <div style="position:absolute; bottom:12px; right:12px; display:flex; gap:8px;">
-                    <input type="file" id="log-file-input" style="display:none;" onchange="handleLogFileSelect(this)">
-                    <button onclick="document.getElementById('log-file-input').click()" class="icon-btn"
-                        style="background:rgba(255,255,255,0.05); color:var(--text-muted); border:1px solid rgba(255,255,255,0.1); border-radius:8px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer;"
-                        title="Attach File">
-                        <i class="fas fa-paperclip"></i>
-                    </button>
-                </div>
-            </div>
-
-            <div id="selected-files-container" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:0.5rem;"></div>
-
-            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:1rem; align-items:center;">
-                <span id="log-status" style="font-size:0.75rem; color:var(--text-muted); opacity:0.8;"></span>
-                <button onclick="submitInteraction()" id="btn-submit-interaction"
-                    style="background:var(--accent-cyan); color:black; border:none; padding:10px 24px; border-radius:100px; font-weight:800; font-size:0.8rem; cursor:pointer; text-transform:uppercase; letter-spacing:0.5px; box-shadow:0 8px 20px rgba(53,232,255,0.2); display:flex; align-items:center; gap:8px;">
-                    Process Intelligence <i class="fas fa-brain"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- Meeting Briefing -->
+        <!-- Lab Profile (embedded full Relationship Intelligence workspace) -->
         <div class="section-card briefing" id="briefing-section">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
                 <div class="section-header" style="flex:1; margin-bottom:0;">
-                    <h2 style="margin:0;"><i class="fas fa-bolt-lightning"></i> Meeting Brief</h2>
+                    <h2 style="margin:0;"><i class="fas fa-layer-group"></i> Lab Profile</h2>
                     <div class="header-line"></div>
                 </div>
                 <div style="display:flex; gap:0.6rem; align-items:center; margin-left:1.5rem;">
-                    <button id="btn-brief-listen" onclick="generateBriefAudio()"
-                        style="background:rgba(53,232,255,0.12); border:1px solid var(--accent-cyan); color:var(--accent-cyan); padding:6px 14px; border-radius:8px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                        🎧 Listen
-                    </button>
+                    <a id="open-network-lab-profile" href="/network-lab"
+                        style="background:rgba(53,232,255,0.12); border:1px solid rgba(53,232,255,0.45); color:var(--accent-cyan); padding:6px 14px; border-radius:8px; font-size:0.78rem; font-weight:700; cursor:pointer; text-decoration:none;">
+                        Open Full Page
+                    </a>
                     <button id="btn-brief-regen" onclick="regenerateBrief()"
                         style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:var(--text-secondary); padding:6px 14px; border-radius:8px; font-size:0.78rem; font-weight:700; cursor:pointer;">
-                        🔄 Regenerate
+                        Reload
                     </button>
                 </div>
             </div>
-            <!-- Audio player — hidden until audio is ready -->
-            <audio id="brief-audio-player" controls
-                style="display:none; width:100%; margin-bottom:1rem; border-radius:8px;"></audio>
             <div id="briefing-content">
-                <p>Loading briefing...</p>
-            </div>
-            
-            <!-- AI Pipeline Feedback UI (Placeholders) -->
-            <div id="briefing-feedback" style="display:none; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between;">
-                <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-                    Was this brief accurate?
-                </div>
-                <div style="display: flex; gap: 0.75rem;">
-                    <button onclick="logAiFeedback('brief', 'approve')" class="v1-act-btn" title="Accurate" style="width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:8px; background:rgba(16, 185, 129, 0.1); border-color:rgba(16, 185, 129, 0.3); color:var(--accent-green);">
-                        <i class="fas fa-thumbs-up"></i>
-                    </button>
-                    <button onclick="logAiFeedback('brief', 'reject')" class="v1-act-btn" title="Needs Correction" style="width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:8px; background:rgba(239, 68, 68, 0.1); border-color:rgba(239, 68, 68, 0.3); color:var(--accent-red);">
-                        <i class="fas fa-thumbs-down"></i>
-                    </button>
-                    <button onclick="logAiFeedback('brief', 'edit')" class="v1-act-btn" title="Manual Fix" style="width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:8px; background:rgba(255, 255, 255, 0.05); border-color:rgba(255, 255, 255, 0.1); color:var(--text-muted);">
-                        <i class="fas fa-pen"></i>
-                    </button>
-                </div>
+                <p>Loading Lab Profile...</p>
             </div>
         </div>
 
@@ -195,123 +126,24 @@
             <div id="ai-job-status-list" class="profile-events-list"></div>
         </div>
 
-        <!-- Predictive Health & Network Synergy -->
-        <div id="propensity-panel">
-            <div class="section-card health-card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="color:var(--accent-purple); font-size: 0.7rem; letter-spacing: 1px; font-weight: 800; text-transform: uppercase;">
-                        <i class="fas fa-heart-pulse"></i> Relationship Health
-                    </div>
-                    <div id="health-score" style="font-family:'Outfit'; font-weight:900; font-size:1.4rem; color:var(--accent-purple);">--%</div>
-                </div>
-                <div style="margin-top:0.5rem; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
-                    <div id="health-bar" style="height:100%; width:0%; background:var(--accent-purple); transition:width 1s ease;"></div>
-                </div>
-                <div id="next-action" style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-secondary); font-style:italic;">Fetching next best action...</div>
-            </div>
-
-            <div class="section-card velocity-card">
-                <div style="font-size:0.6rem; color:var(--text-secondary); text-transform:uppercase; font-weight:800; margin-bottom:4px;">Engagement Velocity</div>
-                <div id="velocity-score" style="font-family:'Outfit'; font-weight:900; font-size:1.4rem; color:var(--accent-cyan);">--</div>
-                <div style="font-size:0.6rem; color:var(--text-muted);">Hits (14d)</div>
-            </div>
-
-            <a href="/analytics" class="section-card synergy-card">
-                <i class="fas fa-globe" style="font-size:1.2rem; color:var(--text-muted); margin-bottom:8px;"></i>
-                <div style="font-size:0.6rem; color:white; font-weight:800; text-transform:uppercase;">Network Synergy</div>
-            </a>
-        </div>
+        <!-- Legacy propensity/scoring panel removed: Stage 1 + Stage 2 only -->
 
 
-        <!-- Intelligence Databank v5.0 -->
-        <div class="section-card">
-            <div class="section-header" style="display:flex; align-items:center; justify-content:space-between;">
-                <h2><i class="fas fa-database"></i> Intelligence Databank</h2>
-                <button id="review-signals-btn" style="font-size:0.8rem; padding:4px 8px; background:var(--accent-cyan); color:#0a0a1a; border:none; border-radius:6px; cursor:pointer;">Review Signals</button>
+        <div class="section-card" id="career-history-section">
+            <div class="section-header">
+                <h2><i class="fas fa-briefcase"></i> Career History</h2>
                 <div class="header-line"></div>
-                <div
-                    style="font-size:0.6rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:1px; opacity:0.6; white-space:nowrap;">
-                    Historical Truths</div>
             </div>
-
-            <div class="databank-grid">
-                <!-- Business Focus -->
-                <div class="databank-column">
-                    <div class="databank-header">
-                        <i class="fas fa-chart-line" style="color:var(--accent-blue);"></i>
-                        <h3>Business Focus</h3>
-                    </div>
-                    <div id="db-business" class="nugget-list">
-                        <div class="loading" style="padding:1rem;"><small>Fetching history...</small></div>
-                    </div>
-                </div>
-
-                <!-- Recruitment & Talent -->
-                <div class="databank-column">
-                    <div class="databank-header">
-                        <i class="fas fa-bullseye" style="color:var(--accent-amber);"></i>
-                        <h3>Recruitment & Talent</h3>
-                    </div>
-                    <div id="db-recruitment" class="nugget-list">
-                        <div class="loading" style="padding:1rem;"><small>Fetching history...</small></div>
-                    </div>
-                </div>
-
-                <!-- Personal / Family -->
-                <div class="databank-column">
-                    <div class="databank-header">
-                        <i class="fas fa-heart" style="color:var(--accent-rose);"></i>
-                        <h3>Family & Personal</h3>
-                    </div>
-                    <div id="db-personal" class="nugget-list">
-                        <div class="loading" style="padding:1rem;"><small>Fetching history...</small></div>
-                    </div>
-                </div>
-
-                <!-- OBE Focus -->
-                <div class="databank-column">
-                    <div class="databank-header">
-                        <i class="fas fa-globe" style="color:var(--accent-violet);"></i>
-                        <h3>OBE Focus</h3>
-                    </div>
-                    <div id="db-obe" class="nugget-list">
-                        <div class="loading" style="padding:1rem;"><small>Fetching history...</small></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Legacy Context (Small Drill-down) -->
-            <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                    <div class="context-label" style="opacity:0.6;">Profile Overrides / Manual Notes</div>
-                </div>
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
-                    <div>
-                        <div class="context-label" style="font-size:0.6rem;">Professional Override</div>
-                        <div class="context-text" id="prof-context-text" contenteditable="true"
-                            style="font-size:0.85rem; opacity:0.8; padding:8px; background:rgba(255,255,255,0.03); border-radius:8px; min-height: 44px;">
-                        </div>
-                    </div>
-                    <div>
-                        <div class="context-label" style="font-size:0.6rem;">Personal Override</div>
-                        <div class="context-text" id="pers-context-text" contenteditable="true"
-                            style="font-size:0.85rem; opacity:0.8; padding:8px; background:rgba(255,255,255,0.03); border-radius:8px; min-height: 44px;">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Career History remains at bottom -->
             <div id="employment-history-container"
-                style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--glass-border);">
+                style="margin-top: 0.15rem; padding-top: 0.5rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.75rem;">
-                    <div class="context-label">📋 Career History</div>
+                    <div class="context-label">Timeline</div>
                     <button onclick="addRole()"
                         style="font-size:0.75rem; padding:4px 12px; background:rgba(53,232,255,0.1); border:1px solid var(--accent-cyan); color:var(--accent-cyan); border-radius:8px; cursor:pointer; font-weight:700;">+
                         Add Role</button>
                 </div>
                 <div id="employment-timeline">
-                    <p style="color:var(--text-muted); font-size:0.85rem;">No career history yet — click + Add Role.</p>
+                    <p style="color:var(--text-muted); font-size:0.85rem;">No career history yet ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â click + Add Role.</p>
                 </div>
             </div>
         </div>
@@ -350,17 +182,17 @@
                 </div>
                 <div style="display:flex; gap:0.5rem; margin-left:1.5rem;">
                     <button onclick="syncM365Emails()" id="btn-sync-emails"
-                        style="font-size:0.75rem; padding:4px 12px; background:rgba(0,120,212,0.1); border:1px solid rgba(0,120,212,0.3); color:#35E8FF; border-radius:8px; cursor:pointer; font-weight:700;">🔄
+                        style="font-size:0.75rem; padding:4px 12px; background:rgba(0,120,212,0.1); border:1px solid rgba(0,120,212,0.3); color:#35E8FF; border-radius:8px; cursor:pointer; font-weight:700;">ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Å¾
                         Sync Emails</button>
                     <span id="m365-sync-status" style="font-size:0.75rem; color:#666; margin-left:8px;">(status unknown)</span>
                     <button onclick="openComposeModal()"
-                        style="font-size:0.75rem; padding:4px 12px; background:#0078D4; border:none; color:white; border-radius:8px; cursor:pointer; font-weight:700;">✏️
+                        style="font-size:0.75rem; padding:4px 12px; background:#0078D4; border:none; color:white; border-radius:8px; cursor:pointer; font-weight:700;">ÃƒÂ¢Ã…â€œÃ‚ÂÃƒÂ¯Ã‚Â¸Ã‚Â
                         Compose</button>
                 </div>
             </div>
             <div id="m365-auth-warning"
                 style="display:none; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); padding:0.75rem; border-radius:8px; margin-bottom:1rem; font-size:0.85rem; color:#f59e0b;">
-                ⚠️ M365 not authenticated. <button onclick="startM365Auth()"
+                ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â M365 not authenticated. <button onclick="startM365Auth()"
                     style="background:transparent; border:none; color:#35E8FF; text-decoration:underline; cursor:pointer; font-weight:700; padding:0;">Login
                     now</button>
             </div>
@@ -372,18 +204,18 @@
 
         <!-- Open Tasks -->
         <div class="section-card" id="tasks-section" style="display:none;">
-            <h2><span class="icon">✓</span> Open Tasks</h2>
+            <h2><span class="icon">ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“</span> Open Tasks</h2>
             <div id="tasks-list"></div>
         </div>
     </div>
 
     <script src="/js/plugins/PluginManager.js"></script>
-    <script src="/js/plugins/StrategistPlugin.js"></script>
+    
     <script src="/js/profile/core.js"></script>
-    <script src="/js/profile/header.js"></script>
+    <script src="/js/profile/header.js?v=20260321g"></script>
     <script src="/js/profile/signals.js"></script>
     <script src="/js/profile/interactions.js"></script>
-    <script src="/js/profile/briefing.js"></script>
+    <script src="/js/profile/briefing.js?v=20260321c"></script>
     <script src="/js/profile/workflow.js"></script>
     <script src="/js/profile.js"></script>
     <!-- Profile Chat - Floating Sidebar -->
@@ -392,7 +224,7 @@
             <div class="chat-header">
                 <h3 id="profile-chat-title"
                     style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:0.5rem;">
-                    💬 Profile Assistant
+                    Profile Assistant
                 </h3>
                 <button onclick="closeChatModal()" class="close-btn">&times;</button>
             </div>
@@ -413,17 +245,12 @@
             <div class="chat-input-wrapper">
                 <input type="text" id="chat-input" placeholder="Ask or tell me something..."
                     onkeypress="if(event.key==='Enter') askQuestion()">
-
-                <!-- File Attach Button -->
-                <label for="chat-file-upload" class="input-attach-btn" title="Attach file (Image, Audio, PDF)">
-                    📎
-                </label>
-                <input type="file" id="chat-file-upload" style="display:none;"
-                    accept="image/*,audio/*,application/pdf,text/plain" onchange="handleFileSelect(event)">
-
-                <button id="mic-btn" class="input-mic-btn" onclick="recordChatAudio()" title="Voice input">
-                    🎤
-                </button>
+                <div class="chat-input-actions">
+                    <label for="chat-file-upload" class="input-attach-btn" title="Attach file (Image, Audio, PDF)">+</label>
+                    <input type="file" id="chat-file-upload" style="display:none;"
+                        accept="image/*,audio/*,application/pdf,text/plain" onchange="handleFileSelect(event)">
+                    <button id="mic-btn" class="input-mic-btn" onclick="recordChatAudio()" title="Voice input">Mic</button>
+                </div>
             </div>
             <button onclick="askQuestion()" class="send-btn">Send</button>
         </div>
@@ -432,7 +259,7 @@
     </div>
 
     <style>
-        /* Floating Chat Styles — right-side panel (overrides base) */
+        /* Floating Chat Styles ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â right-side panel (overrides base) */
         .floating-chat {
             position: fixed;
             right: 16px;
@@ -447,14 +274,15 @@
         }
 
         .floating-chat-content {
-            background: rgba(255, 255, 255, 0.95) !important;
-            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            background: linear-gradient(180deg, rgba(8, 15, 30, 0.96), rgba(8, 15, 30, 0.92)) !important;
+            border: 1px solid rgba(148, 163, 184, 0.2) !important;
             border-radius: 20px !important;
             box-shadow: var(--shadow-lg) !important;
             display: flex;
             flex-direction: column;
             height: 100%;
             overflow: hidden;
+            color: #e2e8f0;
         }
 
         .chat-header {
@@ -462,14 +290,19 @@
             justify-content: space-between;
             align-items: center;
             padding: 1rem 1.25rem;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-            background: linear-gradient(135deg, rgba(0, 71, 255, 0.05), rgba(53, 232, 255, 0.05));
+            border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.55));
+            color: #f8fafc;
+        }
+
+        .chat-header h3 {
+            color: #f8fafc;
         }
 
         .close-btn {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
+            background: rgba(15, 23, 42, 0.62);
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            color: rgba(226, 232, 240, 0.9);
             font-size: 1.75rem;
             cursor: pointer;
             padding: 0;
@@ -480,8 +313,9 @@
         }
 
         .close-btn:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
+            background: rgba(30, 41, 59, 0.94);
+            color: #ffffff;
+            border-color: rgba(56, 189, 248, 0.48);
         }
 
         .chat-messages {
@@ -491,6 +325,7 @@
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
+            background: linear-gradient(180deg, rgba(8, 15, 30, 0.32), rgba(8, 15, 30, 0.5));
         }
 
         .assistant-message,
@@ -503,14 +338,16 @@
         }
 
         .assistant-message {
-            background: rgba(255, 255, 255, 0.5);
-            border: 1px solid rgba(0, 0, 0, 0.05);
+            background: rgba(15, 23, 42, 0.78);
+            border: 1px solid rgba(148, 163, 184, 0.18);
             align-self: flex-start;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            box-shadow: 0 8px 20px rgba(2, 8, 23, 0.22);
+            color: #f1f5f9;
+            white-space: pre-wrap;
         }
 
         .user-message {
-            background: linear-gradient(135deg, var(--accent-blue), var(--accent-navy));
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.95), rgba(37, 99, 235, 0.96));
             color: white;
             align-self: flex-end;
             border: none;
@@ -522,8 +359,8 @@
             display: flex;
             gap: 0.5rem;
             padding: 1rem;
-            border-top: 1px solid rgba(0, 0, 0, 0.05);
-            background: rgba(255, 255, 255, 0.2);
+            border-top: 1px solid rgba(148, 163, 184, 0.16);
+            background: linear-gradient(180deg, rgba(8, 15, 30, 0.66), rgba(8, 15, 30, 0.94));
             position: relative;
         }
 
@@ -536,51 +373,76 @@
 
         .chat-input-wrapper input {
             width: 100%;
-            background: rgba(255, 255, 255, 0.5);
-            border: 1px solid rgba(0, 0, 0, 0.05);
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid rgba(148, 163, 184, 0.22);
             border-radius: 8px;
-            padding: 0.75rem;
-            padding-right: 2.5rem;
-            /* Room for mic icon */
-            color: var(--text-primary);
+            padding: 0.75rem 5.85rem 0.75rem 0.75rem;
+            min-height: 42px;
+            color: #f8fafc;
             font-size: 0.95rem;
         }
 
-        .input-attach-btn {
+        .chat-input-actions {
             position: absolute;
-            right: 42px;
-            /* Next to mic */
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 1.2rem;
-            cursor: pointer;
-            opacity: 0.6;
-            transition: all 0.2s;
-            display: flex;
+            right: 0.35rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: inline-flex;
             align-items: center;
+            gap: 0.35rem;
+            pointer-events: none;
+        }
+
+        .chat-input-actions>* {
+            pointer-events: auto;
+        }
+
+        .chat-input-wrapper input::placeholder {
+            color: rgba(148, 163, 184, 0.92);
+        }
+
+        .input-attach-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            background: rgba(15, 23, 42, 0.72);
+            color: rgba(226, 232, 240, 0.92);
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
         .input-attach-btn:hover {
-            opacity: 1;
-            color: var(--accent-blue);
+            color: #ffffff;
+            border-color: rgba(56, 189, 248, 0.48);
+            background: rgba(14, 24, 44, 0.92);
         }
 
         .input-mic-btn {
-            position: absolute;
-            right: 10px;
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 1.2rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            background: rgba(15, 23, 42, 0.72);
+            color: rgba(226, 232, 240, 0.92);
+            font-size: 0.72rem;
+            font-weight: 700;
             cursor: pointer;
-            opacity: 0.6;
             transition: all 0.2s;
         }
 
         .input-mic-btn:hover {
-            opacity: 1;
-            color: var(--accent-cyan);
+            color: #ffffff;
+            border-color: rgba(53, 232, 255, 0.5);
+            background: rgba(14, 24, 44, 0.92);
         }
 
         .input-mic-btn.recording {
@@ -607,7 +469,8 @@
 
         .chat-input-container input:focus {
             outline: none;
-            border-color: var(--accent-blue);
+            border-color: rgba(56, 189, 248, 0.58);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.16);
         }
 
         .mic-button {
@@ -651,6 +514,8 @@
             border: none;
             border-radius: 8px;
             padding: 0.75rem 1.25rem;
+            min-height: 42px;
+            white-space: nowrap;
             color: white;
             font-weight: 600;
             cursor: pointer;
@@ -660,6 +525,31 @@
         .send-btn:hover {
             box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4);
             filter: brightness(1.1);
+        }
+
+        .assistant-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            margin-top: 0.55rem;
+        }
+
+        .assistant-option-btn {
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            background: rgba(14, 165, 233, 0.14);
+            color: #dff7ff;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            padding: 0.38rem 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .assistant-option-btn:hover,
+        .assistant-option-btn:focus-visible {
+            border-color: rgba(56, 189, 248, 0.7);
+            background: rgba(14, 165, 233, 0.26);
         }
     </style>
 
@@ -673,7 +563,12 @@
         function openChat() {
             const chatModal = document.getElementById('chat-modal');
             const history = document.getElementById('chat-history');
-            const name = document.getElementById('profile-name') ? document.getElementById('profile-name').innerText : 'this person';
+            const fallbackName = document.getElementById('profile-name')
+                ? String(document.getElementById('profile-name').innerText || '').replace(/Edit Profile/gi, '').trim()
+                : '';
+            const name = (window.currentPersonData && window.currentPersonData.full_name)
+                ? window.currentPersonData.full_name
+                : (fallbackName || 'this person');
 
             // Hide the Ask AI FAB when chat is open to prevent overlap
             const aiFab = document.querySelector('.twin-fab');
@@ -683,8 +578,18 @@
             if (currentChatHistory.length === 0 && history.children.length <= 1) {
                 const welcomeMsg = document.createElement('div');
                 welcomeMsg.className = 'assistant-message';
-                welcomeMsg.innerHTML = `Hi! I'm your dedicated assistant for <b>${name}</b>. How can I help you with this profile today?`;
+                welcomeMsg.innerHTML = '';
+                welcomeMsg.append(`Hi! I'm your dedicated assistant for `);
+                const nameNode = document.createElement('strong');
+                nameNode.textContent = name;
+                welcomeMsg.append(nameNode);
+                welcomeMsg.append(`. How can I help you with this profile today?`);
                 history.appendChild(welcomeMsg);
+                appendAssistantOptions(welcomeMsg, [
+                    { label: 'Capture Update', prompt: 'Capture this update for the profile: ' },
+                    { label: 'Create Task', prompt: 'Create a follow-up task with this title: ' },
+                    { label: 'Next Action', prompt: 'What is the most important next action for this profile now?' },
+                ]);
             }
 
             chatModal.style.display = 'flex';
@@ -701,6 +606,110 @@
         let currentChatHistory = [];
         let chatMediaRecorder;
         let chatAudioChunks = [];
+
+        function deriveAssistantQuickActions(responseText, operations) {
+            const text = String(responseText || '').trim();
+            if (!text) return [];
+            const lower = text.toLowerCase();
+            const opList = Array.isArray(operations) ? operations : [];
+            const completedTypes = new Set(
+                opList
+                    .filter((op) => String(op && op.status || '').toLowerCase() === 'completed')
+                    .map((op) => String(op && op.type || '').toLowerCase())
+            );
+            const isOfferingChoice = /would you like|if you would like|let me know|do you want me|should i|shall i/.test(lower);
+            const actions = [];
+            if (completedTypes.has('log_intelligence')) {
+                actions.push({ label: 'Create Task', prompt: 'Create a follow-up task from that intelligence.' });
+            }
+            if (completedTypes.has('create_task')) {
+                actions.push({ label: 'Next Action', prompt: 'What is the most important next action for this profile now?' });
+            }
+            if (/log|intelligence|update/.test(lower)) {
+                actions.push({ label: 'Capture Update', prompt: 'Capture this update for the profile: ' });
+            }
+            if (/task|follow[- ]?up|next step|schedule|call/.test(lower)) {
+                actions.push({ label: 'Create Task', prompt: 'Create a follow-up task with this title: ' });
+            }
+            if (isOfferingChoice) {
+                actions.push({ label: 'No Change', prompt: 'No changes needed for now.' });
+            }
+            if (!actions.length && /error|failed|unable/.test(lower)) {
+                actions.push({ label: 'Retry', prompt: 'Please retry the last action.' });
+            }
+            const seen = new Set();
+            return actions.filter((item) => {
+                const key = String(item.label || '').toLowerCase();
+                if (!key || seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            }).slice(0, 3);
+        }
+
+        function appendAssistantOptions(targetMessage, actions) {
+            if (!targetMessage || !Array.isArray(actions) || !actions.length) return;
+            const wrap = document.createElement('div');
+            wrap.className = 'assistant-options';
+            actions.forEach((action) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'assistant-option-btn';
+                btn.textContent = String(action.label || '').trim();
+                btn.addEventListener('click', () => {
+                    const input = document.getElementById('chat-input');
+                    if (!input) return;
+                    input.value = String(action.prompt || '').trim();
+                    input.focus();
+                });
+                wrap.appendChild(btn);
+            });
+            targetMessage.appendChild(wrap);
+        }
+
+        async function readJsonSafe(response) {
+            try {
+                return await response.json();
+            } catch (_err) {
+                return {};
+            }
+        }
+
+        async function loadTranscriptionJob(jobId) {
+            const endpoints = [
+                `${API_BASE}/api/intelligence/jobs/${jobId}`,
+                `${API_BASE}/api/ai/jobs/${jobId}`,
+            ];
+
+            let lastError = '';
+            for (const url of endpoints) {
+                const res = await fetch(url);
+                if (res.status === 404) {
+                    lastError = 'Job status endpoint is unavailable.';
+                    continue;
+                }
+                const payload = await readJsonSafe(res);
+                if (!res.ok) {
+                    throw new Error(payload.detail || payload.message || `Unable to read transcription job (${res.status}).`);
+                }
+                return payload;
+            }
+
+            throw new Error(lastError || 'Unable to read transcription job.');
+        }
+
+        async function pollChatTranscriptionJob(jobId) {
+            for (let attempt = 0; attempt < 120; attempt++) {
+                const job = await loadTranscriptionJob(jobId);
+                if (job.status === 'completed') return job.result || {};
+                if (job.status === 'failed') {
+                    throw new Error(job.error_text || job.error_message || 'Transcription failed.');
+                }
+
+                await new Promise((resolve) => setTimeout(resolve, 1500));
+            }
+
+            throw new Error('Transcription timed out.');
+        }
 
         async function askQuestion() {
             const input = document.getElementById('chat-input');
@@ -735,43 +744,76 @@
                     body: JSON.stringify({ message: question, history: currentChatHistory })
                 });
 
-                const data = await res.json();
+                const data = await readJsonSafe(res);
+                if (!res.ok) {
+                    throw new Error(data.detail || data.message || data.response || `Request failed (${res.status})`);
+                }
 
                 // Replace loading with answer
                 loadingMsg.remove();
                 const assistantMsg = document.createElement('div');
                 assistantMsg.className = 'assistant-message';
-                assistantMsg.innerHTML = data.response || "No answer returned.";
+                const assistantText = String(data.response || "No answer returned.");
+                assistantMsg.textContent = assistantText;
                 history.appendChild(assistantMsg);
+                const operations = Array.isArray(data.operations) ? data.operations : [];
+                appendAssistantOptions(assistantMsg, deriveAssistantQuickActions(assistantText, operations));
 
                 // Add assistant message to history state
-                currentChatHistory.push({ "role": "assistant", "content": data.response });
+                currentChatHistory.push({ "role": "assistant", "content": assistantText });
 
-                // REFRESH IMMEDIATELY if any update suggested
-                console.log("Checking for refresh flags in response...");
-                regenerateBrief();
-                setTimeout(() => loadPerson(), 500);
+                // Refresh only when backend confirms a profile-changing operation completed
+                const refreshTypes = new Set([
+                    'log_intelligence',
+                    'create_task',
+                    'update_profile',
+                    'update_employment_history',
+                    'resolve_relationship_topic',
+                    'set_stage',
+                ]);
+                const shouldRefresh = operations.some((op) => {
+                    const status = String(op && op.status || '').toLowerCase();
+                    const type = String(op && op.type || '').toLowerCase();
+                    return status === 'completed' && refreshTypes.has(type);
+                });
+                if (shouldRefresh) {
+                    regenerateBrief();
+                    setTimeout(() => loadPerson(), 500);
+                }
 
             } catch (err) {
                 loadingMsg.remove();
                 const errorMsg = document.createElement('div');
                 errorMsg.className = 'assistant-message';
                 errorMsg.style.color = 'var(--accent-red)';
-                errorMsg.textContent = 'Error: ' + err.message;
+                const rawMessage = String(err && err.message ? err.message : 'Unknown error');
+                const serviceIssue = rawMessage.toLowerCase().includes('ai service error');
+                errorMsg.textContent = serviceIssue
+                    ? 'Assistant service error. Please retry. If this keeps happening, confirm the OpenAI key and quota in Settings.'
+                    : 'Error: ' + rawMessage;
                 history.appendChild(errorMsg);
+                appendAssistantOptions(errorMsg, [{ label: 'Retry', prompt: question }]);
             }
             history.scrollTop = history.scrollHeight;
         }
-
         // Voice input for chat
         async function recordChatAudio() {
             const micBtn = document.getElementById('mic-btn');
+            const input = document.getElementById('chat-input');
+            const micSupport = window.microphoneSupportStatus
+                ? window.microphoneSupportStatus()
+                : { supported: true };
+
+            if (!micSupport.supported) {
+                alert(micSupport.reason || 'Microphone recording is unavailable on this device/browser.');
+                return;
+            }
 
             if (chatMediaRecorder && chatMediaRecorder.state === 'recording') {
                 // Stop recording
                 chatMediaRecorder.stop();
                 micBtn.classList.remove('recording');
-                micBtn.textContent = '🎤';
+                micBtn.textContent = 'Mic';
                 return;
             }
 
@@ -795,16 +837,18 @@
                     const audioBlob = new Blob(chatAudioChunks, { type: chatMediaRecorder.mimeType || 'audio/webm' });
 
                     if (audioBlob.size === 0) {
-                        console.warn("Chat audio recording was empty.");
-                        micBtn.textContent = '🎤';
+                        console.warn('Chat audio recording was empty.');
+                        micBtn.textContent = 'Mic';
+                        stream.getTracks().forEach(track => track.stop());
                         return;
                     }
 
-                    // Transcribe using Gemini (or OpenAI Whisper on backend)
+                    // Transcribe through the async AI jobs pipeline
                     const formData = new FormData();
                     formData.append('file', audioBlob, 'chat-voice.webm');
 
-                    micBtn.textContent = '⏳';
+                    micBtn.textContent = '...';
+                    input.value = 'Queued for transcription...';
 
                     try {
                         const res = await fetch(`${API_BASE}/api/intelligence/transcribe`, {
@@ -812,28 +856,45 @@
                             body: formData
                         });
 
-                        const data = await res.json();
+                        const data = await readJsonSafe(res);
+                        if (!res.ok || !data.job_id) {
+                            throw new Error(data.detail || data.message || 'No transcription job returned.');
+                        }
 
-                        if (data.text) {
-                            // Insert transcript into input field
-                            document.getElementById('chat-input').value = data.text;
-                            document.getElementById('chat-input').focus();
+                        const result = await pollChatTranscriptionJob(data.job_id);
+                        if (result.text) {
+                            input.value = result.text;
+                            input.focus();
+                        } else {
+                            input.value = '';
+                            input.placeholder = 'Transcription returned no text.';
                         }
                     } catch (err) {
+                        input.value = '';
+                        input.placeholder = 'Error transcribing.';
                         alert('Transcription failed: ' + err.message);
                     } finally {
-                        micBtn.textContent = '🎤';
+                        micBtn.textContent = 'Mic';
+                        micBtn.classList.remove('recording');
+                        stream.getTracks().forEach(track => track.stop());
                     }
-
-                    stream.getTracks().forEach(track => track.stop());
                 };
 
                 chatMediaRecorder.start(200);
                 micBtn.classList.add('recording');
-                micBtn.textContent = '⏹';
+                micBtn.textContent = 'Stop';
             } catch (err) {
+                micBtn.classList.remove('recording');
+                micBtn.textContent = 'Mic';
                 alert('Microphone access denied: ' + err.message);
             }
+        }
+
+        if (typeof window.applyMicrophoneAvailability === 'function') {
+            window.applyMicrophoneAvailability('mic-btn', {
+                supportedLabel: 'Mic',
+                unsupportedLabel: 'No Mic',
+            });
         }
 
         // Allow Enter key to submit
@@ -841,7 +902,7 @@
             if (e.key === 'Enter') askQuestion();
         });
 
-        // ── Unified file upload handler (images + PDFs) ──
+        // Unified file upload handler (images + PDFs)
         async function handleFileUpload(blob, filename) {
             const history = document.getElementById('chat-history');
 
@@ -856,9 +917,9 @@
                 };
                 fr.readAsDataURL(blob);
             } else {
-                // PDF / TXT — show file pill
+                // PDF / TXT show file pill
                 fileMsg.innerHTML = `<span style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(53,232,255,0.1);border:1px solid rgba(53,232,255,0.3);border-radius:12px;font-size:0.85rem;">
-                    📄 <strong>${filename}</strong>
+                    [FILE] <strong>${filename}</strong>
                 </span>`;
             }
             history.appendChild(fileMsg);
@@ -878,8 +939,23 @@
                     method: 'POST',
                     body: formData
                 });
-                const data = await res.json();
+                let data = {};
+                try {
+                    data = await res.json();
+                } catch (_err) {
+                    data = {};
+                }
+                if (!res.ok) {
+                    throw new Error(data.detail || data.message || `Upload failed (${res.status})`);
+                }
+                const normalizedFilename = String(data.filename || filename || 'upload.bin');
                 loadingMsg.remove();
+
+                if (!isImage) {
+                    fileMsg.innerHTML = `<span style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(53,232,255,0.1);border:1px solid rgba(53,232,255,0.3);border-radius:12px;font-size:0.85rem;">
+                        [FILE] <strong>${normalizedFilename}</strong>
+                    </span>`;
+                }
 
                 const successMsg = document.createElement('div');
                 successMsg.className = 'assistant-message';
@@ -891,17 +967,17 @@
                         photoEl.innerHTML = `<img src="${API_BASE}${data.media_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
                         photoEl.style.backgroundColor = 'transparent';
                     }
-                    successMsg.innerHTML = '✅ Profile photo updated!';
+                    successMsg.textContent = 'Profile photo updated.';
                 } else if (isImage) {
-                    successMsg.innerHTML = '✅ Image analysed and added to interactions.';
+                    successMsg.textContent = data.message || 'Image uploaded. AI processing is running in the background.';
                 } else {
                     const enrichMsg = data.enrichment ? (data.enrichment.response || 'Career profile updated from document.') : 'Document uploaded.';
-                    successMsg.innerHTML = `✅ ${enrichMsg}`;
+                    successMsg.textContent = data.message || enrichMsg;
                 }
                 history.appendChild(successMsg);
                 history.scrollTop = history.scrollHeight;
 
-                currentChatHistory.push({ "role": "user", "content": `[User uploaded: ${filename}]` });
+                currentChatHistory.push({ "role": "user", "content": `[User uploaded: ${normalizedFilename}]` });
                 currentChatHistory.push({ "role": "assistant", "content": "File processed: " + data.media_url });
 
                 // Force reload of briefing and intel
@@ -917,7 +993,7 @@
             }
         }
 
-        // Paste handler — images AND PDFs
+        // Paste handler - images and PDFs
         document.getElementById('chat-input').addEventListener('paste', async function (e) {
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
             for (let index in items) {
@@ -1009,9 +1085,9 @@
     </div>
     <!-- Scroll to Top Button -->
     <div id="scroll-top-btn" class="scroll-top-btn" onclick="scrollToTop()" title="Return to Top">
-        ↑
+        ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬Ëœ
     </div>
-    <!-- ═══ CREATE TASK MODAL ══════════════════════════════════════════ -->
+    <!-- ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â CREATE TASK MODAL ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â -->
     <div id="task-modal-overlay" onclick="closeTaskModal(event)"
         style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); backdrop-filter:none; z-index:900; align-items:flex-end; justify-content:center;">
         <div id="task-modal-sheet"
@@ -1022,7 +1098,7 @@
             </div>
 
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
-                <div style="font-family:'Outfit',sans-serif;font-size:1.15rem;font-weight:700;">✅ New Task</div>
+                <div style="font-family:'Outfit',sans-serif;font-size:1.15rem;font-weight:700;">ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ New Task</div>
                 <div id="tm-person-pill"
                     style="display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:100px;background:rgba(53,232,255,0.1);border:1px solid rgba(53,232,255,0.3);font-size:0.72rem;font-weight:700;color:#35E8FF;">
                     <span
@@ -1035,7 +1111,7 @@
                 <label
                     style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;display:block;margin-bottom:.35rem;">Task
                     Description *</label>
-                <textarea id="tm-text" rows="2" placeholder="Call to discuss Q2 plan, Send follow-up proposal…"
+                <textarea id="tm-text" rows="2" placeholder="Call to discuss Q2 plan, Send follow-up proposalÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦"
                     style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);color:white;padding:.65rem .9rem;border-radius:11px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none;resize:vertical;min-height:70px;"
                     onfocus="this.style.borderColor='#35E8FF'"
                     onblur="this.style.borderColor='rgba(255,255,255,0.14)'"></textarea>
@@ -1048,22 +1124,22 @@
                 <div style="display:flex;gap:.5rem;margin-bottom:.65rem;">
                     <button onclick="tmSeg('morning')" id="tmsq-morning"
                         style="flex:1;padding:7px 4px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.68rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .2s;">
-                        <span style="font-size:1rem;">🌅</span><span>Morning</span><span
+                        <span style="font-size:1rem;">ÃƒÂ°Ã…Â¸Ã…â€™Ã¢â‚¬Â¦</span><span>Morning</span><span
                             style="font-size:.6rem;opacity:.7;">09:00</span>
                     </button>
                     <button onclick="tmSeg('afternoon')" id="tmsq-afternoon"
                         style="flex:1;padding:7px 4px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.68rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .2s;">
-                        <span style="font-size:1rem;">☀️</span><span>Afternoon</span><span
+                        <span style="font-size:1rem;">ÃƒÂ¢Ã‹Å“Ã¢â€šÂ¬ÃƒÂ¯Ã‚Â¸Ã‚Â</span><span>Afternoon</span><span
                             style="font-size:.6rem;opacity:.7;">13:00</span>
                     </button>
                     <button onclick="tmSeg('evening')" id="tmsq-evening"
                         style="flex:1;padding:7px 4px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.68rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .2s;">
-                        <span style="font-size:1rem;">🌙</span><span>Evening</span><span
+                        <span style="font-size:1rem;">ÃƒÂ°Ã…Â¸Ã…â€™Ã¢â€žÂ¢</span><span>Evening</span><span
                             style="font-size:.6rem;opacity:.7;">18:00</span>
                     </button>
                     <button onclick="tmSeg('anytime')" id="tmsq-anytime"
                         style="flex:1;padding:7px 4px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.68rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .2s;">
-                        <span style="font-size:1rem;">📌</span><span>Anytime</span><span
+                        <span style="font-size:1rem;">ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…â€™</span><span>Anytime</span><span
                             style="font-size:.6rem;opacity:.7;">No time</span>
                     </button>
                 </div>
@@ -1084,13 +1160,13 @@
                     style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;display:block;margin-bottom:.35rem;">Priority</label>
                 <div style="display:flex;gap:.5rem;">
                     <button id="tm-ph" onclick="tmPri('high')"
-                        style="flex:1;padding:7px;border-radius:9px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;">🔴
+                        style="flex:1;padding:7px;border-radius:9px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;">ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´
                         High</button>
                     <button id="tm-pm" onclick="tmPri('medium')"
-                        style="flex:1;padding:7px;border-radius:9px;border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.12);color:#f59e0b;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;">🟡
+                        style="flex:1;padding:7px;border-radius:9px;border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.12);color:#f59e0b;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;">ÃƒÂ°Ã…Â¸Ã…Â¸Ã‚Â¡
                         Medium</button>
                     <button id="tm-pl" onclick="tmPri('low')"
-                        style="flex:1;padding:7px;border-radius:9px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;">🟢
+                        style="flex:1;padding:7px;border-radius:9px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#94a3b8;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;">ÃƒÂ°Ã…Â¸Ã…Â¸Ã‚Â¢
                         Low</button>
                 </div>
             </div>
@@ -1110,7 +1186,7 @@
         style="position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(100px);background:rgba(12,20,38,0.96);border:1px solid rgba(255,255,255,0.14);border-radius:11px;padding:.7rem 1.2rem;font-size:.83rem;font-weight:600;color:white;transition:transform .3s cubic-bezier(0.23,1,0.32,1);z-index:1000;pointer-events:none;">
     </div>
 
-    <!-- ── M365 EMAIL COMPOSE MODAL ─────────────────────────────────────── -->
+    <!-- ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ M365 EMAIL COMPOSE MODAL ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ -->
     <div id="m365-compose-modal"
         style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); backdrop-filter:none; z-index:10000; align-items:center; justify-content:center;">
         <div
@@ -1118,7 +1194,7 @@
             <button onclick="document.getElementById('m365-compose-modal').style.display='none'"
                 style="position:absolute; top:15px; right:15px; background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
             <h3 style="margin-top:0; color:#35E8FF; font-size:1.2rem; display:flex; align-items:center; gap:0.5rem;">
-                <span style="color:#0078D4;">📧</span> Compose Email
+                <span style="color:#0078D4;">ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â§</span> Compose Email
             </h3>
 
             <div style="margin-bottom:1rem;">
@@ -1148,7 +1224,7 @@
                     style="background:none; border:none; color:var(--text-muted); padding:8px 16px; cursor:pointer; font-weight:600;">Cancel</button>
                 <button onclick="sendM365Email()" id="m365-btn-send"
                     style="background:#0078D4; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:0.5rem;">Send
-                    Email 🚀</button>
+                    Email ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬</button>
             </div>
         </div>
     </div>
@@ -1158,7 +1234,7 @@
         style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); backdrop-filter:none; z-index:10000; align-items:center; justify-content:center;">
         <div
             style="background:var(--bg-card); border:1px solid var(--accent-cyan); border-radius:16px; width:90%; max-width:450px; padding:2.5rem; text-align:center; box-shadow:0 24px 80px rgba(0,0,0,0.6);">
-            <div style="font-size:3rem; margin-bottom:1rem;">🔐</div>
+            <div style="font-size:3rem; margin-bottom:1rem;">ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â</div>
             <h3 style="margin-top:0; font-size:1.5rem; margin-bottom:1rem;">Microsoft 365 Login</h3>
             <p style="color:var(--text-secondary); margin-bottom:2rem;">To sync emails and send messages, please
                 authenticate your Microsoft account.</p>
@@ -1176,7 +1252,7 @@
 
             <p id="m365-auth-status-text"
                 style="color:var(--text-muted); font-size:0.85rem; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
-                <span class="spinner" style="font-size:1.2rem;">⏳</span> Waiting for you to complete login...
+                <span class="spinner" style="font-size:1.2rem;">ÃƒÂ¢Ã‚ÂÃ‚Â³</span> Waiting for you to complete login...
             </p>
         </div>
     </div>
@@ -1185,7 +1261,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             renderUniversalLayout('', 'PROFILE DOSSIER');
         });
-        // ─── TASK MODAL ───────────────────────────────────────────────────────────
+        // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ TASK MODAL ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
         let _tmPriority = 'medium';
         const _tmSegTimes = { morning: '09:00', afternoon: '13:00', evening: '18:00', anytime: '' };
         const _tmSegColors = {
@@ -1279,9 +1355,9 @@
                 // Close & toast
                 document.getElementById('task-modal-sheet').style.transform = 'translateY(100%)';
                 setTimeout(() => { document.getElementById('task-modal-overlay').style.display = 'none'; }, 370);
-                _showTaskToast('✅ Task saved — linked to ' + (window.currentPersonData ? window.currentPersonData.full_name : 'contact'), true);
+                _showTaskToast('ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Task saved ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â linked to ' + (window.currentPersonData ? window.currentPersonData.full_name : 'contact'), true);
             } catch (e) {
-                _showTaskToast('❌ Save failed — is the server running?', false);
+                _showTaskToast('ÃƒÂ¢Ã‚ÂÃ…â€™ Save failed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â is the server running?', false);
             }
         }
         // M365 Functions
@@ -1320,7 +1396,7 @@
                             clearInterval(checkAuthInterval);
                             document.getElementById('m365-auth-modal').style.display = 'none';
                             document.getElementById('m365-auth-warning').style.display = 'none';
-                            _showTaskToast('M365 Connected successfully! 🚀');
+                            _showTaskToast('M365 Connected successfully! ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬');
                             syncM365Emails();
                         } else if (statusData.status === 'error') {
                             clearInterval(checkAuthInterval);
@@ -1349,7 +1425,7 @@
                     let txt = '';
                     if (s.last_sync_at) txt += `Last sync: ${s.last_sync_at}`;
                     if (s.sync_status) txt += ` (${s.sync_status})`;
-                    if (s.last_synced_count) txt += ` · ${s.last_synced_count} new`;
+                    if (s.last_synced_count) txt += ` Ãƒâ€šÃ‚Â· ${s.last_synced_count} new`;
                     el.textContent = txt || '(never synced)';
                 } else {
                     document.getElementById('m365-sync-status').textContent = '(no data)';
@@ -1364,7 +1440,7 @@
 
         async function syncM365Emails() {
             const btn = document.getElementById('btn-sync-emails');
-            btn.textContent = '⏳ Syncing...';
+            btn.textContent = 'ÃƒÂ¢Ã‚ÂÃ‚Â³ Syncing...';
             btn.disabled = true;
 
             try {
@@ -1391,7 +1467,7 @@
                 console.error(e);
             }
 
-            btn.textContent = '🔄 Sync Emails';
+            btn.textContent = 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Å¾ Sync Emails';
             btn.disabled = false;
         }
 
@@ -1442,7 +1518,7 @@
 
             const btn = document.getElementById('m365-btn-send');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '⏳ Sending...';
+            btn.innerHTML = 'ÃƒÂ¢Ã‚ÂÃ‚Â³ Sending...';
             btn.disabled = true;
 
             try {
@@ -1455,7 +1531,7 @@
                 const data = await res.json();
                 if (data.status === 'success') {
                     document.getElementById('m365-compose-modal').style.display = 'none';
-                    _showTaskToast('Email sent successfully! 🚀');
+                    _showTaskToast('Email sent successfully! ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬');
                     // Refresh history
                     loadPerson();
                 } else {
@@ -1477,7 +1553,6 @@
 </body>
 
 </html>
-
 
 
 
