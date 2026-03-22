@@ -3,6 +3,17 @@
 ## Scope
 Pre-deploy validation executed against local runtime (`http://127.0.0.1:8009`) before production deployment and before full data import.
 
+## Deployment Execution
+
+- Git commit created: `d215c44c7f5749fe2a1f5b5697c548909d676f9d`
+- Branch pushed for deploy: `origin/codex/deploy-prep`
+- Remote verification: branch head equals commit above.
+- Production-mode startup smoke (local) passed with:
+  - `ENV=production`
+  - `AUTH_DISABLED=false`
+  - `COOKIE_SECURE=true`
+  - Health check result: HTTP `200` on `http://127.0.0.1:8015/api/health`
+
 ## Automated Checks Executed
 
 1. Backend regression suite
