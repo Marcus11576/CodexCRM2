@@ -3632,9 +3632,9 @@ def calculate_relationship_scores(*, claim_ledger: dict, cleaned_interactions: l
     ]
     continuity_dates = sorted({item["date"] for item in continuity_interactions if item.get("date")})
     long_standing_continuity = len(continuity_interactions) >= 4 and len(continuity_dates) >= 3
-    recent_interaction_blob = " ".join(
+    opportunity_signal_blob = " ".join(
         f"{str(item.get('title') or '').lower()} {str(item.get('raw_text') or '').lower()}"
-        for item in recent_interactions
+        for item in continuity_interactions
     )
     action_map = {action.get("action_id"): action for action in action_ledger.get("actions") or []}
     open_actions = [action_map.get(action_id) for action_id in action_ledger.get("open_actions") or [] if action_map.get(action_id)]
@@ -3700,7 +3700,7 @@ def calculate_relationship_scores(*, claim_ledger: dict, cleaned_interactions: l
     if (
         not active_opportunity_claims
         and any(
-            term in recent_interaction_blob
+            term in opportunity_signal_blob
             for term in ("shortlist", "offer", "hiring", "hire", "role", "position", "engineer", "headcount", "mandate")
         )
     ):

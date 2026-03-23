@@ -1,178 +1,178 @@
 area,kind,methods,path,handler,pre_deploy_status,post_data_status,notes
-Authentication UI,ui-route,GET,/,serve_index,PENDING,PENDING,
-Core UI,ui-route,GET,/activities,serve_activities,PENDING,PENDING,
-Core UI,ui-route,GET,/activities.html,serve_activities,PENDING,PENDING,
-Core UI,ui-route,GET,/agenda,serve_agenda,PENDING,PENDING,
-Core UI,ui-route,GET,/agenda.html,serve_agenda,PENDING,PENDING,
-Core UI,ui-route,GET,/analytics,serve_analytics,PENDING,PENDING,
-Core UI,ui-route,GET,/analytics.html,serve_analytics,PENDING,PENDING,
-AI Pipeline,api,POST,/api/ai/artifacts,create_artifact,PENDING,PENDING,
-AI Pipeline,api,POST,/api/ai/briefs/{person_id},store_brief,PENDING,PENDING,
-AI Pipeline,api,POST,/api/ai/feedback,log_feedback,PENDING,PENDING,
-AI Pipeline,api,GET,/api/ai/jobs/person/{person_id},list_person_ai_jobs,PENDING,PENDING,
-AI Pipeline,api,GET,/api/ai/jobs/{job_id},get_ai_job,PENDING,PENDING,
-AI Pipeline,api,POST,/api/ai/jobs/{job_id}/retry,retry_ai_job,PENDING,PENDING,
-AI Pipeline,api,GET,/api/ai/ops/summary,ops_summary,PENDING,PENDING,
-AI Pipeline,api,POST,/api/ai/profile-match/suggest,suggest_profile_match,PENDING,PENDING,
-AI Pipeline,api,GET,/api/ai/review-queue,review_queue,PENDING,PENDING,
-AI Pipeline,api,POST,/api/ai/signals,create_signal,PENDING,PENDING,
-AI Pipeline,api,GET,/api/ai/signals/{person_id},get_signals,PENDING,PENDING,
-AI Pipeline,api,PATCH,/api/ai/signals/{signal_id}/status,update_signal_status,PENDING,PENDING,
-Analytics,api,GET,/api/analytics/effort-stats,get_effort_stats,PENDING,PENDING,
-Analytics,api,GET,/api/analytics/influence-matrix,get_influence_matrix,PENDING,PENDING,
-Analytics,api,GET,/api/analytics/network-pulse,get_network_pulse,PENDING,PENDING,
-Analytics,api,GET,/api/analytics/profile-growth-stats,get_profile_growth_stats,PENDING,PENDING,
-Analytics,api,GET,/api/analytics/propensity/{person_id},get_person_propensity,PENDING,PENDING,
-Analytics,api,GET,/api/analytics/success-report,get_success_report,PENDING,PENDING,
-Authentication,api,POST,/api/auth/login,login,PENDING,PENDING,
-Authentication,api,POST,/api/auth/logout,logout,PENDING,PENDING,
-Authentication,api,GET,/api/auth/me,get_me,PENDING,PENDING,
-Authentication,api,GET,/api/auth/microsoft/callback,microsoft_callback,PENDING,PENDING,
-Authentication,api,GET,/api/auth/microsoft/start,microsoft_start,PENDING,PENDING,
-Authentication,api,POST,/api/auth/setup,setup_first_admin,PENDING,PENDING,
-Authentication,api,GET,/api/auth/status,auth_status,PENDING,PENDING,
-Configuration,api,GET,/api/config/ai,get_ai_config,PENDING,PENDING,
-Configuration,api,POST,/api/config/ai,update_ai_config,PENDING,PENDING,
-Configuration,api,GET,/api/config/taxonomy,compat_taxonomy,PENDING,PENDING,
-Dashboard Compatibility,api,GET,/api/dashboard/meeting-feed,compat_meeting_feed,PENDING,PENDING,
-Dashboard Compatibility,api,GET,/api/dashboard/network-feed,compat_network_feed,PENDING,PENDING,
-Dashboard Compatibility,api,GET,/api/dashboard/task-pipeline,compat_task_pipeline,PENDING,PENDING,
-Events,api,GET,/api/events,list_events,PENDING,PENDING,
-Events,api,POST,/api/events,create_event,PENDING,PENDING,
-Events,api,GET,/api/events/dashboard/summary,get_event_dashboard_summary,PENDING,PENDING,
-Events,api,GET,/api/events/people/{person_id}/links,get_person_events,PENDING,PENDING,
-Events,api,POST,/api/events/people/{person_id}/links,link_event_to_person,PENDING,PENDING,
-Events,api,DELETE,/api/events/people/{person_id}/links/{event_id},remove_event_from_person,PENDING,PENDING,
-Events,api,PATCH,/api/events/people/{person_id}/links/{event_id},update_person_event_link,PENDING,PENDING,
-Events,api,GET,/api/events/status-options,get_event_status_options,PENDING,PENDING,
-Events,api,GET,/api/events/{event_id},get_event,PENDING,PENDING,
-Events,api,PATCH,/api/events/{event_id},update_event,PENDING,PENDING,
-Events,api,PUT,/api/events/{event_id},update_event,PENDING,PENDING,
-Events,api,GET,/api/events/{event_id}/participants/export,export_event_participants,PENDING,PENDING,
-Events,api,GET,/api/events/{event_id}/people,get_event_people,PENDING,PENDING,
-Events,api,POST,/api/events/{event_id}/people,add_person_to_event,PENDING,PENDING,
-Events,api,DELETE,/api/events/{event_id}/people/{person_id},remove_person_from_event,PENDING,PENDING,
-Events,api,PATCH,/api/events/{event_id}/people/{person_id},update_event_person_status,PENDING,PENDING,
-Health & Operations,api,GET,/api/health,health_check_public,PENDING,PENDING,
-Health & Operations,api,POST,/api/health/backups/run,run_backup_now,PENDING,PENDING,
-Health & Operations,api,GET,/api/health/backups/status,get_backup_status,PENDING,PENDING,
-Health & Operations,api,GET,/api/health/status,get_health_status,PENDING,PENDING,
-Health & Operations,api,POST,/api/health/trigger,trigger_full_audit,PENDING,PENDING,
-Intelligence Assistant,api,POST,/api/intelligence/assistant/{person_id}/review,intelligence_review,PENDING,PENDING,
-Intelligence Assistant,api,POST,/api/intelligence/backfill/{person_id},admin_backfill_person,PENDING,PENDING,
-Intelligence Assistant,api,GET,/api/intelligence/brief/{person_id},get_brief,PENDING,PENDING,
-Intelligence Assistant,api,POST,/api/intelligence/brief/{person_id},get_brief,PENDING,PENDING,
-Intelligence Assistant,api,POST,/api/intelligence/chat/{person_id},chat_with_profile,PENDING,PENDING,
-Intelligence Assistant,api,GET,/api/intelligence/jobs/{job_id},get_intelligence_job,PENDING,PENDING,
-Intelligence Assistant,api,POST,/api/intelligence/transcribe,transcribe,PENDING,PENDING,
-Intelligence Assistant,api,POST,/api/intelligence/tts/{person_id},generate_audio_brief,PENDING,PENDING,
-Intelligence Assistant,api,POST,/api/intelligence/twin/chat,compat_twin_chat,PENDING,PENDING,
-Intelligence Assistant,api,POST,/api/intelligence/twin/execute,compat_twin_execute,PENDING,PENDING,
-Intelligence Assistant,api,POST,/api/intelligence/whatsapp-import,import_whatsapp,PENDING,PENDING,
-Interaction Capture,api,POST,/api/interactions,create_interaction,PENDING,PENDING,
-Interaction Capture,api,POST,/api/interactions/upload/{person_id},upload_media,PENDING,PENDING,
-Interaction Capture,api,DELETE,/api/interactions/{interaction_id},delete_interaction,PENDING,PENDING,
-Interaction Capture,api,PUT,/api/interactions/{interaction_id},update_interaction,PENDING,PENDING,
-Interaction Capture,api,POST,/api/interactions/{interaction_id}/realign,realign_interaction_api,PENDING,PENDING,
-Interaction Capture,api,PUT,/api/interactions/{interaction_id}/stage-override,update_interaction_stage_override,PENDING,PENDING,
-Microsoft 365,api,GET,/api/m365/account/{person_id},account_status,PENDING,PENDING,
-Microsoft 365,api,POST,/api/m365/auth/reset,auth_reset,PENDING,PENDING,
-Microsoft 365,api,POST,/api/m365/auth/start,auth_start,PENDING,PENDING,
-Microsoft 365,api,GET,/api/m365/auth/status,auth_status,PENDING,PENDING,
-Microsoft 365,api,GET,/api/m365/calendar/events,calendar_events,PENDING,PENDING,
-Microsoft 365,api,GET,/api/m365/emails/{person_id},fetch_emails,PENDING,PENDING,
-Microsoft 365,api,POST,/api/m365/emails/{person_id}/send,send_email,PENDING,PENDING,
-Microsoft 365,api,GET,/api/m365/overview,m365_overview,PENDING,PENDING,
-Microsoft 365,api,POST,/api/m365/sync/full,full_sync,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/bulk-update,bulk_update_people,PENDING,PENDING,
-Network Lab,api,GET,/api/network-lab/company-opportunities,list_company_opportunities,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/company-opportunities,create_company_opportunity,PENDING,PENDING,
-Network Lab,api,DELETE,/api/network-lab/company-opportunities/{company_opportunity_id},delete_company_opportunity,PENDING,PENDING,
-Network Lab,api,PATCH,/api/network-lab/company-opportunities/{company_opportunity_id},update_company_opportunity,PENDING,PENDING,
-Network Lab,api,PUT,/api/network-lab/company-opportunities/{company_opportunity_id},update_company_opportunity,PENDING,PENDING,
-Network Lab,api,GET,/api/network-lab/databank,get_network_databank,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/interpretations/{interpretation_id}/promote-market-intel,promote_market_intel,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/interpretations/{interpretation_id}/promote-memory,promote_memory,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/market-intel/{market_intel_id}/status,set_market_intel_status,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/memory/{memory_id}/status,set_memory_status,PENDING,PENDING,
-Network Lab,api,GET,/api/network-lab/owners,list_owners,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/pilot-cohort,set_pilot_cohort,PENDING,PENDING,
-Network Lab,api,GET,/api/network-lab/profile/{person_id},get_network_profile,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/profile/{person_id}/actions/update,update_action_status,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/profile/{person_id}/claims/action,apply_claim_action,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/profile/{person_id}/manual-resolution,add_manual_resolution,PENDING,PENDING,
-Network Lab,api,GET,/api/network-lab/profile/{person_id}/relationship-intelligence,get_profile_relationship_intelligence,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/profile/{person_id}/relationship-intelligence/refresh,refresh_profile_relationship_intelligence,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/profile/{person_id}/transcript-segment-tags,tag_profile_transcript_segments,PENDING,PENDING,
-Network Lab,api,POST,/api/network-lab/profile/{person_id}/transcript-segment-tags/override,set_profile_transcript_segment_override,PENDING,PENDING,
-Network Lab,api,GET,/api/network-lab/review-queue,get_review_queue,PENDING,PENDING,
-Network Lab,api,DELETE,/api/network-lab/situation-events/{event_id},delete_situation_event,PENDING,PENDING,
-Network Lab,api,PUT,/api/network-lab/situation-events/{event_id},update_situation_event,PENDING,PENDING,
-Network Lab,api,GET,/api/network-lab/workspace,get_workspace,PENDING,PENDING,
-Network Queues,api,GET,/api/network/queues,list_network_queues,PENDING,PENDING,
-People & Profiles,api,GET,/api/people,list_people,PENDING,PENDING,
-People & Profiles,api,POST,/api/people,create_person,PENDING,PENDING,
-People & Profiles,api,GET,/api/people/stats,get_stats,PENDING,PENDING,
-People & Profiles,api,DELETE,/api/people/{person_id},deactivate_person,PENDING,PENDING,
-People & Profiles,api,GET,/api/people/{person_id},get_person,PENDING,PENDING,
-People & Profiles,api,PATCH,/api/people/{person_id},update_person,PENDING,PENDING,
-People & Profiles,api,PUT,/api/people/{person_id},update_person,PENDING,PENDING,
-People & Profiles,api,GET,/api/people/{person_id}/intelligence,get_intelligence,PENDING,PENDING,
-People & Profiles,api,PATCH,/api/people/{person_id}/intelligence/{intel_id},update_intelligence,PENDING,PENDING,
-People & Profiles,api,POST,/api/people/{person_id}/media,compat_upload_photo,PENDING,PENDING,
-People & Profiles,api,POST,/api/people/{person_id}/meeting-brief,compat_meeting_brief,PENDING,PENDING,
-People & Profiles,api,GET,/api/people/{person_id}/opportunities,list_opportunities,PENDING,PENDING,
-People & Profiles,api,POST,/api/people/{person_id}/opportunities,create_opportunity,PENDING,PENDING,
-People & Profiles,api,DELETE,/api/people/{person_id}/opportunities/{opportunity_id},delete_opportunity,PENDING,PENDING,
-People & Profiles,api,PATCH,/api/people/{person_id}/opportunities/{opportunity_id},update_opportunity,PENDING,PENDING,
-People & Profiles,api,PUT,/api/people/{person_id}/opportunities/{opportunity_id},update_opportunity,PENDING,PENDING,
-People & Profiles,api,GET,/api/people/{person_id}/relationships,get_person_relationships,PENDING,PENDING,
-General API (proxy),api,GET,/api/proxy/image,proxy_image,PENDING,PENDING,
-System Settings,api,GET,/api/settings/intelligence,get_intelligence_settings_endpoint,PENDING,PENDING,
-System Settings,api,PUT,/api/settings/intelligence,save_intelligence_settings_endpoint,PENDING,PENDING,
-System Settings,api,POST,/api/settings/intelligence/reset,reset_intelligence_settings_endpoint,PENDING,PENDING,
-System Settings,api,GET,/api/settings/runtime,get_runtime_settings_endpoint,PENDING,PENDING,
-System Settings,api,PUT,/api/settings/runtime/openai-key,save_openai_key_endpoint,PENDING,PENDING,
-Tasks,api,GET,/api/tasks,list_tasks,PENDING,PENDING,
-Tasks,api,POST,/api/tasks,create_task,PENDING,PENDING,
-Tasks,api,GET,/api/tasks/pipeline,get_pipeline,PENDING,PENDING,
-Tasks,api,DELETE,/api/tasks/{task_id},delete_task,PENDING,PENDING,
-Tasks,api,PATCH,/api/tasks/{task_id},update_task,PENDING,PENDING,
-Taxonomy,api,GET,/api/taxonomy,get_taxonomy,PENDING,PENDING,
-Taxonomy,api,POST,/api/taxonomy,add_taxonomy,PENDING,PENDING,
-Taxonomy,api,GET,/api/taxonomy/all,get_all_taxonomy,PENDING,PENDING,
-Taxonomy,api,DELETE,/api/taxonomy/{config_id},deactivate_taxonomy,PENDING,PENDING,
-Taxonomy,api,PUT,/api/taxonomy/{config_id},update_taxonomy,PENDING,PENDING,
-Toolkit,api,GET,/api/toolkit/health,toolkit_health,PENDING,PENDING,
-Toolkit,api,POST,/api/toolkit/transcripts/summarize,summarize_transcript,PENDING,PENDING,
-Legacy Twin,api,POST,/api/twin/upload_pdf,twin_upload_pdf,PENDING,PENDING,
-V2 APIs (analytics),api,GET,/api/v2/analytics/categories,get_categories,PENDING,PENDING,
-V2 APIs (analytics),api,GET,/api/v2/analytics/category-sentiment,get_category_sentiment_compat,PENDING,PENDING,
-V2 APIs (analytics),api,GET,/api/v2/analytics/category-trends,get_category_trends,PENDING,PENDING,
-V2 APIs (analytics),api,GET,/api/v2/analytics/momentum,get_momentum,PENDING,PENDING,
-V2 APIs (analytics),api,GET,/api/v2/analytics/recent-intel,get_recent_intel,PENDING,PENDING,
-V2 APIs (intelligence),api,POST,/api/v2/intelligence/synthesize/{person_id},run_synthesis,PENDING,PENDING,
-Core UI,ui-route,GET,/events,serve_events,PENDING,PENDING,
-Core UI,ui-route,GET,/events.html,serve_events,PENDING,PENDING,
-Core UI,ui-route,GET,/events/{event_id},serve_events,PENDING,PENDING,
-Core UI,ui-route,GET,/favicon.ico,serve_favicon,PENDING,PENDING,
-Frontend Assets,mount,-,/js,js,PENDING,PENDING,
-Authentication UI,ui-route,GET,/login,serve_login,PENDING,PENDING,
-Authentication UI,ui-route,GET,/login.html,serve_login,PENDING,PENDING,
-Network Lab UI,ui-route,GET,/network-lab,serve_network_lab,PENDING,PENDING,
-Network Lab UI,ui-route,GET,/network-lab-databank.html,serve_network_lab_databank,PENDING,PENDING,
-Network Lab UI,ui-route,GET,/network-lab-profile.html,serve_network_lab_profile,PENDING,PENDING,
-Network Lab UI,ui-route,GET,/network-lab-review.html,serve_network_lab_review,PENDING,PENDING,
-Network Lab UI,ui-route,GET,/network-lab.html,serve_network_lab,PENDING,PENDING,
-Network Lab UI,ui-route,GET,/network-lab/databank,serve_network_lab_databank,PENDING,PENDING,
-Network Lab UI,ui-route,GET,/network-lab/profile/{person_id},serve_network_lab_profile,PENDING,PENDING,
-Network Lab UI,ui-route,GET,/network-lab/review,serve_network_lab_review,PENDING,PENDING,
-Profile UI,ui-route,GET,/person/{person_id},serve_profile,PENDING,PENDING,
-Profile UI,ui-route,GET,/profile,serve_profile,PENDING,PENDING,
-Profile UI,ui-route,GET,/profile-layout-options,serve_profile_layout_options,PENDING,PENDING,
-Profile UI,ui-route,GET,/profile-layout-options.html,serve_profile_layout_options,PENDING,PENDING,
-Profile UI,ui-route,GET,/profile.html,serve_profile,PENDING,PENDING,
-Core UI,ui-route,GET,/settings,serve_settings,PENDING,PENDING,
-Core UI,ui-route,GET,/settings.html,serve_settings,PENDING,PENDING,
-Frontend Assets,mount,-,/static,static,PENDING,PENDING,
-Uploads,ui-route,GET,/uploads/{path:path},protected_uploads,PENDING,PENDING,
+Authentication UI,ui-route,GET,/,serve_index,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Core UI,ui-route,GET,/activities,serve_activities,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Core UI,ui-route,GET,/activities.html,serve_activities,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Core UI,ui-route,GET,/agenda,serve_agenda,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Core UI,ui-route,GET,/agenda.html,serve_agenda,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Core UI,ui-route,GET,/analytics,serve_analytics,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Core UI,ui-route,GET,/analytics.html,serve_analytics,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+AI Pipeline,api,POST,/api/ai/artifacts,create_artifact,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+AI Pipeline,api,POST,/api/ai/briefs/{person_id},store_brief,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+AI Pipeline,api,POST,/api/ai/feedback,log_feedback,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+AI Pipeline,api,GET,/api/ai/jobs/person/{person_id},list_person_ai_jobs,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+AI Pipeline,api,GET,/api/ai/jobs/{job_id},get_ai_job,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+AI Pipeline,api,POST,/api/ai/jobs/{job_id}/retry,retry_ai_job,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+AI Pipeline,api,GET,/api/ai/ops/summary,ops_summary,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+AI Pipeline,api,POST,/api/ai/profile-match/suggest,suggest_profile_match,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+AI Pipeline,api,GET,/api/ai/review-queue,review_queue,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+AI Pipeline,api,POST,/api/ai/signals,create_signal,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+AI Pipeline,api,GET,/api/ai/signals/{person_id},get_signals,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+AI Pipeline,api,PATCH,/api/ai/signals/{signal_id}/status,update_signal_status,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Analytics,api,GET,/api/analytics/effort-stats,get_effort_stats,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Analytics,api,GET,/api/analytics/influence-matrix,get_influence_matrix,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Analytics,api,GET,/api/analytics/network-pulse,get_network_pulse,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Analytics,api,GET,/api/analytics/profile-growth-stats,get_profile_growth_stats,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Analytics,api,GET,/api/analytics/propensity/{person_id},get_person_propensity,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Analytics,api,GET,/api/analytics/success-report,get_success_report,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Authentication,api,POST,/api/auth/login,login,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Authentication,api,POST,/api/auth/logout,logout,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Authentication,api,GET,/api/auth/me,get_me,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Authentication,api,GET,/api/auth/microsoft/callback,microsoft_callback,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Authentication,api,GET,/api/auth/microsoft/start,microsoft_start,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Authentication,api,POST,/api/auth/setup,setup_first_admin,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Authentication,api,GET,/api/auth/status,auth_status,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Configuration,api,GET,/api/config/ai,get_ai_config,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Configuration,api,POST,/api/config/ai,update_ai_config,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Configuration,api,GET,/api/config/taxonomy,compat_taxonomy,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Dashboard Compatibility,api,GET,/api/dashboard/meeting-feed,compat_meeting_feed,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Dashboard Compatibility,api,GET,/api/dashboard/network-feed,compat_network_feed,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Dashboard Compatibility,api,GET,/api/dashboard/task-pipeline,compat_task_pipeline,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,GET,/api/events,list_events,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,POST,/api/events,create_event,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,GET,/api/events/dashboard/summary,get_event_dashboard_summary,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,GET,/api/events/people/{person_id}/links,get_person_events,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,POST,/api/events/people/{person_id}/links,link_event_to_person,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,DELETE,/api/events/people/{person_id}/links/{event_id},remove_event_from_person,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,PATCH,/api/events/people/{person_id}/links/{event_id},update_person_event_link,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,GET,/api/events/status-options,get_event_status_options,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,GET,/api/events/{event_id},get_event,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,PATCH,/api/events/{event_id},update_event,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,PUT,/api/events/{event_id},update_event,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,GET,/api/events/{event_id}/participants/export,export_event_participants,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,GET,/api/events/{event_id}/people,get_event_people,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,POST,/api/events/{event_id}/people,add_person_to_event,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,DELETE,/api/events/{event_id}/people/{person_id},remove_person_from_event,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Events,api,PATCH,/api/events/{event_id}/people/{person_id},update_event_person_status,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Health & Operations,api,GET,/api/health,health_check_public,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Health & Operations,api,POST,/api/health/backups/run,run_backup_now,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Health & Operations,api,GET,/api/health/backups/status,get_backup_status,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Health & Operations,api,GET,/api/health/status,get_health_status,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Health & Operations,api,POST,/api/health/trigger,trigger_full_audit,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Intelligence Assistant,api,POST,/api/intelligence/assistant/{person_id}/review,intelligence_review,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Intelligence Assistant,api,POST,/api/intelligence/backfill/{person_id},admin_backfill_person,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Intelligence Assistant,api,GET,/api/intelligence/brief/{person_id},get_brief,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Intelligence Assistant,api,POST,/api/intelligence/brief/{person_id},get_brief,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Intelligence Assistant,api,POST,/api/intelligence/chat/{person_id},chat_with_profile,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Intelligence Assistant,api,GET,/api/intelligence/jobs/{job_id},get_intelligence_job,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Intelligence Assistant,api,POST,/api/intelligence/transcribe,transcribe,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Intelligence Assistant,api,POST,/api/intelligence/tts/{person_id},generate_audio_brief,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Intelligence Assistant,api,POST,/api/intelligence/twin/chat,compat_twin_chat,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Intelligence Assistant,api,POST,/api/intelligence/twin/execute,compat_twin_execute,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Intelligence Assistant,api,POST,/api/intelligence/whatsapp-import,import_whatsapp,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Interaction Capture,api,POST,/api/interactions,create_interaction,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Interaction Capture,api,POST,/api/interactions/upload/{person_id},upload_media,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Interaction Capture,api,DELETE,/api/interactions/{interaction_id},delete_interaction,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Interaction Capture,api,PUT,/api/interactions/{interaction_id},update_interaction,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Interaction Capture,api,POST,/api/interactions/{interaction_id}/realign,realign_interaction_api,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Interaction Capture,api,PUT,/api/interactions/{interaction_id}/stage-override,update_interaction_stage_override,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Microsoft 365,api,GET,/api/m365/account/{person_id},account_status,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Microsoft 365,api,POST,/api/m365/auth/reset,auth_reset,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Microsoft 365,api,POST,/api/m365/auth/start,auth_start,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Microsoft 365,api,GET,/api/m365/auth/status,auth_status,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Microsoft 365,api,GET,/api/m365/calendar/events,calendar_events,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Microsoft 365,api,GET,/api/m365/emails/{person_id},fetch_emails,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Microsoft 365,api,POST,/api/m365/emails/{person_id}/send,send_email,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Microsoft 365,api,GET,/api/m365/overview,m365_overview,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Microsoft 365,api,POST,/api/m365/sync/full,full_sync,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/bulk-update,bulk_update_people,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,GET,/api/network-lab/company-opportunities,list_company_opportunities,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/company-opportunities,create_company_opportunity,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,DELETE,/api/network-lab/company-opportunities/{company_opportunity_id},delete_company_opportunity,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,PATCH,/api/network-lab/company-opportunities/{company_opportunity_id},update_company_opportunity,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,PUT,/api/network-lab/company-opportunities/{company_opportunity_id},update_company_opportunity,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,GET,/api/network-lab/databank,get_network_databank,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/interpretations/{interpretation_id}/promote-market-intel,promote_market_intel,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/interpretations/{interpretation_id}/promote-memory,promote_memory,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/market-intel/{market_intel_id}/status,set_market_intel_status,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/memory/{memory_id}/status,set_memory_status,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,GET,/api/network-lab/owners,list_owners,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/pilot-cohort,set_pilot_cohort,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,GET,/api/network-lab/profile/{person_id},get_network_profile,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/profile/{person_id}/actions/update,update_action_status,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/profile/{person_id}/claims/action,apply_claim_action,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/profile/{person_id}/manual-resolution,add_manual_resolution,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,GET,/api/network-lab/profile/{person_id}/relationship-intelligence,get_profile_relationship_intelligence,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/profile/{person_id}/relationship-intelligence/refresh,refresh_profile_relationship_intelligence,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/profile/{person_id}/transcript-segment-tags,tag_profile_transcript_segments,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,POST,/api/network-lab/profile/{person_id}/transcript-segment-tags/override,set_profile_transcript_segment_override,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,GET,/api/network-lab/review-queue,get_review_queue,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,DELETE,/api/network-lab/situation-events/{event_id},delete_situation_event,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,PUT,/api/network-lab/situation-events/{event_id},update_situation_event,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab,api,GET,/api/network-lab/workspace,get_workspace,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Queues,api,GET,/api/network/queues,list_network_queues,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,GET,/api/people,list_people,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,POST,/api/people,create_person,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,GET,/api/people/stats,get_stats,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,DELETE,/api/people/{person_id},deactivate_person,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,GET,/api/people/{person_id},get_person,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,PATCH,/api/people/{person_id},update_person,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,PUT,/api/people/{person_id},update_person,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,GET,/api/people/{person_id}/intelligence,get_intelligence,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,PATCH,/api/people/{person_id}/intelligence/{intel_id},update_intelligence,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,POST,/api/people/{person_id}/media,compat_upload_photo,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,POST,/api/people/{person_id}/meeting-brief,compat_meeting_brief,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,GET,/api/people/{person_id}/opportunities,list_opportunities,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,POST,/api/people/{person_id}/opportunities,create_opportunity,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,DELETE,/api/people/{person_id}/opportunities/{opportunity_id},delete_opportunity,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,PATCH,/api/people/{person_id}/opportunities/{opportunity_id},update_opportunity,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,PUT,/api/people/{person_id}/opportunities/{opportunity_id},update_opportunity,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+People & Profiles,api,GET,/api/people/{person_id}/relationships,get_person_relationships,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+General API (proxy),api,GET,/api/proxy/image,proxy_image,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+System Settings,api,GET,/api/settings/intelligence,get_intelligence_settings_endpoint,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+System Settings,api,PUT,/api/settings/intelligence,save_intelligence_settings_endpoint,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+System Settings,api,POST,/api/settings/intelligence/reset,reset_intelligence_settings_endpoint,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+System Settings,api,GET,/api/settings/runtime,get_runtime_settings_endpoint,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+System Settings,api,PUT,/api/settings/runtime/openai-key,save_openai_key_endpoint,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Tasks,api,GET,/api/tasks,list_tasks,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Tasks,api,POST,/api/tasks,create_task,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Tasks,api,GET,/api/tasks/pipeline,get_pipeline,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Tasks,api,DELETE,/api/tasks/{task_id},delete_task,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Tasks,api,PATCH,/api/tasks/{task_id},update_task,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Taxonomy,api,GET,/api/taxonomy,get_taxonomy,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Taxonomy,api,POST,/api/taxonomy,add_taxonomy,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Taxonomy,api,GET,/api/taxonomy/all,get_all_taxonomy,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Taxonomy,api,DELETE,/api/taxonomy/{config_id},deactivate_taxonomy,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Taxonomy,api,PUT,/api/taxonomy/{config_id},update_taxonomy,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Toolkit,api,GET,/api/toolkit/health,toolkit_health,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Toolkit,api,POST,/api/toolkit/transcripts/summarize,summarize_transcript,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Legacy Twin,api,POST,/api/twin/upload_pdf,twin_upload_pdf,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+V2 APIs (analytics),api,GET,/api/v2/analytics/categories,get_categories,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+V2 APIs (analytics),api,GET,/api/v2/analytics/category-sentiment,get_category_sentiment_compat,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+V2 APIs (analytics),api,GET,/api/v2/analytics/category-trends,get_category_trends,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+V2 APIs (analytics),api,GET,/api/v2/analytics/momentum,get_momentum,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+V2 APIs (analytics),api,GET,/api/v2/analytics/recent-intel,get_recent_intel,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+V2 APIs (intelligence),api,POST,/api/v2/intelligence/synthesize/{person_id},run_synthesis,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Core UI,ui-route,GET,/events,serve_events,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Core UI,ui-route,GET,/events.html,serve_events,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Core UI,ui-route,GET,/events/{event_id},serve_events,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Core UI,ui-route,GET,/favicon.ico,serve_favicon,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Frontend Assets,mount,-,/js,js,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Authentication UI,ui-route,GET,/login,serve_login,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Authentication UI,ui-route,GET,/login.html,serve_login,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab UI,ui-route,GET,/network-lab,serve_network_lab,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab UI,ui-route,GET,/network-lab-databank.html,serve_network_lab_databank,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab UI,ui-route,GET,/network-lab-profile.html,serve_network_lab_profile,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab UI,ui-route,GET,/network-lab-review.html,serve_network_lab_review,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab UI,ui-route,GET,/network-lab.html,serve_network_lab,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab UI,ui-route,GET,/network-lab/databank,serve_network_lab_databank,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab UI,ui-route,GET,/network-lab/profile/{person_id},serve_network_lab_profile,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Network Lab UI,ui-route,GET,/network-lab/review,serve_network_lab_review,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Profile UI,ui-route,GET,/person/{person_id},serve_profile,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Profile UI,ui-route,GET,/profile,serve_profile,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Profile UI,ui-route,GET,/profile-layout-options,serve_profile_layout_options,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Profile UI,ui-route,GET,/profile-layout-options.html,serve_profile_layout_options,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Profile UI,ui-route,GET,/profile.html,serve_profile,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Core UI,ui-route,GET,/settings,serve_settings,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Core UI,ui-route,GET,/settings.html,serve_settings,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Frontend Assets,mount,-,/static,static,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.
+Uploads,ui-route,GET,/uploads/{path:path},protected_uploads,PASS_SMOKE_LOCAL,PASS_SMOKE_LOCAL,Validated via automated suite + API/UI smoke + data-quality sampling.

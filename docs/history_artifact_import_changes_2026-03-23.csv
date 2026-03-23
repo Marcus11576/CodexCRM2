@@ -1,0 +1,10 @@
+table,status,old_count,eligible_old_count,before_count,inserted,after_count
+INTERACTION,imported,1918,1904,51,1904,1955
+INTERPRETED_INTERACTION,imported,204,204,3,204,207
+TOPIC_INTELLIGENCE,imported,629,629,5,629,634
+TASK,imported,38,37,0,37,37
+AI_ARTIFACT,imported,44,44,28,44,72
+AI_SIGNAL,imported,11,11,3,11,14
+AI_BRIEF,imported,93,93,8,93,101
+REL_INTEL_RUN,imported,85,85,145,85,230
+REL_INTEL_AGENT_OUTPUT,imported,643,643,1104,643,1747

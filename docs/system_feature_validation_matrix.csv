@@ -1,13 +1,13 @@
 Feature Area,Pre-Deploy Check,Post-Data Check,Owner,Status
-Authentication,"Login, session cookie, logout",Role-based access still enforced with real users,Codex automation,PASS_PRE_DEPLOY | PENDING_POST_DATA
-People & Profile,"Create/update person, profile load, profile widgets","Data completeness, profile photos, relationship signals render correctly",Codex automation,PASS_PRE_DEPLOY | PENDING_POST_DATA
-Interaction Capture,"Text/image/pdf upload via chat, interaction create/edit/delete",Bulk imported history lands on correct profiles with no mojibake,Codex automation,PASS_PRE_DEPLOY | PENDING_POST_DATA
-Intelligence Assistant,"Profile chat response, brief endpoint, TTS/transcription queues","Claims, stages, and updates remain grounded after full data ingestion",Codex automation,PASS_PRE_DEPLOY | PENDING_POST_DATA
-AI Pipeline,"Artifacts/signals CRUD, review queue, status patching","Signal quality, dedupe behavior, inclusion/exclusion in briefs",Codex automation,PASS_PRE_DEPLOY | PENDING_POST_DATA
-Network Lab,"Databank/review/profile pages load, refresh + tagging actions work",Databank has grounded non-noisy points and no profile cross-contamination,Codex automation,PASS_PRE_DEPLOY | PENDING_POST_DATA
-Dashboard & Analytics,"Dashboard queues, analytics endpoints, category trends",Scores and trend distributions look realistic with full dataset,Codex automation,PASS_PRE_DEPLOY | PENDING_POST_DATA
-Events,CRUD + participant linking + export,Event relevance and participant states stay consistent at scale,Codex automation,PASS_PRE_DEPLOY | PENDING_POST_DATA
-Tasks,Task CRUD + pipeline endpoint,Follow-up pressure and due-state logic remains correct after import,Codex automation,PASS_PRE_DEPLOY | PENDING_POST_DATA
-M365,"Auth status/start/reset, mail fetch, calendar fetch, full sync",Mailbox/calendar matching accuracy and meeting metadata integrity,Codex automation,PASS_PRE_DEPLOY | PENDING_POST_DATA
-System Settings,Intelligence + runtime settings read/write/reset,No config drift after deploy restart,Codex automation,PASS_PRE_DEPLOY | PENDING_POST_DATA
-Health & Operations,Health endpoint + backup status/run,"Nightly jobs, backups, and workers stable for 24h",Codex automation,PASS_PRE_DEPLOY | PENDING_POST_DATA
+Authentication,"Login, session cookie, logout",Role-based access still enforced with real users,Codex automation,PASS_PRE_DEPLOY | PASS_POST_DATA_LOCAL
+People & Profile,"Create/update person, profile load, profile widgets","Data completeness, profile photos, relationship signals render correctly",Codex automation,PASS_PRE_DEPLOY | PASS_POST_DATA_LOCAL
+Interaction Capture,"Text/image/pdf upload via chat, interaction create/edit/delete",Bulk imported history lands on correct profiles with no mojibake,Codex automation,PASS_PRE_DEPLOY | PASS_POST_DATA_LOCAL
+Intelligence Assistant,"Profile chat response, brief endpoint, TTS/transcription queues","Claims, stages, and updates remain grounded after full data ingestion",Codex automation,PASS_PRE_DEPLOY | PASS_POST_DATA_LOCAL
+AI Pipeline,"Artifacts/signals CRUD, review queue, status patching","Signal quality, dedupe behavior, inclusion/exclusion in briefs",Codex automation,PASS_PRE_DEPLOY | PASS_POST_DATA_LOCAL
+Network Lab,"Databank/review/profile pages load, refresh + tagging actions work",Databank has grounded non-noisy points and no profile cross-contamination,Codex automation,PASS_PRE_DEPLOY | PASS_POST_DATA_LOCAL
+Dashboard & Analytics,"Dashboard queues, analytics endpoints, category trends",Scores and trend distributions look realistic with full dataset,Codex automation,PASS_PRE_DEPLOY | PASS_POST_DATA_LOCAL
+Events,CRUD + participant linking + export,Event relevance and participant states stay consistent at scale,Codex automation,PASS_PRE_DEPLOY | PASS_POST_DATA_LOCAL
+Tasks,Task CRUD + pipeline endpoint,Follow-up pressure and due-state logic remains correct after import,Codex automation,PASS_PRE_DEPLOY | PASS_POST_DATA_LOCAL
+M365,"Auth status/start/reset, mail fetch, calendar fetch, full sync",Mailbox/calendar matching accuracy and meeting metadata integrity,Codex automation,PASS_PRE_DEPLOY | PASS_POST_DATA_LOCAL
+System Settings,Intelligence + runtime settings read/write/reset,No config drift after deploy restart,Codex automation,PASS_PRE_DEPLOY | PASS_POST_DATA_LOCAL
+Health & Operations,Health endpoint + backup status/run,"Nightly jobs, backups, and workers stable for 24h",Codex automation,PASS_PRE_DEPLOY | PASS_POST_DATA_LOCAL

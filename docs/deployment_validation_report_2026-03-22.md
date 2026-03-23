@@ -68,3 +68,20 @@ After full data load, execute:
 3. Sign-off update
 - Mark `post_data_status` in `docs/system_feature_routes.csv`
 - Update `Status` in `docs/system_feature_validation_matrix.csv` to `PASS_POST_DATA` when complete
+
+## Post-Data Execution (2026-03-23)
+
+- Contact merge mode (`targeted_fill_missing_fields_only`) executed after backup:
+  - Inserted: `0`
+  - Updated: `0`
+  - Result: current contacts already contained previous-version contact coverage.
+- History and intelligence merge mode (`insert_only_by_primary_key_fk_safe`) executed after backup:
+  - Total inserted rows: `3650`
+  - Main tables imported: `INTERACTION`, `TOPIC_INTELLIGENCE`, `AI_ARTIFACT`, `AI_SIGNAL`, `AI_BRIEF`, `REL_INTEL_RUN`, `REL_INTEL_AGENT_OUTPUT`, `TASK`, `INTERPRETED_INTERACTION`
+  - FK-protected skips occurred where parent records were absent (`14` interactions, `1` task from legacy source).
+- Post-data validation status: `PASS (local)`.
+- Evidence artifacts:
+  - `docs/contact_import_execution_2026-03-23.md`
+  - `docs/history_artifact_import_execution_2026-03-23.md`
+  - `docs/post_data_validation_execution_2026-03-23.md`
+  - `docs/system_feature_validation_matrix.csv`
