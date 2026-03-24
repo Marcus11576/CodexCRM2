@@ -214,7 +214,7 @@
     <script src="/js/profile/core.js"></script>
     <script src="/js/profile/header.js?v=20260321g"></script>
     <script src="/js/profile/signals.js"></script>
-    <script src="/js/profile/interactions.js"></script>
+<script src="/js/profile/interactions.js?v=20260324a"></script>
 <script src="/js/profile/briefing.js?v=20260323d"></script>
     <script src="/js/profile/workflow.js"></script>
     <script src="/js/profile.js"></script>
@@ -1022,10 +1022,10 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-                // Explicitly request opus codec for OpenAI Whisper compatibility
-                const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                    ? { mimeType: 'audio/webm;codecs=opus' }
-                    : undefined;
+                const preferredMimeType = typeof window.preferredAudioRecorderMimeType === 'function'
+                    ? window.preferredAudioRecorderMimeType()
+                    : (MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : '');
+                const options = preferredMimeType ? { mimeType: preferredMimeType } : undefined;
 
                 chatMediaRecorder = new MediaRecorder(stream, options);
                 chatAudioChunks = [];
@@ -1036,7 +1036,8 @@
 
                 chatMediaRecorder.onstop = async () => {
                     // Use the exact mime type that was recorded
-                    const audioBlob = new Blob(chatAudioChunks, { type: chatMediaRecorder.mimeType || 'audio/webm' });
+                    const recordedMimeType = (chatMediaRecorder && chatMediaRecorder.mimeType) || preferredMimeType || 'audio/webm';
+                    const audioBlob = new Blob(chatAudioChunks, { type: recordedMimeType });
 
                     if (audioBlob.size === 0) {
                         console.warn('Chat audio recording was empty.');
@@ -1047,7 +1048,10 @@
 
                     // Transcribe through the async AI jobs pipeline
                     const formData = new FormData();
-                    formData.append('file', audioBlob, 'chat-voice.webm');
+                    const extension = typeof window.audioExtensionFromMimeType === 'function'
+                        ? window.audioExtensionFromMimeType(recordedMimeType)
+                        : 'webm';
+                    formData.append('file', audioBlob, `chat-voice.${extension}`);
 
                     micBtn.textContent = '...';
                     input.value = 'Queued for transcription...';

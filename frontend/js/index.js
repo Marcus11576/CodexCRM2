@@ -1826,10 +1826,14 @@ async function pollTranscriptionJob(jobId) {
     throw new Error('Transcription timed out');
 }
 
-async function processAudio(blob) {
+async function processAudio(blob, mimeType = '') {
     const input = document.getElementById('twin-input');
     const formData = new FormData();
-    formData.append('file', blob, 'recording.webm');
+    const effectiveMime = String(mimeType || blob?.type || 'audio/webm').trim();
+    const extension = typeof window.audioExtensionFromMimeType === 'function'
+        ? window.audioExtensionFromMimeType(effectiveMime)
+        : 'webm';
+    formData.append('file', blob, `recording.${extension}`);
     try {
         twinState.transcribing = true;
         setTwinComposerState(true, 'Transcribing audio...');
@@ -1877,12 +1881,16 @@ async function recordTwinAudio() {
     }
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? { mimeType: 'audio/webm;codecs=opus' } : undefined;
+        const preferredMimeType = typeof window.preferredAudioRecorderMimeType === 'function'
+            ? window.preferredAudioRecorderMimeType()
+            : (MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : '');
+        const options = preferredMimeType ? { mimeType: preferredMimeType } : undefined;
         twinMediaRecorder = new MediaRecorder(stream, options);
         twinAudioChunks = [];
         twinMediaRecorder.ondataavailable = (e) => { twinAudioChunks.push(e.data); };
         twinMediaRecorder.onstop = async () => {
-            const audioBlob = new Blob(twinAudioChunks, { type: twinMediaRecorder.mimeType || 'audio/webm' });
+            const recordedMimeType = (twinMediaRecorder && twinMediaRecorder.mimeType) || preferredMimeType || 'audio/webm';
+            const audioBlob = new Blob(twinAudioChunks, { type: recordedMimeType });
             micBtn.classList.remove('recording');
             micBtn.textContent = 'Mic';
             if (audioBlob.size === 0) {
@@ -1890,7 +1898,7 @@ async function recordTwinAudio() {
                 stream.getTracks().forEach((track) => track.stop());
                 return;
             }
-            await processAudio(audioBlob);
+            await processAudio(audioBlob, recordedMimeType);
             stream.getTracks().forEach((track) => track.stop());
         };
         twinMediaRecorder.start(200);

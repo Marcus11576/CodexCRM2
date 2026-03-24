@@ -217,9 +217,10 @@ async function toggleLogAudioRecording() {
     try {
         logAudioChunks = [];
         logAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-            ? { mimeType: 'audio/webm;codecs=opus' }
-            : {};
+        const preferredMimeType = typeof window.preferredAudioRecorderMimeType === 'function'
+            ? window.preferredAudioRecorderMimeType()
+            : (MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : '');
+        const options = preferredMimeType ? { mimeType: preferredMimeType } : {};
 
         logMediaRecorder = new MediaRecorder(logAudioStream, options);
         logMediaRecorder.ondataavailable = (event) => {
@@ -229,7 +230,8 @@ async function toggleLogAudioRecording() {
         };
 
         logMediaRecorder.onstop = async () => {
-            const blob = new Blob(logAudioChunks, { type: logMediaRecorder.mimeType || 'audio/webm' });
+            const recordedMimeType = (logMediaRecorder && logMediaRecorder.mimeType) || preferredMimeType || 'audio/webm';
+            const blob = new Blob(logAudioChunks, { type: recordedMimeType });
             logAudioStream?.getTracks()?.forEach(track => track.stop());
             logAudioStream = null;
             if (micBtn) {
@@ -237,7 +239,10 @@ async function toggleLogAudioRecording() {
                 micBtn.style.background = 'rgba(53,232,255,0.08)';
                 micBtn.style.color = 'var(--accent-cyan)';
             }
-            const file = new File([blob], `quick-capture-${Date.now()}.webm`, { type: blob.type || 'audio/webm' });
+            const extension = typeof window.audioExtensionFromMimeType === 'function'
+                ? window.audioExtensionFromMimeType(recordedMimeType)
+                : 'webm';
+            const file = new File([blob], `quick-capture-${Date.now()}.${extension}`, { type: blob.type || recordedMimeType || 'audio/webm' });
             addLogFiles([file]);
             if (status) {
                 status.textContent = 'Voice note attached. Capture And Process when ready.';

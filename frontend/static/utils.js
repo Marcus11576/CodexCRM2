@@ -1133,6 +1133,38 @@ function microphoneSupportStatus() {
 
 window.microphoneSupportStatus = microphoneSupportStatus;
 
+function preferredAudioRecorderMimeType() {
+    if (typeof window.MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+        return '';
+    }
+    const candidates = [
+        'audio/webm;codecs=opus',
+        'audio/mp4;codecs=mp4a.40.2',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+        'audio/wav',
+    ];
+    for (const candidate of candidates) {
+        if (MediaRecorder.isTypeSupported(candidate)) return candidate;
+    }
+    return '';
+}
+
+function audioExtensionFromMimeType(mimeType) {
+    const normalized = String(mimeType || '').toLowerCase();
+    if (!normalized) return 'webm';
+    if (normalized.includes('webm')) return 'webm';
+    if (normalized.includes('ogg')) return 'ogg';
+    if (normalized.includes('wav')) return 'wav';
+    if (normalized.includes('mpeg') || normalized.includes('mp3')) return 'mp3';
+    if (normalized.includes('aac')) return 'aac';
+    if (normalized.includes('mp4') || normalized.includes('m4a')) return 'm4a';
+    return 'webm';
+}
+
+window.preferredAudioRecorderMimeType = preferredAudioRecorderMimeType;
+window.audioExtensionFromMimeType = audioExtensionFromMimeType;
+
 window.applyMicrophoneAvailability = function applyMicrophoneAvailability(target, options = {}) {
     const element = typeof target === 'string' ? document.getElementById(target) : target;
     if (!element) return microphoneSupportStatus();
