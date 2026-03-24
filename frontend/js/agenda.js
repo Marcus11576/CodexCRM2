@@ -573,7 +573,7 @@ function renderMini() {
     const el = document.getElementById('mini-list');
     const up = allTasks.filter(t => ['open', 'in_progress'].includes(t.status) && t.due_date)
         .sort((a, b) => (a.due_date + a.due_time || '').localeCompare(b.due_date + b.due_time || '')).slice(0, 5);
-    if (!up.length) { el.innerHTML = '<div style="font-size:.73rem;color:var(--text-muted);padding:6px 0;">No upcoming tasks</div>'; return; }
+    if (!up.length) { el.innerHTML = '<div style="font-size:.9rem;color:var(--text-muted);padding:6px 0;">No upcoming tasks</div>'; return; }
     el.innerHTML = up.map(t => {
         const rel = formatRelative(t.due_date);
         const c = rel.cls === 'overdue' ? 'var(--accent-red)' : rel.cls === 'today' ? 'var(--accent-orange)' : 'var(--accent-cyan)';

@@ -1108,10 +1108,14 @@ function microphoneSupportStatus() {
     const mediaDevicesAvailable = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     const mediaRecorderAvailable = typeof window.MediaRecorder !== 'undefined';
     const supported = secureContext && mediaDevicesAvailable && mediaRecorderAvailable;
+    const host = String(window.location.hostname || '').trim();
+    const isLanIp = /^\d+\.\d+\.\d+\.\d+$/.test(host) && host !== '127.0.0.1';
     let reason = '';
 
     if (!secureContext) {
-        reason = 'Microphone access requires HTTPS in production.';
+        reason = isLanIp
+            ? 'Microphone needs HTTPS on mobile. Use your Railway URL or a secure tunnel.'
+            : 'Microphone access requires HTTPS in production.';
     } else if (!mediaDevicesAvailable) {
         reason = 'This browser does not expose microphone capture.';
     } else if (!mediaRecorderAvailable) {

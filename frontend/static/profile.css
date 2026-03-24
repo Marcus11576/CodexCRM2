@@ -5981,12 +5981,12 @@
   border-radius: 14px;
   border: 1px solid rgba(var(--ap-accent-rgb), 0.42);
   background: linear-gradient(180deg, rgba(var(--ap-soft-rgb), 0.2) 0%, rgba(9, 16, 31, 0.9) 100%);
-  padding: 10px 12px;
+  padding: 12px 14px;
 }
 
 #profile-action-priority-widget.is-loading {
   color: #bdd0ea;
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
@@ -6018,7 +6018,7 @@
 }
 
 #profile-action-priority-widget .action-priority-kicker {
-  font-size: 0.58rem;
+  font-size: 0.72rem;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: #9fb7dc;
@@ -6027,7 +6027,7 @@
 
 #profile-action-priority-widget .action-priority-score {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.36rem;
+  font-size: 1.78rem;
   line-height: 1;
   font-weight: 800;
   color: #f8fbff;
@@ -6036,7 +6036,7 @@
 
 #profile-action-priority-widget .action-priority-band {
   margin-top: 0.24rem;
-  font-size: 0.62rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: rgba(var(--ap-accent-rgb), 1);
 }
@@ -6060,7 +6060,7 @@
 
 #profile-action-priority-widget .action-priority-reason {
   margin-top: 0.36rem;
-  font-size: 0.66rem;
+  font-size: 0.84rem;
   line-height: 1.38;
   color: rgba(220, 234, 255, 0.92);
 }
@@ -6075,20 +6075,20 @@
 #profile-action-priority-widget .action-priority-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 22px;
-  padding: 0.16rem 0.42rem;
+  min-height: 24px;
+  padding: 0.2rem 0.5rem;
   border-radius: 999px;
   background: rgba(145, 170, 212, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(229, 238, 252, 0.9);
-  font-size: 0.58rem;
+  font-size: 0.74rem;
   font-weight: 700;
   line-height: 1.25;
 }
 
 #profile-action-priority-widget .action-priority-next {
   margin-top: 0.5rem;
-  font-size: 0.68rem;
+  font-size: 0.88rem;
   color: rgba(231, 240, 252, 0.95);
   line-height: 1.35;
 }
@@ -6099,7 +6099,7 @@
 
 #profile-action-priority-widget .action-priority-links a {
   color: rgba(var(--ap-accent-rgb), 0.98);
-  font-size: 0.66rem;
+  font-size: 0.84rem;
   font-weight: 700;
   text-decoration: none;
 }
