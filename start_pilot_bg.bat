@@ -1,6 +1,14 @@
 @echo off
 setlocal
 
+echo Pilot background launch is locked by default.
+echo To force pilot start, run: set ALLOW_PILOT=1 ^&^& start_pilot_bg.bat
+
+if /I not "%ALLOW_PILOT%"=="1" (
+    echo Pilot blocked. Set ALLOW_PILOT=1 to override.
+    exit /b 1
+)
+
 if not exist ".env" (
     copy .env.example .env >nul
 )

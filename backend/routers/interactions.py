@@ -8,7 +8,7 @@ import os
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -21,7 +21,7 @@ from backend.services.ai_jobs import (
     JOB_TYPE_TRANSCRIPTION,
     enqueue_job,
 )
-from backend.services.ai_pipeline_service import create_or_update_artifact
+from backend.services.ai_pipeline_service import create_or_update_artifact, get_artifact
 from backend.services.transcript_guardrails import is_non_transcript_chat_input
 
 router = APIRouter(prefix="/api/interactions", tags=["interactions"])
@@ -87,6 +87,152 @@ def _safe_upload_filename(filename: Optional[str]) -> str:
     return f"{stem}{ext}"
 
 
+def _normalized_profile_value(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip()).lower()
+
+
+def _has_structured_employment_history(raw_value: Any) -> bool:
+    if isinstance(raw_value, list):
+        rows = raw_value
+    else:
+        text = str(raw_value or "").strip()
+        if not text:
+            return False
+        try:
+            decoded = json.loads(text)
+        except Exception:
+            return False
+        if not isinstance(decoded, list):
+            return False
+        rows = decoded
+
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        if any(str(item.get(key) or "").strip() for key in ("title", "company", "start_date", "end_date", "location", "description")):
+            return True
+    return False
+
+
+def _coerce_employment_history_rows(raw_value: Any) -> list[dict]:
+    parsed = raw_value
+    if isinstance(parsed, str):
+        text = parsed.strip()
+        if not text:
+            return []
+        try:
+            parsed = json.loads(text)
+        except Exception:
+            return []
+    if not isinstance(parsed, list):
+        return []
+
+    cleaned: list[dict] = []
+    for role in parsed:
+        if not isinstance(role, dict):
+            continue
+        normalized = {
+            "title": str(role.get("title") or "").strip(),
+            "company": str(role.get("company") or "").strip(),
+            "start_date": str(role.get("start_date") or "").strip(),
+            "end_date": str(role.get("end_date") or "").strip(),
+            "location": str(role.get("location") or "").strip(),
+            "description": str(role.get("description") or "").strip(),
+        }
+        if any(normalized.values()):
+            cleaned.append(normalized)
+    return cleaned
+
+
+def _employment_role_identity(role: dict[str, Any]) -> tuple[str, str]:
+    return (
+        _normalized_profile_value(role.get("title")),
+        _normalized_profile_value(role.get("company")),
+    )
+
+
+def _merge_document_employment_history(existing_raw: Any, incoming_roles: list[dict]) -> tuple[list[dict], bool]:
+    merged_rows = _coerce_employment_history_rows(existing_raw)
+    changed = False
+
+    if not merged_rows and incoming_roles:
+        return list(incoming_roles), True
+
+    index_by_identity: dict[tuple[str, str], int] = {}
+    for idx, role in enumerate(merged_rows):
+        identity = _employment_role_identity(role)
+        if identity == ("", ""):
+            continue
+        index_by_identity.setdefault(identity, idx)
+
+    for incoming in incoming_roles:
+        identity = _employment_role_identity(incoming)
+        existing_idx = index_by_identity.get(identity) if identity != ("", "") else None
+        if existing_idx is None:
+            merged_rows.append(incoming)
+            changed = True
+            if identity != ("", ""):
+                index_by_identity[identity] = len(merged_rows) - 1
+            continue
+
+        existing = merged_rows[existing_idx]
+        for field in ("title", "company", "start_date", "end_date", "location", "description"):
+            current = str(existing.get(field) or "").strip()
+            incoming_value = str(incoming.get(field) or "").strip()
+            if incoming_value and not current:
+                existing[field] = incoming_value
+                changed = True
+
+    return merged_rows, changed
+
+
+def _seeded_career_summary(full_name: str, title_current: str, company_name_raw: str) -> str:
+    person_name = str(full_name or "").strip() or "This contact"
+    title = str(title_current or "").strip()
+    company = str(company_name_raw or "").strip()
+    if title and company:
+        return f"{person_name} is currently {title} at {company}."
+    if title:
+        return f"{person_name} currently works as {title}."
+    if company:
+        return f"{person_name} is currently associated with {company}."
+    return ""
+
+
+def _looks_seeded_career_summary(current_summary: str, existing_person: dict[str, Any]) -> bool:
+    current = str(current_summary or "").strip()
+    if not current:
+        return False
+    canonical = _seeded_career_summary(
+        str(existing_person.get("full_name") or ""),
+        str(existing_person.get("title_current") or ""),
+        str(existing_person.get("company_name_raw") or ""),
+    )
+    if canonical and _normalized_profile_value(current) == _normalized_profile_value(canonical):
+        return True
+    lowered = _normalized_profile_value(current)
+    return " is currently " in lowered and lowered.endswith(".")
+
+
+async def _resolve_canonical_artifact(artifact_id: str, *, max_hops: int = 6) -> Optional[dict]:
+    current_id = str(artifact_id or "").strip()
+    visited: set[str] = set()
+    for _ in range(max_hops):
+        if not current_id or current_id in visited:
+            break
+        visited.add(current_id)
+        artifact = await get_artifact(current_id)
+        if not artifact:
+            return None
+        if str(artifact.get("status") or "").strip().lower() != "duplicate":
+            return artifact
+        next_id = str(artifact.get("duplicate_of_artifact_id") or "").strip()
+        if not next_id:
+            return artifact
+        current_id = next_id
+    return None
+
+
 class InteractionCreate(BaseModel):
     person_id: str
     channel: str = "note"
@@ -149,12 +295,14 @@ async def _persist_interaction(
          direction, meaningful_flag, outcome_type, response_flag, follow_up_committed_flag)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(interaction_id) DO UPDATE SET
+            channel = excluded.channel,
             raw_text = excluded.raw_text,
             summary = excluded.summary,
             media_url = excluded.media_url,
             action_items = excluded.action_items,
             topics = excluded.topics,
             sentiment = excluded.sentiment,
+            interaction_at = excluded.interaction_at,
             success_rating = excluded.success_rating,
             engagement_value = excluded.engagement_value,
             is_strategic = excluded.is_strategic,
@@ -197,13 +345,42 @@ async def _persist_interaction(
 
     from backend.services.ai_service import ALLOWED_PROFILE_FIELDS
 
-    profile_updates = result.get("profile_updates", {})
-    update_fields = []
-    update_values = []
-    for field, value in profile_updates.items():
-        if field in ALLOWED_PROFILE_FIELDS and value:
-            update_fields.append(f"{field}=?")
-            update_values.append(value)
+    profile_updates = result.get("profile_updates")
+    if not isinstance(profile_updates, dict):
+        profile_updates = {}
+
+    is_document_channel = _normalize_channel(channel) == "document"
+    existing_person = {}
+    if is_document_channel:
+        async with db.execute(
+            """
+            SELECT full_name, title_current, company_name_raw, email_primary, phone_primary, linkedin_url,
+                   cat, env, disc, contact_value, career_summary, key_professional_notes, employment_history
+            FROM PERSON WHERE person_id=?
+            """,
+            (person_id,),
+        ) as cursor:
+            existing_row = await cursor.fetchone()
+        if existing_row:
+            existing_person = dict(existing_row)
+
+    merged_updates: dict[str, Any] = {}
+    if is_document_channel:
+        # Document enrichments should be additive-safe. We only fill missing profile
+        # attributes, except role/company in the profile head which should refresh when changed.
+        for field in ("email_primary", "phone_primary", "linkedin_url"):
+            incoming = str(profile_updates.get(field) or "").strip()
+            if incoming and not str(existing_person.get(field) or "").strip():
+                merged_updates[field] = incoming
+        for field in ("title_current", "company_name_raw"):
+            incoming = str(profile_updates.get(field) or "").strip()
+            current = str(existing_person.get(field) or "").strip()
+            if incoming and _normalized_profile_value(incoming) != _normalized_profile_value(current):
+                merged_updates[field] = incoming
+    else:
+        for field, value in profile_updates.items():
+            if field in ALLOWED_PROFILE_FIELDS and value:
+                merged_updates[field] = value
 
     employment_history = result.get("employment_history")
     if isinstance(employment_history, list):
@@ -220,19 +397,32 @@ async def _persist_interaction(
                 "description": str(role.get("description") or "").strip(),
             })
         if cleaned_history:
-            update_fields.append("employment_history=?")
-            update_values.append(json.dumps(cleaned_history, ensure_ascii=False))
+            if is_document_channel:
+                merged_history, history_changed = _merge_document_employment_history(
+                    existing_person.get("employment_history"),
+                    cleaned_history,
+                )
+                if history_changed:
+                    merged_updates["employment_history"] = json.dumps(merged_history, ensure_ascii=False)
+            else:
+                merged_updates["employment_history"] = json.dumps(cleaned_history, ensure_ascii=False)
 
-    career_summary = result.get("career_summary")
+    career_summary = str(result.get("career_summary") or "").strip()
     if career_summary:
-        update_fields.append("career_summary=?")
-        update_values.append(career_summary)
+        if (
+            not is_document_channel
+            or not str(existing_person.get("career_summary") or "").strip()
+            or _looks_seeded_career_summary(str(existing_person.get("career_summary") or ""), existing_person)
+        ):
+            merged_updates["career_summary"] = career_summary
 
-    key_professional_notes = result.get("key_professional_notes")
+    key_professional_notes = str(result.get("key_professional_notes") or "").strip()
     if key_professional_notes:
-        update_fields.append("key_professional_notes=?")
-        update_values.append(key_professional_notes)
+        if not is_document_channel or not str(existing_person.get("key_professional_notes") or "").strip():
+            merged_updates["key_professional_notes"] = key_professional_notes
 
+    update_fields = [f"{field}=?" for field in merged_updates.keys()]
+    update_values = list(merged_updates.values())
     if update_fields:
         query = f"UPDATE PERSON SET {', '.join(update_fields)}, last_contact_datetime=?, last_updated_at=?, cached_briefing=NULL WHERE person_id=?"
         update_values.extend([now, now, person_id])
@@ -435,6 +625,55 @@ async def upload_media(person_id: str, file: UploadFile = File(...)):
 
     if settings.OPENAI_CONFIGURED:
         if artifact.get("status") == "duplicate":
+            duplicate_of_artifact_id = str(artifact.get("duplicate_of_artifact_id") or "").strip()
+            if source_kind == "document" and duplicate_of_artifact_id:
+                canonical_artifact = await _resolve_canonical_artifact(duplicate_of_artifact_id)
+                canonical_text = str((canonical_artifact or {}).get("extracted_text") or "").strip()
+                if canonical_text:
+                    canonical_artifact_id = str(canonical_artifact.get("artifact_id") or duplicate_of_artifact_id).strip()
+                    job = await enqueue_job(
+                        JOB_TYPE_SIGNAL_EXTRACTION,
+                        {
+                            "interaction_id": interaction_id,
+                            "person_id": person_id,
+                            "channel": channel,
+                            "raw_text": canonical_text,
+                            "file_path": None,
+                            "media_url": media_url,
+                            "source_kind": "document",
+                            "artifact_id": canonical_artifact_id,
+                            "replayed_from_duplicate": True,
+                        },
+                        person_id=person_id,
+                        interaction_id=interaction_id,
+                        related_artifact_id=canonical_artifact_id,
+                        dedupe_key=f"{JOB_TYPE_SIGNAL_EXTRACTION}:duplicate-replay:{interaction_id}",
+                    )
+
+                    async def _mark_duplicate_replay_interaction(db):
+                        await db.execute(
+                            "UPDATE INTERACTION SET summary=? WHERE interaction_id=?",
+                            (
+                                "Duplicate upload detected. Re-using existing parsed artifact to refresh profile details.",
+                                interaction_id,
+                            ),
+                        )
+
+                    await run_write(
+                        _mark_duplicate_replay_interaction,
+                        label=f"mark duplicate replay interaction {interaction_id}",
+                    )
+                    return {
+                        "status": "queued",
+                        "interaction_id": interaction_id,
+                        "artifact_id": artifact["artifact_id"],
+                        "media_url": media_url,
+                        "channel": channel,
+                        "filename": safe_filename,
+                        "job": job,
+                        "message": "Duplicate upload detected. Existing parsed document is being re-used to refresh this profile.",
+                    }
+
             async def _mark_duplicate_upload_interaction(db):
                 await db.execute(
                     "UPDATE INTERACTION SET summary=? WHERE interaction_id=?",

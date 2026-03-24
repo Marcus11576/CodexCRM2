@@ -165,6 +165,13 @@ def test_signal_scoring_from_feedback():
     assert scores.get(signal_one, 0) > scores.get(signal_two, 0)
 
 
+def test_infer_chat_topic_routes_personal_health_updates_to_family_personal():
+    topic = ai_service._infer_chat_topic_from_text(
+        "Continued a problem with his back and health after surgery."
+    )
+    assert topic == "family_personal"
+
+
 def test_review_signals_sorting(monkeypatch):
     person_id = f"p-{uuid.uuid4().hex[:8]}"
     signal_one = f's1-{person_id}'
@@ -326,8 +333,332 @@ def test_profile_chat_prompt_allows_proactive_task_suggestions(monkeypatch):
     system_message = captured["messages"][0]["content"]
     assert "proactively suggest a concrete task or follow-up" in system_message
     assert "call Brian after Eid and lock in coffee" in system_message
+    assert "Contact cadence context:" in system_message
     assert result["response"].startswith("We should set a task")
     assert result["operations"] == []
+
+
+def test_profile_chat_returns_explicit_contact_schedule_without_model_call(monkeypatch):
+    person_id = f"p-{uuid.uuid4().hex[:8]}"
+    now = "2026-03-23T00:00:00Z"
+    briefing_payload = {
+        "relationship_business_flow_stage2": {
+            "relationship_stage": {"code": "S4", "label": "S4 Nurture"},
+            "opportunity_stage": None,
+        }
+    }
+
+    async def setup(db):
+        await db.execute(
+            "INSERT OR REPLACE INTO PERSON (person_id, full_name, created_at, last_updated_at) VALUES (?,?,?,?)",
+            (person_id, "Cadence Contact", now, now),
+        )
+        await db.execute(
+            """
+            INSERT INTO REL_INTEL_RUN (
+                run_id, person_id, source_digest, pipeline_version, model_name, status,
+                cleaned_interactions_json, claim_ledger_json, action_ledger_json, scores_json, briefing_json,
+                created_at, updated_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                str(uuid.uuid4()),
+                person_id,
+                "seed-cadence",
+                "seed-version",
+                "deterministic-fallback",
+                "completed",
+                "[]",
+                "{}",
+                "{}",
+                "{}",
+                json.dumps(briefing_payload),
+                now,
+                now,
+            ),
+        )
+        await db.execute(
+            """
+            INSERT INTO INTERACTION (
+                interaction_id, person_id, channel, summary, raw_text, created_at, interaction_at
+            ) VALUES (?,?,?,?,?,?,?)
+            """,
+            (
+                str(uuid.uuid4()),
+                person_id,
+                "chat",
+                "Quick check-in",
+                "Quick check-in",
+                now,
+                "2026-03-20T09:00:00Z",
+            ),
+        )
+
+    async def cleanup(db):
+        await db.execute("DELETE FROM INTERACTION WHERE person_id = ?", (person_id,))
+        await db.execute("DELETE FROM REL_INTEL_AGENT_OUTPUT WHERE run_id IN (SELECT run_id FROM REL_INTEL_RUN WHERE person_id=?)", (person_id,))
+        await db.execute("DELETE FROM REL_INTEL_RUN WHERE person_id = ?", (person_id,))
+        await db.execute("DELETE FROM PERSON WHERE person_id = ?", (person_id,))
+
+    asyncio.run(run_write(setup))
+    monkeypatch.setattr(ai_service, "_get_client", lambda: (_ for _ in ()).throw(AssertionError("Model should not be called for schedule request")))
+    try:
+        result = asyncio.run(
+            ai_service.profile_chat(
+                person_id,
+                {"person_id": person_id, "full_name": "Cadence Contact"},
+                "When should I next interact with this person to keep the relationship alive?",
+                history=[],
+            )
+        )
+    finally:
+        asyncio.run(run_write(cleanup))
+
+    response = result["response"]
+    assert "Target cadence: every 10 days" in response
+    assert "Last meaningful interaction:" in response
+    assert ("Next interaction due by:" in response) or ("Next interaction due:" in response)
+    assert result["operations"] == []
+
+
+def test_profile_chat_handles_company_db_query_without_model_call(monkeypatch):
+    person_id = f"p-{uuid.uuid4().hex[:8]}"
+    now = "2026-03-24T00:00:00Z"
+    matching_a = f"p-{uuid.uuid4().hex[:8]}"
+    matching_b = f"p-{uuid.uuid4().hex[:8]}"
+    non_match = f"p-{uuid.uuid4().hex[:8]}"
+
+    async def setup(db):
+        await db.execute(
+            "INSERT OR REPLACE INTO PERSON (person_id, full_name, company_name_raw, title_current, created_at, last_updated_at, is_active) VALUES (?,?,?,?,?,?,?)",
+            (person_id, "Query Anchor", "Anchor Co", "Director", now, now, 1),
+        )
+        await db.execute(
+            "INSERT OR REPLACE INTO PERSON (person_id, full_name, company_name_raw, title_current, created_at, last_updated_at, is_active) VALUES (?,?,?,?,?,?,?)",
+            (matching_a, "Alice Atkins", "AtkinsRealis", "Regional Director", now, now, 1),
+        )
+        await db.execute(
+            "INSERT OR REPLACE INTO PERSON (person_id, full_name, company_name_raw, title_current, created_at, last_updated_at, is_active) VALUES (?,?,?,?,?,?,?)",
+            (matching_b, "Bob Realis", "AtkinsRealis MENA", "Delivery Lead", now, now, 1),
+        )
+        await db.execute(
+            "INSERT OR REPLACE INTO PERSON (person_id, full_name, company_name_raw, title_current, created_at, last_updated_at, is_active) VALUES (?,?,?,?,?,?,?)",
+            (non_match, "Charlie Other", "Other Group", "Manager", now, now, 1),
+        )
+
+    async def cleanup(db):
+        await db.execute("DELETE FROM PERSON WHERE person_id IN (?,?,?,?)", (person_id, matching_a, matching_b, non_match))
+
+    asyncio.run(run_write(setup))
+    monkeypatch.setattr(ai_service, "_get_client", lambda: (_ for _ in ()).throw(AssertionError("Model should not be called for DB query request")))
+    try:
+        result = asyncio.run(
+            ai_service.profile_chat(
+                person_id,
+                {"person_id": person_id, "full_name": "Query Anchor"},
+                "show me everyone who works for AtkinsRealis",
+                history=[],
+            )
+        )
+    finally:
+        asyncio.run(run_write(cleanup))
+
+    assert result.get("result_type") == "db_query"
+    assert "Found 2 active contact" in result.get("response", "")
+    assert "Alice Atkins" in result.get("response", "")
+    assert "Bob Realis" in result.get("response", "")
+    assert "Charlie Other" not in result.get("response", "")
+    assert isinstance(result.get("sources"), list) and result.get("sources")
+    assert result["operations"] == []
+
+
+def test_profile_chat_fallback_logs_capture_update_when_ai_quota_fails(monkeypatch):
+    person_id = f"p-{uuid.uuid4().hex[:8]}"
+    now = "2026-03-12T00:00:00Z"
+
+    async def setup(db):
+        await db.execute(
+            "INSERT OR REPLACE INTO PERSON (person_id, full_name, profile_photo_url, created_at, last_updated_at) VALUES (?,?,?,?,?)",
+            (person_id, "Fallback Capture User", "", now, now),
+        )
+
+    asyncio.run(run_write(setup))
+
+    class FailingCompletions:
+        async def create(self, model=None, messages=None, tools=None, **kwargs):
+            raise RuntimeError("429 insufficient_quota")
+
+    fake_client = SimpleNamespace(chat=SimpleNamespace(completions=FailingCompletions()))
+    monkeypatch.setattr(ai_service, "_get_client", lambda: fake_client)
+
+    try:
+        result = asyncio.run(
+            ai_service.profile_chat(
+                person_id,
+                {"person_id": person_id, "full_name": "Fallback Capture User"},
+                "Capture update: Matt introduced two senior commercial directors to support growth.",
+                history=[],
+            )
+        )
+        assert "Applied: log intelligence" in result["response"]
+        assert result["operations"]
+        op = result["operations"][0]
+        assert op["type"] == "log_intelligence"
+        assert op["status"] == "completed"
+
+        async def verify(db):
+            async with db.execute(
+                "SELECT topic, intel_text FROM TOPIC_INTELLIGENCE WHERE intel_id = ?",
+                (op["intel_id"],),
+            ) as cursor:
+                row = await cursor.fetchone()
+            return dict(row) if row else None
+
+        row = asyncio.run(run_read(verify))
+        assert row is not None
+        assert "commercial directors" in row["intel_text"].lower()
+    finally:
+        async def cleanup(db):
+            await db.execute("DELETE FROM TOPIC_INTELLIGENCE WHERE person_id = ?", (person_id,))
+            await db.execute("DELETE FROM PERSON WHERE person_id = ?", (person_id,))
+
+        asyncio.run(run_write(cleanup))
+
+
+def test_profile_chat_auto_logs_when_model_refuses_storyline_update(monkeypatch):
+    person_id = f"p-{uuid.uuid4().hex[:8]}"
+    now = "2026-03-23T00:00:00Z"
+
+    async def setup(db):
+        await db.execute(
+            "INSERT OR REPLACE INTO PERSON (person_id, full_name, profile_photo_url, created_at, last_updated_at) VALUES (?,?,?,?,?)",
+            (person_id, "Storyline Refusal User", "", now, now),
+        )
+
+    asyncio.run(run_write(setup))
+
+    class RefusalCompletions:
+        async def create(self, model=None, messages=None, tools=None, **kwargs):
+            return SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        message=SimpleNamespace(
+                            content=(
+                                "I can't update the relationship storyline for this profile. "
+                                "Would you like me to log this as intelligence?"
+                            ),
+                            tool_calls=None,
+                        )
+                    )
+                ]
+            )
+
+    fake_client = SimpleNamespace(chat=SimpleNamespace(completions=RefusalCompletions()))
+    monkeypatch.setattr(ai_service, "_get_client", lambda: fake_client)
+
+    message = (
+        "Had a good chat with David. He is concerned about leadership attrition in the region "
+        "and remains committed to supporting OBE steering work."
+    )
+
+    try:
+        result = asyncio.run(
+            ai_service.profile_chat(
+                person_id,
+                {"person_id": person_id, "full_name": "Storyline Refusal User"},
+                message,
+                history=[],
+            )
+        )
+        assert "Applied: log intelligence" in result["response"]
+        assert result["operations"]
+        op = result["operations"][0]
+        assert op["type"] == "log_intelligence"
+        assert op["status"] == "completed"
+
+        async def verify(db):
+            async with db.execute(
+                "SELECT topic, intel_text FROM TOPIC_INTELLIGENCE WHERE intel_id = ?",
+                (op["intel_id"],),
+            ) as cursor:
+                row = await cursor.fetchone()
+            return dict(row) if row else None
+
+        row = asyncio.run(run_read(verify))
+        assert row is not None
+        assert "leadership attrition" in row["intel_text"].lower()
+    finally:
+        async def cleanup(db):
+            await db.execute("DELETE FROM TOPIC_INTELLIGENCE WHERE person_id = ?", (person_id,))
+            await db.execute("DELETE FROM PERSON WHERE person_id = ?", (person_id,))
+
+        asyncio.run(run_write(cleanup))
+
+
+def test_profile_chat_fallback_updates_end_date_when_ai_quota_fails(monkeypatch):
+    person_id = f"p-{uuid.uuid4().hex[:8]}"
+    now = "2026-03-12T00:00:00Z"
+    history = [
+        {
+            "title": "Commercial Director",
+            "company": "WSP",
+            "start_date": "2024-01-01",
+            "end_date": "",
+            "location": "Dubai",
+            "description": "",
+        }
+    ]
+
+    async def setup(db):
+        await db.execute(
+            "INSERT OR REPLACE INTO PERSON (person_id, full_name, employment_history, created_at, last_updated_at) VALUES (?,?,?,?,?)",
+            (person_id, "Fallback End Date User", json.dumps(history), now, now),
+        )
+
+    asyncio.run(run_write(setup))
+
+    class FailingCompletions:
+        async def create(self, model=None, messages=None, tools=None, **kwargs):
+            raise RuntimeError("429 insufficient_quota")
+
+    fake_client = SimpleNamespace(chat=SimpleNamespace(completions=FailingCompletions()))
+    monkeypatch.setattr(ai_service, "_get_client", lambda: fake_client)
+
+    try:
+        result = asyncio.run(
+            ai_service.profile_chat(
+                person_id,
+                {
+                    "person_id": person_id,
+                    "full_name": "Fallback End Date User",
+                    "employment_history": json.dumps(history),
+                },
+                "Just add end date 2026-03-22 to his WSP role.",
+                history=[],
+            )
+        )
+        assert "Applied: update employment history" in result["response"]
+        assert result["operations"]
+        op = result["operations"][0]
+        assert op["type"] == "update_employment_history"
+        assert op["status"] == "completed"
+        assert op["after"]["end_date"] == "2026-03-22"
+
+        async def verify(db):
+            async with db.execute(
+                "SELECT employment_history FROM PERSON WHERE person_id = ?",
+                (person_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+            return row["employment_history"] if row else "[]"
+
+        saved_history = json.loads(asyncio.run(run_read(verify)) or "[]")
+        assert saved_history[0]["end_date"] == "2026-03-22"
+    finally:
+        async def cleanup(db):
+            await db.execute("DELETE FROM PERSON WHERE person_id = ?", (person_id,))
+
+        asyncio.run(run_write(cleanup))
 
 
 def test_normalize_due_date_for_message_rolls_relative_weekdays_forward():
@@ -351,6 +682,35 @@ def test_normalize_due_date_for_message_keeps_explicit_iso_dates():
         explicit_date,
     )
     assert normalized == explicit_date
+
+
+def test_normalize_due_date_for_message_overrides_stale_past_date_with_today_for_non_dated_prompt():
+    stale = "2023-10-06"
+    normalized = ai_service._normalize_due_date_for_message(
+        "David Grover",
+        stale,
+    )
+    today = datetime.now(timezone.utc).date().isoformat()
+    assert normalized == today
+
+
+def test_normalize_due_date_for_message_overrides_stale_past_date_when_message_says_today():
+    stale = "2023-10-06"
+    normalized = ai_service._normalize_due_date_for_message(
+        "set reminder to call at 2pm today",
+        stale,
+    )
+    today = datetime.now(timezone.utc).date().isoformat()
+    assert normalized == today
+
+
+def test_normalize_due_date_for_message_keeps_explicit_numeric_date_reference():
+    explicit = "2023-10-06"
+    normalized = ai_service._normalize_due_date_for_message(
+        "set reminder for 10/06/2023 at 14:00",
+        explicit,
+    )
+    assert normalized == explicit
 
 
 def test_preference_profile_learns_from_missed_follow_up_feedback():
@@ -482,6 +842,44 @@ def test_chat_route_does_not_persist_stage_or_profile_completion_control_prompts
 
     interaction_count = asyncio.run(run_read(check))
     assert interaction_count == 0
+
+
+def test_chat_route_includes_sources_and_quick_actions(monkeypatch):
+    person_id = f"p-{uuid.uuid4().hex[:8]}"
+    now = '2026-03-12T00:00:00Z'
+
+    async def setup(db):
+        await db.execute(
+            "INSERT OR REPLACE INTO PERSON (person_id, full_name, created_at, last_updated_at) VALUES (?,?,?,?)",
+            (person_id, 'Chat Payload Contact', now, now),
+        )
+
+    asyncio.run(run_write(setup))
+
+    async def fake_profile_chat(person_id, person, message, history):
+        return {
+            'response': 'Scheduled.',
+            'operations': [],
+            'result_type': 'contact_schedule',
+            'sources': [{'label': 'Cadence target', 'detail': '10 days', 'origin': 'rule map'}],
+            'quick_actions': [{'kind': 'create_task', 'label': 'Create Follow-Up Task', 'title': 'Follow up', 'due_date': '2026-04-01'}],
+        }
+
+    monkeypatch.setattr(ai_service, 'profile_chat', fake_profile_chat)
+
+    authed = login_client()
+    try:
+        res = authed.post(
+            f'/api/intelligence/chat/{person_id}',
+            json={'message': 'when should i next interact?', 'history': []},
+        )
+        assert res.status_code == 200
+        payload = res.json()
+        assert payload.get('result_type') == 'contact_schedule'
+        assert isinstance(payload.get('sources'), list) and payload.get('sources')
+        assert isinstance(payload.get('quick_actions'), list) and payload.get('quick_actions')
+    finally:
+        authed.close()
 
 
 def test_chat_route_native_stage_list_request_is_not_persisted():

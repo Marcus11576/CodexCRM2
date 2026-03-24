@@ -232,9 +232,6 @@ async def get_brief(person_id: str, force_refresh: bool = False, request: Reques
 
 @router.post("/chat/{person_id}")
 async def chat_with_profile(person_id: str, req: ChatRequest):
-    if not settings.OPENAI_CONFIGURED:
-        raise HTTPException(503, "AI assistant is unavailable until a valid OpenAI API key is configured")
-
     async def _load_person(db):
         async with db.execute("SELECT * FROM PERSON WHERE person_id=?", (person_id,)) as cursor:
             return await cursor.fetchone()
@@ -252,6 +249,9 @@ async def chat_with_profile(person_id: str, req: ChatRequest):
         chat_result = await profile_chat(person_id, person, req.message, req.history, req.assistant_context)
     response_text = chat_result.get('response') if isinstance(chat_result, dict) else str(chat_result)
     operations = chat_result.get('operations', []) if isinstance(chat_result, dict) else []
+    sources = chat_result.get('sources', []) if isinstance(chat_result, dict) else []
+    quick_actions = chat_result.get('quick_actions', []) if isinstance(chat_result, dict) else []
+    result_type = chat_result.get('result_type') if isinstance(chat_result, dict) else None
     active_topic_context = (
         isinstance(req.assistant_context, dict)
         and str(req.assistant_context.get("type") or "").strip().lower() == "relationship_topic_resolution"
@@ -428,7 +428,14 @@ async def chat_with_profile(person_id: str, req: ChatRequest):
             event_type=feedback_event,
             details={"person_id": person_id, **(feedback_details or {})},
         )
-    return {"response": response_text, "interaction_id": logged_interaction_id, "operations": operations}
+    payload = {"response": response_text, "interaction_id": logged_interaction_id, "operations": operations}
+    if isinstance(sources, list) and sources:
+        payload["sources"] = sources
+    if isinstance(quick_actions, list) and quick_actions:
+        payload["quick_actions"] = quick_actions
+    if isinstance(result_type, str) and result_type.strip():
+        payload["result_type"] = result_type.strip()
+    return payload
 
 
 @router.get("/jobs/{job_id}")

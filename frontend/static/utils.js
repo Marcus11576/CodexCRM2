@@ -680,6 +680,19 @@ function setActiveNav(page) {
     });
 }
 
+window.normalizeCompanyKey = function normalizeCompanyKey(value) {
+    return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+};
+
+window.companyDirectoryHref = function companyDirectoryHref(value) {
+    const raw = String(value || '').trim();
+    const key = window.normalizeCompanyKey(raw);
+    if (!key) return '/companies';
+    const params = new URLSearchParams();
+    params.set('name', raw);
+    return `/companies/${encodeURIComponent(key)}?${params.toString()}`;
+};
+
 /**
  * Renders the universal top navigation bar.
  * @param {string} activePage - The ID of the active page for nav highlighting.
@@ -716,6 +729,14 @@ function renderUniversalLayout(activePage, title) {
                         <path d="M8 12h6"></path>
                         <path d="M16.5 7.5l-4.5 3"></path>
                         <path d="M16.5 16.5l-4.5-3"></path>
+                    </svg>
+                </a>
+                <a href="/companies" class="nav-icon-link ${activePage === 'companies' ? 'active' : ''}" title="Companies">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <rect x="3" y="9" width="7" height="11"></rect>
+                        <rect x="14" y="5" width="7" height="15"></rect>
+                        <path d="M6 9V5h1.5l1 2h1.5v2"></path>
+                        <path d="M17 5V3h1.5l1 2H21"></path>
                     </svg>
                 </a>
                 <a href="/settings" class="nav-icon-link ${activePage === 'settings' ? 'active' : ''}" title="Settings">
@@ -778,8 +799,11 @@ function initUniversalSearch() {
         }
 
         try {
-            const data = await get(`/api/people?q=${encodeURIComponent(q)}&limit=5`);
-            renderSearchPreviews(data.people || []);
+            const [peopleData, companyData] = await Promise.all([
+                get(`/api/people?q=${encodeURIComponent(q)}&limit=5`),
+                get(`/api/companies?q=${encodeURIComponent(q)}&limit=5`).catch(() => ({ companies: [] })),
+            ]);
+            renderSearchPreviews(peopleData.people || [], companyData.companies || []);
         } catch (err) {
             console.error('Search failed:', err);
         }
@@ -802,22 +826,44 @@ function initUniversalSearch() {
     });
 }
 
-function renderSearchPreviews(people) {
+function renderSearchPreviews(people, companies = []) {
     const results = document.getElementById('nav-search-results');
     if (!results) return;
 
-    if (people.length === 0) {
-        results.innerHTML = '<div class="search-no-results">No contacts found</div>';
+    if (people.length === 0 && companies.length === 0) {
+        results.innerHTML = '<div class="search-no-results">No contacts or companies found</div>';
     } else {
-        results.innerHTML = people.map(p => `
-            <div class="search-result-item" onclick="window.location.href='/person/${p.person_id}'">
+        const peopleHtml = people.map((p) => `
+            <div class="search-result-item" onclick="window.location.href='/person/${encodeURIComponent(p.person_id || '')}'">
                 ${avatarHtml(p, 'sm')}
                 <div class="search-result-info">
-                    <div class="search-result-name">${p.full_name}</div>
-                    <div class="search-result-meta">${p.title_current || ''} ${p.company_name_raw ? '@ ' + p.company_name_raw : ''}</div>
+                    <div class="search-result-name">${escapeHtml(p.full_name || 'Unknown')}</div>
+                    <div class="search-result-meta">${escapeHtml(p.title_current || '')} ${p.company_name_raw ? '@ ' + escapeHtml(p.company_name_raw) : ''}</div>
                 </div>
             </div>
         `).join('');
+        const companiesHtml = companies.map((c) => {
+            const href = (typeof window.companyDirectoryHref === 'function')
+                ? window.companyDirectoryHref(c.company_name || c.company_key || '')
+                : '/companies';
+            const typeLabel = c.company_type ? escapeHtml(c.company_type) : 'Company';
+            const employeeCount = Number(c.employee_count || 0);
+            const parentName = c.parent_company_name ? ` | Parent: ${escapeHtml(c.parent_company_name)}` : '';
+            return `
+                <div class="search-result-item" onclick="window.location.href='${escapeHtml(href)}'">
+                    <div class="avatar-placeholder avatar-sm" style="width:36px;height:36px;font-size:10px;">CO</div>
+                    <div class="search-result-info">
+                        <div class="search-result-name">${escapeHtml(c.company_name || c.company_key || 'Unknown company')}</div>
+                        <div class="search-result-meta">${typeLabel} | ${employeeCount} employees${parentName}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        results.innerHTML = `
+            ${people.length ? `<div style="padding:0.4rem 0.65rem 0.15rem; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">Contacts</div>${peopleHtml}` : ''}
+            ${companies.length ? `<div style="padding:0.4rem 0.65rem 0.15rem; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">Companies</div>${companiesHtml}` : ''}
+        `;
     }
     results.classList.add('active');
 }

@@ -93,9 +93,20 @@ function navigateProfileTo(person) {
 }
 
 function navigateProfileByOffset(offset) {
-    const target = getProfileNavigationTarget(offset);
-    if (!target) return;
-    navigateProfileTo(target);
+    let target = getProfileNavigationTarget(offset);
+    if (target) {
+        navigateProfileTo(target);
+        return;
+    }
+    if (!personId) return;
+    ensureProfileNavigationContext(personId)
+        .then(() => {
+            target = getProfileNavigationTarget(offset);
+            if (target) navigateProfileTo(target);
+        })
+        .catch((error) => {
+            console.error('Failed to refresh profile navigation context', error);
+        });
 }
 
 function shouldIgnoreSwipeTarget(target) {
@@ -117,32 +128,84 @@ function bindProfileSwipeNavigation() {
     if (profileSwipeBound) return;
     profileSwipeBound = true;
 
+    const MIN_SWIPE_DISTANCE = 72;
+    const MAX_VERTICAL_RATIO = 0.7;
+    const EDGE_GUTTER = 18;
+    const SWIPE_LOCK_MS = 520;
+
     let startX = 0;
     let startY = 0;
+    let startTime = 0;
     let tracking = false;
+    let lockUntil = 0;
+
+    const isMobileViewport = () => window.matchMedia('(max-width: 768px)').matches;
+
+    const isSwipeBlocked = (target, x) => {
+        if (!isMobileViewport()) return true;
+        if (!Number.isFinite(x)) return true;
+        if (x <= EDGE_GUTTER || x >= (window.innerWidth - EDGE_GUTTER)) return true;
+        if (shouldIgnoreSwipeTarget(target)) return true;
+        const chatModal = document.getElementById('chat-modal');
+        if (chatModal && chatModal.style.display !== 'none') return true;
+        return false;
+    };
+
+    const attemptNavigate = (deltaX, deltaY) => {
+        const now = Date.now();
+        if (now < lockUntil) return;
+        if (Math.abs(deltaX) < MIN_SWIPE_DISTANCE) return;
+        if (Math.abs(deltaY) > Math.abs(deltaX) * MAX_VERTICAL_RATIO) return;
+        lockUntil = now + SWIPE_LOCK_MS;
+        if (deltaX < 0) navigateProfileByOffset(1);
+        else navigateProfileByOffset(-1);
+    };
+
+    const startTracking = (target, x, y) => {
+        if (isSwipeBlocked(target, x)) return;
+        startX = x;
+        startY = y;
+        startTime = Date.now();
+        tracking = true;
+    };
+
+    const finishTracking = (x, y) => {
+        if (!tracking) return;
+        tracking = false;
+        if ((Date.now() - startTime) > 1200) return;
+        attemptNavigate(x - startX, y - startY);
+    };
+
+    if (window.PointerEvent) {
+        document.addEventListener('pointerdown', (event) => {
+            if (event.pointerType !== 'touch' || !event.isPrimary) return;
+            startTracking(event.target, event.clientX, event.clientY);
+        }, { passive: true });
+
+        document.addEventListener('pointerup', (event) => {
+            if (event.pointerType !== 'touch' || !event.isPrimary) return;
+            finishTracking(event.clientX, event.clientY);
+        }, { passive: true });
+
+        document.addEventListener('pointercancel', () => {
+            tracking = false;
+        }, { passive: true });
+    }
 
     document.addEventListener('touchstart', (event) => {
-        if (!window.matchMedia('(max-width: 768px)').matches) return;
         if (!event.touches || event.touches.length !== 1) return;
-        if (shouldIgnoreSwipeTarget(event.target)) return;
-        startX = event.touches[0].clientX;
-        startY = event.touches[0].clientY;
-        tracking = true;
+        const touch = event.touches[0];
+        startTracking(event.target, touch.clientX, touch.clientY);
     }, { passive: true });
 
     document.addEventListener('touchend', (event) => {
-        if (!tracking || !window.matchMedia('(max-width: 768px)').matches) return;
-        tracking = false;
         if (!event.changedTouches || event.changedTouches.length !== 1) return;
-        const deltaX = event.changedTouches[0].clientX - startX;
-        const deltaY = event.changedTouches[0].clientY - startY;
-        if (Math.abs(deltaX) < 72) return;
-        if (Math.abs(deltaY) > Math.abs(deltaX) * 0.7) return;
-        if (deltaX < 0) {
-            navigateProfileByOffset(1);
-        } else {
-            navigateProfileByOffset(-1);
-        }
+        const touch = event.changedTouches[0];
+        finishTracking(touch.clientX, touch.clientY);
+    }, { passive: true });
+
+    document.addEventListener('touchcancel', () => {
+        tracking = false;
     }, { passive: true });
 }
 

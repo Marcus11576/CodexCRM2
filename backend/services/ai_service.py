@@ -7,6 +7,7 @@ import base64
 import os
 import re
 import traceback
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 from backend.config import settings
@@ -139,22 +140,15 @@ def _get_success_calibration_block() -> str:
         return ""
 
 
-def _normalize_due_date_for_message(message: str, due_date: Optional[str]) -> Optional[str]:
-    """Prevent assistant-created tasks from landing on stale past dates for relative phrases."""
-    text = str(message or "").strip().lower()
-    candidate = str(due_date or "").strip()
-    if not candidate:
-        return None
+def _resolve_relative_due_date(text: str, today) -> Optional[str]:
+    lowered = str(text or "").strip().lower()
 
-    try:
-        parsed = datetime.strptime(candidate, "%Y-%m-%d").date()
-    except Exception:
-        return candidate
-
-    today = datetime.now(timezone.utc).date()
-    explicit_iso_date = bool(re.search(r"\b20\d{2}-\d{2}-\d{2}\b", text))
-    if explicit_iso_date or parsed >= today:
-        return candidate
+    if "tomorrow" in lowered:
+        return (today + timedelta(days=1)).isoformat()
+    if "today" in lowered:
+        return today.isoformat()
+    if "next week" in lowered:
+        return (today + timedelta(days=7)).isoformat()
 
     weekday_tokens = {
         "monday": 0,
@@ -165,22 +159,54 @@ def _normalize_due_date_for_message(message: str, due_date: Optional[str]) -> Op
         "saturday": 5,
         "sunday": 6,
     }
-
     for token, weekday in weekday_tokens.items():
-        if token in text:
+        if token in lowered:
             day_delta = (weekday - today.weekday()) % 7
             if day_delta == 0:
                 day_delta = 7
             return (today + timedelta(days=day_delta)).isoformat()
+    return None
 
-    if "tomorrow" in text:
-        return (today + timedelta(days=1)).isoformat()
-    if "today" in text:
-        return today.isoformat()
-    if "next week" in text:
-        return (today + timedelta(days=7)).isoformat()
 
-    return candidate
+def _message_has_explicit_date(text: str) -> bool:
+    lowered = str(text or "").strip().lower()
+    if re.search(r"\b20\d{2}-\d{2}-\d{2}\b", lowered):
+        return True
+    if re.search(r"\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b", lowered):
+        return True
+    if re.search(
+        r"\b(?:jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\b",
+        lowered,
+    ):
+        return True
+    return False
+
+
+def _normalize_due_date_for_message(message: str, due_date: Optional[str]) -> Optional[str]:
+    """Normalize model-produced due dates so relative reminders never become stale historical dates."""
+    text = str(message or "").strip()
+    today = datetime.now(timezone.utc).date()
+
+    relative_due = _resolve_relative_due_date(text, today)
+    if relative_due:
+        return relative_due
+
+    candidate = str(due_date or "").strip()
+    if not candidate:
+        return None
+
+    try:
+        parsed = datetime.strptime(candidate, "%Y-%m-%d").date()
+    except Exception:
+        return candidate
+
+    if parsed >= today:
+        return candidate
+    if _message_has_explicit_date(text):
+        return candidate
+
+    # Guardrail: if the model invents an old date for a non-dated prompt, anchor to today.
+    return today.isoformat()
 
 
 def _clean_role_value(value: Any) -> str:
@@ -285,6 +311,335 @@ def _pick_employment_role_index(
     return best_index, "selector_match"
 
 
+def _extract_iso_date_from_text(text: str) -> Optional[str]:
+    raw = str(text or "")
+    full_date = re.search(r"\b(20\d{2}-\d{2}-\d{2})\b", raw)
+    if full_date:
+        return full_date.group(1)
+    month_date = re.search(r"\b(20\d{2}-\d{2})\b", raw)
+    if month_date:
+        return month_date.group(1)
+    return None
+
+
+def _infer_chat_topic_from_text(text: str) -> str:
+    lowered = str(text or "").lower()
+    if any(
+        token in lowered
+        for token in (
+            "family",
+            "wife",
+            "husband",
+            "kids",
+            "children",
+            "personal",
+            "daughter",
+            "son",
+            "back pain",
+            "his back",
+            "her back",
+            "health issue",
+            "health issues",
+            "surgery",
+            "medical leave",
+            "hospitalized",
+            "hospitalised",
+        )
+    ):
+        return "family_personal"
+    if any(token in lowered for token in ("hiring", "recruit", "talent", "candidate", "staffing", "team build", "headcount")):
+        return "recruitment_talent"
+    if any(token in lowered for token in ("obe", "order of business excellence", "network event", "member event", "obe network")):
+        return "obe_focus"
+    return "business_focus"
+
+
+def _looks_like_profile_photo_intent(text: str) -> bool:
+    lowered = str(text or "").lower()
+    photo_terms = ("profile photo", "profile picture", "headshot", "photo")
+    action_terms = ("set", "use", "apply", "make", "update", "change")
+    source_terms = ("uploaded", "upload", "this image", "latest image")
+    has_photo_term = any(term in lowered for term in photo_terms)
+    has_action_term = any(term in lowered for term in action_terms)
+    has_source_term = any(term in lowered for term in source_terms)
+    return has_photo_term and (has_action_term or has_source_term)
+
+
+def _is_openai_quota_or_rate_error(error: Exception) -> bool:
+    if error is None:
+        return False
+    status_code = getattr(error, "status_code", None) or getattr(error, "http_status", None)
+    if status_code == 429:
+        return True
+    text = str(error or "").lower()
+    markers = (
+        "429",
+        "insufficient_quota",
+        "quota",
+        "rate limit",
+        "rate_limit",
+        "too many requests",
+    )
+    return any(marker in text for marker in markers)
+
+
+def _assistant_storyline_refusal(text: str) -> bool:
+    lowered = str(text or "").lower()
+    markers = (
+        "can't update the relationship storyline",
+        "cannot update the relationship storyline",
+        "can not update the relationship storyline",
+        "can't update the storyline",
+        "cannot update the storyline",
+    )
+    return any(marker in lowered for marker in markers)
+
+
+def _looks_like_factual_profile_update_text(text: str) -> bool:
+    normalized = str(text or "").strip()
+    if len(normalized) < 40:
+        return False
+    if normalized.endswith("?"):
+        return False
+    lowered = normalized.lower()
+    strong_markers = (
+        "had a good chat",
+        "had a chat",
+        "spoke with",
+        "met with",
+        "discussed",
+        "he is concerned",
+        "she is concerned",
+        "he believes",
+        "she believes",
+        "relationship remains",
+    )
+    if any(marker in lowered for marker in strong_markers):
+        return True
+    if normalized.count(".") >= 2 and not any(q in lowered for q in ("what", "how", "why", "should i", "can you")):
+        return True
+    return False
+
+
+async def _profile_chat_rule_fallback(person_id: str, person: dict, message: str, root_error: Optional[Exception] = None) -> dict:
+    operations: list[dict] = []
+    normalized_message = str(message or "").strip()
+    lowered_message = normalized_message.lower()
+    now = datetime.now(timezone.utc).isoformat()
+
+    capture_prefixes = (
+        "capture this update for the profile:",
+        "capture this update:",
+        "capture update:",
+        "capture update",
+    )
+    capture_intent = any(lowered_message.startswith(prefix) for prefix in capture_prefixes)
+    capture_text = normalized_message
+    for prefix in capture_prefixes:
+        if lowered_message.startswith(prefix):
+            capture_text = normalized_message[len(prefix):].strip(" \n\t:-")
+            break
+
+    if capture_intent:
+        if not capture_text:
+            return {
+                "response": "Please add the update details after 'Capture update:' and I will save it to this profile.",
+                "operations": operations,
+            }
+
+        topic = _infer_chat_topic_from_text(capture_text)
+        intel_id = str(uuid.uuid4())[:12]
+
+        async def _log_fallback_intelligence(db):
+            await db.execute(
+                "INSERT INTO TOPIC_INTELLIGENCE (intel_id, person_id, topic, intel_text, confidence, created_at, status, source_snippet) VALUES (?,?,?,?,?,?,?,?)",
+                (intel_id, person_id, topic, capture_text, 4, now, "approved", capture_text),
+            )
+            await db.execute(
+                "UPDATE PERSON SET last_updated_at=?, cached_briefing=NULL WHERE person_id=?",
+                (now, person_id),
+            )
+
+        await run_write(_log_fallback_intelligence, label=f"chat fallback log intelligence {person_id}")
+        operations.append({"type": "log_intelligence", "status": "completed", "intel_id": intel_id, "topic": topic})
+        return {
+            "response": "Done. Applied: log intelligence.",
+            "operations": operations,
+        }
+
+    task_prefixes = (
+        "create a follow-up task with this title:",
+        "create follow-up task:",
+        "create task:",
+        "create a task:",
+    )
+    task_intent = any(lowered_message.startswith(prefix) for prefix in task_prefixes)
+    task_title = ""
+    for prefix in task_prefixes:
+        if lowered_message.startswith(prefix):
+            task_title = normalized_message[len(prefix):].strip()
+            break
+    if task_intent:
+        if not task_title:
+            return {
+                "response": "Please add a task title after 'Create task:' and I will save it.",
+                "operations": operations,
+            }
+
+        task_id = str(uuid.uuid4())
+        due_candidate = _extract_iso_date_from_text(normalized_message)
+        due_date = _normalize_due_date_for_message(normalized_message, due_candidate)
+        due_time = "09:00"
+
+        async def _create_fallback_task(db):
+            await db.execute(
+                "INSERT INTO TASK (task_id, person_id, task_text, due_date, due_time, priority, status, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                (task_id, person_id, task_title, due_date, due_time, "medium", "open", now),
+            )
+            await db.execute(
+                """
+                UPDATE PERSON
+                SET next_contact_due_date = (
+                    SELECT MIN(due_date)
+                    FROM TASK
+                    WHERE person_id=? AND status IN ('open', 'in_progress') AND due_date IS NOT NULL
+                ),
+                last_updated_at=?,
+                cached_briefing=NULL
+                WHERE person_id=?
+                """,
+                (person_id, now, person_id),
+            )
+
+        await run_write(_create_fallback_task, label=f"chat fallback create task {person_id}")
+        operations.append(
+            {
+                "type": "create_task",
+                "status": "completed",
+                "task_id": task_id,
+                "title": task_title,
+                "due_date": due_date,
+                "due_time": due_time,
+            }
+        )
+        return {"response": "Done. Applied: create task.", "operations": operations}
+
+    employment_intent = "end date" in lowered_message and any(
+        token in lowered_message for token in ("add", "set", "update", "change", "just")
+    )
+    if employment_intent:
+        end_date = _extract_iso_date_from_text(normalized_message)
+        if not end_date:
+            if "today" in lowered_message:
+                end_date = datetime.now(timezone.utc).date().isoformat()
+            else:
+                end_date = datetime.now(timezone.utc).date().isoformat()
+
+        history_roles = _coerce_employment_history(person.get("employment_history"))
+        company_hint = "wsp" if "wsp" in lowered_message else ""
+        target_idx, match_mode = _pick_employment_role_index(
+            history_roles,
+            title="",
+            company=company_hint,
+            start_date="",
+        )
+        if target_idx < 0 and history_roles and company_hint:
+            target_idx, match_mode = _pick_employment_role_index(
+                history_roles,
+                title="",
+                company="",
+                start_date="",
+            )
+
+        if target_idx < 0:
+            operations.append({"type": "update_employment_history", "status": "failed", "reason": match_mode})
+            return {
+                "response": "I could not find a role to update. Please open Employment History and set the end date manually.",
+                "operations": operations,
+            }
+
+        role_before = dict(history_roles[target_idx])
+        role_after = dict(role_before)
+        role_after["end_date"] = end_date
+        history_roles[target_idx] = role_after
+        payload = json.dumps(history_roles, ensure_ascii=False)
+
+        async def _update_fallback_employment(db):
+            await db.execute(
+                "UPDATE PERSON SET employment_history=?, last_updated_at=?, cached_briefing=NULL WHERE person_id=?",
+                (payload, now, person_id),
+            )
+
+        await run_write(_update_fallback_employment, label=f"chat fallback employment update {person_id}")
+        person["employment_history"] = history_roles
+        operations.append(
+            {
+                "type": "update_employment_history",
+                "status": "completed",
+                "matched_index": target_idx,
+                "matched_by": match_mode,
+                "before": role_before,
+                "after": role_after,
+            }
+        )
+        return {"response": "Done. Applied: update employment history.", "operations": operations}
+
+    if _looks_like_profile_photo_intent(normalized_message):
+        candidate = _get_latest_profile_photo_candidate(person_id)
+        current_photo_url = person.get("profile_photo_url")
+        if not candidate:
+            operations.append({"type": "apply_profile_photo", "status": "failed", "reason": "no_candidate"})
+            return {
+                "response": "No uploaded headshot candidate is available yet. Please upload a profile photo first.",
+                "operations": operations,
+            }
+
+        media_url = candidate["media_url"]
+        already_active = current_photo_url == media_url
+
+        async def _apply_fallback_profile_photo(db):
+            await db.execute(
+                "UPDATE PERSON SET profile_photo_url=?, last_updated_at=?, cached_briefing=NULL WHERE person_id=?",
+                (media_url, now, person_id),
+            )
+            await db.execute(
+                "UPDATE AI_ARTIFACT SET requires_confirmation=0, updated_at=?, status='processed' WHERE artifact_id=?",
+                (now, candidate["artifact_id"]),
+            )
+
+        await run_write(_apply_fallback_profile_photo, label=f"chat fallback apply profile photo {person_id}")
+        person["profile_photo_url"] = media_url
+        operations.append(
+            {
+                "type": "apply_profile_photo",
+                "status": "completed",
+                "artifact_id": candidate["artifact_id"],
+                "media_url": media_url,
+                "source_name": candidate.get("source_name"),
+                "applied": True,
+            }
+        )
+        return {
+            "response": "That headshot is already active." if already_active else "Done. Applied: apply profile photo.",
+            "operations": operations,
+        }
+
+    if _is_openai_quota_or_rate_error(root_error):
+        return {
+            "response": (
+                "AI is temporarily rate-limited or out of quota. "
+                "You can still use direct commands now: "
+                "'Capture update: ...', 'Create task: ...', or 'Add end date YYYY-MM-DD ...'."
+            ),
+            "operations": operations,
+        }
+
+    return {
+        "response": "Assistant hit a temporary issue. Please retry, or use direct commands like 'Capture update:' or 'Create task:'.",
+        "operations": operations,
+    }
+
+
 def _looks_like_transcript_text(text: str) -> bool:
     sample = str(text or "")
     if len(sample) < 240:
@@ -294,9 +649,62 @@ def _looks_like_transcript_text(text: str) -> bool:
     return marker_hits >= 2 or sample.count("\n") >= 3
 
 
+_PROFILE_DOC_SECTION_MARKERS = (
+    "curriculum vitae",
+    "resume",
+    "professional summary",
+    "summary",
+    "experience",
+    "work experience",
+    "employment history",
+    "career history",
+    "education",
+    "skills",
+    "certifications",
+    "achievements",
+)
+
+_PROFILE_DOC_CONTEXT_MARKERS = (
+    "linkedin.com/in/",
+    "professional experience",
+    "present",
+    "current role",
+)
+
+_PROFILE_DOC_DATE_RANGE_RE = re.compile(
+    r"\b(?:19|20)\d{2}\s*(?:-|to|–|—)\s*(?:present|current|(?:19|20)\d{2})\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _looks_like_profile_document_text(text: str) -> bool:
+    sample = str(text or "")
+    if len(sample) < 180:
+        return False
+    lowered = sample.lower()
+    section_hits = sum(1 for marker in _PROFILE_DOC_SECTION_MARKERS if marker in lowered)
+    context_hits = sum(1 for marker in _PROFILE_DOC_CONTEXT_MARKERS if marker in lowered)
+    date_range_hits = len(_PROFILE_DOC_DATE_RANGE_RE.findall(sample))
+    bullet_lines = sum(
+        1
+        for line in sample.splitlines()
+        if line.strip().startswith(("-", "*", "•"))
+    )
+    return (
+        section_hits >= 2
+        and (
+            date_range_hits >= 1
+            or context_hits >= 1
+            or bullet_lines >= 2
+        )
+    )
+
+
 def _should_run_transcript_enrichment(source_type: str, text: str) -> bool:
     normalized = str(source_type or "").strip().lower()
     if len(str(text or "").strip()) < 240:
+        return False
+    if normalized in {"document", "pdf", "cv", "resume", "document_capture"} and _looks_like_profile_document_text(text):
         return False
     if normalized in {
         "whatsapp",
@@ -575,6 +983,558 @@ def _message_requests_stage_list(message: str) -> bool:
     return looks_like_stage_command(message)
 
 
+def _message_requests_contact_schedule(message: str) -> bool:
+    lowered = str(message or "").strip().lower()
+    if not lowered:
+        return False
+    patterns = (
+        r"\bwhen\s+should\s+i\s+(?:next\s+)?(?:interact|contact|reach\s*out|follow\s*up)\b",
+        r"\bnext\s+(?:interaction|contact|follow[-\s]?up)\b",
+        r"\bhow\s+often\s+should\s+i\s+(?:contact|follow\s*up|interact)\b",
+        r"\btime\s+schedule\b.*\b(?:interact|contact|relationship)\b",
+        r"\bkeep\s+the\s+relationship\s+alive\b",
+        r"\bcadence\b.*\b(?:contact|interaction|follow[-\s]?up|relationship)\b",
+    )
+    return any(re.search(pattern, lowered) for pattern in patterns)
+
+
+def _parse_iso_datetime(value: Any) -> Optional[datetime]:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except Exception:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _stage_cadence_days(relationship_code: str, opportunity_code: str) -> int:
+    relationship = str(relationship_code or "").strip().upper()
+    opportunity = str(opportunity_code or "").strip().upper()
+    days = 14
+    if relationship == "S1":
+        days = 30
+    elif relationship == "S2":
+        days = 21
+    elif relationship == "S3":
+        days = 14
+    elif relationship == "S4":
+        days = 10
+    elif relationship == "S5":
+        days = 7
+    elif relationship == "S6":
+        days = 5
+    elif relationship in {"S7", "S8", "S9"}:
+        days = 4
+    if opportunity in {"O2", "O3", "O5", "O6", "O7"}:
+        days = min(days, 4)
+    elif opportunity in {"O1", "O4"}:
+        days = min(days, 7)
+    return max(3, int(days))
+
+
+def _load_contact_schedule_snapshot(person_id: str, person: dict) -> dict:
+    stage2 = _load_latest_stage2_flow(person_id)
+    relationship_stage = stage2.get("relationship_stage") if isinstance(stage2.get("relationship_stage"), dict) else {}
+    opportunity_stage = stage2.get("opportunity_stage") if isinstance(stage2.get("opportunity_stage"), dict) else {}
+    relationship_code = str(relationship_stage.get("code") or "").strip().upper()
+    opportunity_code = str(opportunity_stage.get("code") or "").strip().upper()
+    cadence_days = _stage_cadence_days(relationship_code, opportunity_code)
+    now_utc = datetime.now(timezone.utc)
+    today = now_utc.date()
+
+    last_interaction_at = None
+    next_task_due_date = None
+    next_task_title = ""
+
+    conn = None
+    try:
+        conn = get_sync_db(read_only=True)
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT interaction_at
+            FROM INTERACTION
+            WHERE person_id = ?
+              AND COALESCE(channel, '') NOT IN ('system_audit', 'imported')
+              AND TRIM(COALESCE(summary, raw_text, '')) != ''
+            ORDER BY datetime(interaction_at) DESC, interaction_id DESC
+            LIMIT 1
+            """,
+            (person_id,),
+        )
+        interaction_row = c.fetchone()
+        if interaction_row:
+            last_interaction_at = _parse_iso_datetime(interaction_row["interaction_at"])
+
+        c.execute(
+            """
+            SELECT task_text, due_date
+            FROM TASK
+            WHERE person_id = ?
+              AND status IN ('open', 'in_progress')
+              AND COALESCE(due_date, '') != ''
+            ORDER BY due_date ASC, COALESCE(due_time, '23:59') ASC, created_at ASC
+            LIMIT 1
+            """,
+            (person_id,),
+        )
+        task_row = c.fetchone()
+        if task_row:
+            next_task_title = str(task_row["task_text"] or "").strip()
+            due_raw = str(task_row["due_date"] or "").strip()
+            try:
+                next_task_due_date = datetime.strptime(due_raw, "%Y-%m-%d").date()
+            except Exception:
+                next_task_due_date = None
+    except Exception:
+        pass
+    finally:
+        if conn is not None:
+            conn.close()
+
+    if last_interaction_at:
+        days_since_contact = max(0, (today - last_interaction_at.date()).days)
+        next_due_date = last_interaction_at.date() + timedelta(days=cadence_days)
+    else:
+        days_since_contact = None
+        next_due_date = today + timedelta(days=cadence_days)
+
+    overdue_days = max(0, (today - next_due_date).days)
+    return {
+        "person_name": str(person.get("full_name") or "This contact").strip() or "This contact",
+        "relationship_code": relationship_code or "S?",
+        "relationship_label": str(relationship_stage.get("label") or relationship_code or "Relationship stage").strip(),
+        "opportunity_code": opportunity_code or "",
+        "cadence_days": cadence_days,
+        "today": today,
+        "last_interaction_at": last_interaction_at,
+        "days_since_contact": days_since_contact,
+        "next_due_date": next_due_date,
+        "overdue_days": overdue_days,
+        "next_task_due_date": next_task_due_date,
+        "next_task_title": next_task_title,
+    }
+
+
+def _format_date_label(value: Any) -> str:
+    if isinstance(value, datetime):
+        return value.strftime("%A, %d %b %Y")
+    if hasattr(value, "strftime"):
+        return value.strftime("%A, %d %b %Y")
+    return str(value or "")
+
+
+def _render_contact_schedule_response(snapshot: dict) -> str:
+    name = str(snapshot.get("person_name") or "This contact")
+    cadence_days = int(snapshot.get("cadence_days") or 14)
+    relationship_label = str(snapshot.get("relationship_label") or "Relationship stage").strip()
+    next_due_date = snapshot.get("next_due_date")
+    days_since_contact = snapshot.get("days_since_contact")
+    last_interaction_at = snapshot.get("last_interaction_at")
+    overdue_days = int(snapshot.get("overdue_days") or 0)
+    next_task_due_date = snapshot.get("next_task_due_date")
+    next_task_title = str(snapshot.get("next_task_title") or "").strip()
+
+    lines = [
+        f"Yes. We track a contact cadence for relationship health.",
+        f"For {name}:",
+        f"- Target cadence: every {cadence_days} days ({relationship_label}).",
+    ]
+    if last_interaction_at:
+        lines.append(
+            f"- Last meaningful interaction: {_format_date_label(last_interaction_at)}"
+            + (f" ({int(days_since_contact)} days ago)." if days_since_contact is not None else ".")
+        )
+    else:
+        lines.append("- Last meaningful interaction: not recorded yet.")
+
+    if overdue_days > 0:
+        lines.append(
+            f"- Next interaction due: {_format_date_label(next_due_date)} (overdue by {overdue_days} days)."
+        )
+        lines.append(f"Recommended action: contact today ({_format_date_label(snapshot.get('today'))}).")
+    else:
+        lines.append(f"- Next interaction due by: {_format_date_label(next_due_date)}.")
+
+    if next_task_due_date:
+        task_line = f"- Earliest open follow-up task: {_format_date_label(next_task_due_date)}"
+        if next_task_title:
+            task_line += f" | {next_task_title}"
+        lines.append(task_line + ".")
+
+    lines.append("If you want, I can create the follow-up task now with that due date.")
+    return "\n".join(lines)
+
+
+def _contact_schedule_context_block(snapshot: dict) -> str:
+    cadence_days = int(snapshot.get("cadence_days") or 14)
+    relationship_label = str(snapshot.get("relationship_label") or "Relationship stage").strip()
+    next_due_date = snapshot.get("next_due_date")
+    today = snapshot.get("today")
+    overdue_days = int(snapshot.get("overdue_days") or 0)
+    last_interaction_at = snapshot.get("last_interaction_at")
+    last_contact_line = _format_date_label(last_interaction_at) if last_interaction_at else "Not recorded"
+    due_line = _format_date_label(next_due_date) if next_due_date else _format_date_label(today)
+    overdue_line = f"Overdue by {overdue_days} days" if overdue_days > 0 else "Within cadence"
+    return (
+        "Contact cadence context:\n"
+        f"- Cadence target: every {cadence_days} days ({relationship_label})\n"
+        f"- Last meaningful interaction: {last_contact_line}\n"
+        f"- Next interaction due: {due_line} ({overdue_line})"
+    )
+
+
+def _contact_schedule_sources(snapshot: dict) -> list[dict]:
+    relationship_label = str(snapshot.get("relationship_label") or "").strip()
+    relationship_code = str(snapshot.get("relationship_code") or "").strip()
+    cadence_days = int(snapshot.get("cadence_days") or 14)
+    last_interaction_at = snapshot.get("last_interaction_at")
+    next_due_date = snapshot.get("next_due_date")
+    return [
+        {
+            "label": "Relationship stage",
+            "detail": f"{relationship_code} {relationship_label}".strip(),
+            "origin": "REL_INTEL_RUN.briefing_json.relationship_business_flow_stage2.relationship_stage",
+        },
+        {
+            "label": "Cadence target",
+            "detail": f"{cadence_days} days",
+            "origin": "Stage cadence rule map",
+        },
+        {
+            "label": "Last meaningful interaction",
+            "detail": _format_date_label(last_interaction_at) if last_interaction_at else "Not recorded",
+            "origin": "INTERACTION.interaction_at",
+        },
+        {
+            "label": "Next interaction due",
+            "detail": _format_date_label(next_due_date),
+            "origin": "Derived from last interaction + cadence target",
+        },
+    ]
+
+
+def _contact_schedule_quick_actions(snapshot: dict) -> list[dict]:
+    due_date = snapshot.get("next_due_date")
+    if due_date is None:
+        return []
+    person_name = str(snapshot.get("person_name") or "this contact").strip()
+    due_label = _format_date_label(due_date)
+    return [
+        {
+            "kind": "create_task",
+            "label": f"Create Follow-Up Task ({due_label})",
+            "title": f"Follow up with {person_name}",
+            "due_date": str(due_date),
+            "due_time": "09:00",
+            "priority": "medium",
+        }
+    ]
+
+
+def _message_requests_db_query_help(message: str) -> bool:
+    lowered = str(message or "").strip().lower()
+    if not lowered:
+        return False
+    return any(
+        token in lowered
+        for token in (
+            "db question",
+            "database question",
+            "other db",
+            "other database",
+            "what can i ask the db",
+            "what can i ask the database",
+        )
+    )
+
+
+def _extract_company_query_term(message: str) -> str:
+    text = str(message or "").strip()
+    if not text:
+        return ""
+    patterns = (
+        r"\b(?:show|list|find|get)?\s*(?:me\s+)?(?:everyone|all(?:\s+contacts|\s+people)?|who(?:\s+else)?)\s+(?:who\s+)?(?:works?|work)\s+for\s+(.+)$",
+        r"\b(?:show|list|find|get)?\s*(?:me\s+)?(?:everyone|all(?:\s+contacts|\s+people)?|who(?:\s+else)?)\s+at\s+(.+)$",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if not match:
+            continue
+        term = str(match.group(1) or "").strip()
+        term = re.split(r"\b(?:in\s+the\s+db|in\s+database|database|db)\b", term, maxsplit=1, flags=re.IGNORECASE)[0]
+        term = term.strip(" \t\n\r.,!?;:\"'()[]{}")
+        if len(term) < 2:
+            return ""
+        lowered = term.lower()
+        if any(noise in lowered for noise in ("other db", "other database", "question", "etc")):
+            return ""
+        return term
+    return ""
+
+
+def _message_requests_overdue_contacts(message: str) -> bool:
+    lowered = str(message or "").strip().lower()
+    if not lowered:
+        return False
+    patterns = (
+        r"\boverdue\s+contacts?\b",
+        r"\boutside\s+cadence\b",
+        r"\bwho\s+is\s+overdue\b",
+        r"\bcontacts?\s+(?:past|outside)\s+(?:their\s+)?cadence\b",
+    )
+    return any(re.search(pattern, lowered) for pattern in patterns)
+
+
+def _message_requests_missing_career_history(message: str) -> bool:
+    lowered = str(message or "").strip().lower()
+    if not lowered:
+        return False
+    patterns = (
+        r"\bno\s+career\s+history\b",
+        r"\bmissing\s+career\s+history\b",
+        r"\bno\s+career\s+background\b",
+        r"\bmissing\s+career\s+background\b",
+        r"\bwithout\s+career\s+history\b",
+    )
+    return any(re.search(pattern, lowered) for pattern in patterns)
+
+
+def _query_contacts_by_company(company_term: str, limit: int = 30) -> dict:
+    term = str(company_term or "").strip()
+    if not term:
+        return {}
+    conn = None
+    rows: list[dict] = []
+    try:
+        conn = get_sync_db(read_only=True)
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT person_id, full_name, title_current, company_name_raw
+            FROM PERSON
+            WHERE is_active = 1
+              AND LOWER(COALESCE(company_name_raw, '')) LIKE ?
+            ORDER BY LOWER(COALESCE(full_name, '')) ASC
+            LIMIT ?
+            """,
+            (f"%{term.lower()}%", int(limit)),
+        )
+        rows = [dict(row) for row in c.fetchall()]
+    finally:
+        if conn is not None:
+            conn.close()
+
+    if not rows:
+        response = f"No active contacts found for company match '{term}'."
+    else:
+        lines = [f"Found {len(rows)} active contact(s) matching company '{term}':"]
+        for row in rows[:20]:
+            full_name = str(row.get("full_name") or "Unknown").strip()
+            title = str(row.get("title_current") or "").strip()
+            company = str(row.get("company_name_raw") or "").strip()
+            if title and company:
+                lines.append(f"- {full_name} | {title} | {company}")
+            elif title:
+                lines.append(f"- {full_name} | {title}")
+            else:
+                lines.append(f"- {full_name}")
+        if len(rows) > 20:
+            lines.append(f"...and {len(rows) - 20} more.")
+        response = "\n".join(lines)
+
+    return {
+        "response": response,
+        "result_type": "db_query",
+        "sources": [
+            {
+                "label": "Database query",
+                "detail": f"PERSON company_name_raw LIKE '%{term}%' (active contacts only)",
+                "origin": "PERSON table",
+            },
+            {
+                "label": "Rows returned",
+                "detail": str(len(rows)),
+                "origin": "SQLite query result",
+            },
+        ],
+        "quick_actions": [],
+    }
+
+
+def _query_overdue_contacts(limit: int = 30) -> dict:
+    today = datetime.now(timezone.utc).date()
+    conn = None
+    rows: list[dict] = []
+    try:
+        conn = get_sync_db(read_only=True)
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT person_id, full_name, title_current, company_name_raw, next_contact_due_date
+            FROM PERSON
+            WHERE is_active = 1
+              AND COALESCE(next_contact_due_date, '') != ''
+              AND DATE(next_contact_due_date) < DATE(?)
+            ORDER BY DATE(next_contact_due_date) ASC, LOWER(COALESCE(full_name, '')) ASC
+            LIMIT ?
+            """,
+            (str(today), int(limit)),
+        )
+        rows = [dict(row) for row in c.fetchall()]
+    finally:
+        if conn is not None:
+            conn.close()
+
+    if not rows:
+        response = f"No active contacts are currently overdue against next_contact_due_date as of {today.isoformat()}."
+    else:
+        lines = [f"Overdue contacts ({len(rows)}) as of {today.isoformat()}:"]
+        for row in rows[:20]:
+            name = str(row.get("full_name") or "Unknown").strip()
+            title = str(row.get("title_current") or "").strip()
+            due_raw = str(row.get("next_contact_due_date") or "").strip()
+            try:
+                due_date = datetime.strptime(due_raw, "%Y-%m-%d").date()
+                overdue_days = max(0, (today - due_date).days)
+                due_line = f"{due_raw} ({overdue_days}d overdue)"
+            except Exception:
+                due_line = due_raw or "Unknown"
+            if title:
+                lines.append(f"- {name} | {title} | due {due_line}")
+            else:
+                lines.append(f"- {name} | due {due_line}")
+        if len(rows) > 20:
+            lines.append(f"...and {len(rows) - 20} more.")
+        response = "\n".join(lines)
+
+    return {
+        "response": response,
+        "result_type": "db_query",
+        "sources": [
+            {
+                "label": "Database query",
+                "detail": "PERSON next_contact_due_date < today (active contacts only)",
+                "origin": "PERSON table",
+            },
+            {
+                "label": "As of date",
+                "detail": str(today),
+                "origin": "UTC system date",
+            },
+            {
+                "label": "Rows returned",
+                "detail": str(len(rows)),
+                "origin": "SQLite query result",
+            },
+        ],
+        "quick_actions": [],
+    }
+
+
+def _query_missing_career_history(limit: int = 30) -> dict:
+    conn = None
+    rows: list[dict] = []
+    try:
+        conn = get_sync_db(read_only=True)
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT person_id, full_name, title_current, company_name_raw
+            FROM PERSON
+            WHERE is_active = 1
+              AND (
+                    COALESCE(TRIM(employment_history), '') = ''
+                 OR TRIM(employment_history) = '[]'
+                 OR (
+                        COALESCE(TRIM(career_summary), '') = ''
+                    AND COALESCE(TRIM(title_current), '') = ''
+                 )
+              )
+            ORDER BY LOWER(COALESCE(full_name, '')) ASC
+            LIMIT ?
+            """,
+            (int(limit),),
+        )
+        rows = [dict(row) for row in c.fetchall()]
+    finally:
+        if conn is not None:
+            conn.close()
+
+    if not rows:
+        response = "No active contacts are currently missing career history/background."
+    else:
+        lines = [f"Contacts missing career history/background ({len(rows)}):"]
+        for row in rows[:20]:
+            name = str(row.get("full_name") or "Unknown").strip()
+            title = str(row.get("title_current") or "").strip()
+            company = str(row.get("company_name_raw") or "").strip()
+            if title and company:
+                lines.append(f"- {name} | {title} | {company}")
+            elif company:
+                lines.append(f"- {name} | {company}")
+            else:
+                lines.append(f"- {name}")
+        if len(rows) > 20:
+            lines.append(f"...and {len(rows) - 20} more.")
+        response = "\n".join(lines)
+
+    return {
+        "response": response,
+        "result_type": "db_query",
+        "sources": [
+            {
+                "label": "Database query",
+                "detail": "PERSON missing employment_history/career_summary fields (active contacts only)",
+                "origin": "PERSON table",
+            },
+            {
+                "label": "Rows returned",
+                "detail": str(len(rows)),
+                "origin": "SQLite query result",
+            },
+        ],
+        "quick_actions": [],
+    }
+
+
+def _run_profile_chat_db_query(message: str) -> Optional[dict]:
+    text = str(message or "").strip()
+    if not text:
+        return None
+    if _message_requests_db_query_help(text):
+        return {
+            "response": (
+                "Yes. You can ask DB questions like:\n"
+                "- show everyone who works for AtkinsRealis\n"
+                "- show overdue contacts\n"
+                "- who has no career history"
+            ),
+            "result_type": "db_query_help",
+            "sources": [
+                {
+                    "label": "Query mode",
+                    "detail": "Supported contact DB query templates",
+                    "origin": "Profile assistant deterministic query handler",
+                }
+            ],
+            "quick_actions": [],
+        }
+
+    company_term = _extract_company_query_term(text)
+    if company_term:
+        return _query_contacts_by_company(company_term)
+    if _message_requests_overdue_contacts(text):
+        return _query_overdue_contacts()
+    if _message_requests_missing_career_history(text):
+        return _query_missing_career_history()
+    return None
+
+
 def _load_latest_stage2_flow(person_id: str) -> dict:
     conn = None
     try:
@@ -823,6 +1783,12 @@ DOCUMENT TEXT:
 \"{text[:16000]}\"
 
 Return JSON with these exact keys:
+- full_name: best-contact full name if clearly present, else empty string
+- title_current: current role title if clearly present, else empty string
+- company_name_raw: current company/employer if clearly present, else empty string
+- email_primary: primary email if clearly present, else empty string
+- phone_primary: primary phone number if clearly present, else empty string
+- linkedin_url: linkedin profile URL if clearly present, else empty string
 - career_summary: short factual summary of the person's career
 - key_professional_notes: short practical notes about skills, sectors, or strengths
 - employment_history: array of roles in reverse-chronological order
@@ -870,6 +1836,12 @@ Rules:
                 "description": str(role.get("description") or "").strip(),
             })
         data["employment_history"] = cleaned
+    data["full_name"] = str(data.get("full_name") or "").strip()
+    data["title_current"] = str(data.get("title_current") or "").strip()
+    data["company_name_raw"] = str(data.get("company_name_raw") or "").strip()
+    data["email_primary"] = str(data.get("email_primary") or "").strip()
+    data["phone_primary"] = str(data.get("phone_primary") or "").strip()
+    data["linkedin_url"] = str(data.get("linkedin_url") or "").strip()
     data.setdefault("career_summary", "")
     data.setdefault("key_professional_notes", "")
     return data
@@ -2336,9 +3308,41 @@ async def profile_chat(person_id: str, person: dict, message: str, history: list
     operations = []
     if _message_requests_stage_list(message):
         stage2_flow = _load_latest_stage2_flow(person_id)
-        return {"response": _render_stage_list_response(stage2_flow), "operations": operations}
+        return {
+            "response": _render_stage_list_response(stage2_flow),
+            "operations": operations,
+            "result_type": "stage_list",
+            "sources": [
+                {
+                    "label": "Stage data source",
+                    "detail": "Latest relationship stage flow for this profile",
+                    "origin": "REL_INTEL_RUN.briefing_json.relationship_business_flow_stage2",
+                }
+            ],
+            "quick_actions": [],
+        }
+    if _message_requests_contact_schedule(message):
+        schedule_snapshot = _load_contact_schedule_snapshot(person_id, person)
+        return {
+            "response": _render_contact_schedule_response(schedule_snapshot),
+            "operations": operations,
+            "result_type": "contact_schedule",
+            "sources": _contact_schedule_sources(schedule_snapshot),
+            "quick_actions": _contact_schedule_quick_actions(schedule_snapshot),
+        }
+    db_query_result = _run_profile_chat_db_query(message)
+    if isinstance(db_query_result, dict):
+        return {
+            "response": str(db_query_result.get("response") or ""),
+            "operations": operations,
+            "result_type": str(db_query_result.get("result_type") or "db_query"),
+            "sources": db_query_result.get("sources") if isinstance(db_query_result.get("sources"), list) else [],
+            "quick_actions": db_query_result.get("quick_actions") if isinstance(db_query_result.get("quick_actions"), list) else [],
+        }
 
     latest_photo_candidate = _get_latest_profile_photo_candidate(person_id)
+    schedule_snapshot = _load_contact_schedule_snapshot(person_id, person)
+    cadence_context_block = _contact_schedule_context_block(schedule_snapshot)
     topic_resolution_context = assistant_context if isinstance(assistant_context, dict) else {}
     topic_resolution_requested = (
         str(topic_resolution_context.get("type") or "").strip().lower() == "relationship_topic_resolution"
@@ -2509,16 +3513,20 @@ Taxonomy:
 Profile photo approval context:
 {photo_candidate_block}
 
+{cadence_context_block}
+
 {_topic_resolution_context_block(topic_resolution_context) if topic_resolution_available else ""}
 {pilot_resolution_note}
 
 When there is a clear next step in the user's message or the stored relationship context, proactively suggest a concrete task or follow-up in plain language.
+When the user asks about timing, cadence, or next interaction, answer with a specific calendar date (not vague phrases like "next few weeks").
 Only use create_task after the user explicitly asks for it or clearly confirms your suggestion.
-Use tools only when the user explicitly wants a profile update, task creation, or intelligence logging.
+Use tools when the user explicitly asks for profile updates, task creation, or intelligence logging.
+If the user shares concrete factual relationship or business updates (even without saying "save"), treat that as capture intent and use tools to log the update.
 Use update_employment_history for role-level timeline edits (example: "add end date", "change company on previous role", "update employment period").
 If the user asks to add an end date but does not give a date, set today's date in YYYY-MM-DD format.
 When a relationship topic is already in active context, help the user resolve that exact topic. Ask a short follow-up question if the update is still too vague to change the topic state. Once the user gives concrete detail, use resolve_relationship_topic so the storyline is updated.
-If relationship topic resolution is unavailable for this profile, say that plainly and do not imply the topic state was updated.
+If relationship topic resolution is unavailable for this profile, say that plainly and do not imply the topic state was updated. Still capture concrete updates via log_intelligence and any relevant profile/task tools.
 Never claim you cannot inspect an uploaded image if a recent upload result is already in context.
 If the user explicitly says to use or set the uploaded headshot as the profile photo, use apply_profile_photo.
 Do not apply screenshots, documents, or ambiguous images as profile photos.
@@ -2812,12 +3820,38 @@ Otherwise answer conversationally and succinctly."""
                 response_parts.append("Done.")
             return {"response": " ".join(response_parts), "operations": operations}
 
-        return {"response": msg.content or "", "operations": operations}
+        assistant_text = msg.content or ""
+        if (
+            not operations
+            and _assistant_storyline_refusal(assistant_text)
+            and _looks_like_factual_profile_update_text(message)
+        ):
+            capture_fallback = await _profile_chat_rule_fallback(
+                person_id,
+                person,
+                f"Capture update: {message}",
+            )
+            fallback_ops = capture_fallback.get("operations", []) if isinstance(capture_fallback, dict) else []
+            if any(
+                str(op.get("type") or "").lower() == "log_intelligence"
+                and str(op.get("status") or "").lower() == "completed"
+                for op in fallback_ops
+            ):
+                return capture_fallback
+
+        return {"response": assistant_text, "operations": operations}
     except Exception as e:
         print(f"Chatbot AI error: {e}")
         print(traceback.format_exc())
+        try:
+            fallback = await _profile_chat_rule_fallback(person_id, person, message, root_error=e)
+            if isinstance(fallback, dict):
+                return fallback
+        except Exception as fallback_error:
+            print(f"Chatbot fallback error: {fallback_error}")
+            print(traceback.format_exc())
         return {
-            "response": f"AI Service Error: {str(e)[:150]}. Please check your OpenAI API key in the Settings Dashboard and ensure your account has sufficient quota.",
+            "response": "Assistant is temporarily unavailable. Please retry in a moment.",
             "operations": operations,
         }
 

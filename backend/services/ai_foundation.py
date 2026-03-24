@@ -406,7 +406,11 @@ def infer_communication_channel(
         return "document"
     if "whatsapp conversation" in haystack or "last seen today" in haystack or "last seen at" in haystack:
         return "whatsapp"
+    if re.search(r"\[\d{1,2}:\d{2}\]", haystack) and any(marker in haystack for marker in ("last seen", "typing", "online", "double tick")):
+        return "whatsapp"
     if "email thread" in haystack or "from:" in haystack and "subject:" in haystack:
+        return "email"
+    if "received email:" in haystack or "sent email:" in haystack:
         return "email"
     return base_channel or "note"
 

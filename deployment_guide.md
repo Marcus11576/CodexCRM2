@@ -41,3 +41,29 @@
 6. Confirm the public URL is HTTPS and that secure cookies are being set.
 7. Deploy and run first-time admin setup from `/login` if no users exist.
 8. Check `/api/health/status` and `/api/health/backups/status` after first boot.
+
+## Railway steps
+1. Push this repo to GitHub.
+2. In Railway, create a new project from the GitHub repo.
+3. Add a persistent volume and mount it to `/var/data`.
+4. Set service variables:
+   - `ENV=production`
+   - `AUTH_DISABLED=false`
+   - `COOKIE_SECURE=true`
+   - `DB_PATH=/var/data/crm.db`
+   - `UPLOADS_DIR=/var/data/uploads`
+   - `BACKUP_DIR=/var/data/backups`
+   - `BACKUP_EXTERNAL_DIR=/var/data/backups_external`
+   - `SECRET_KEY` (required)
+   - `OPENAI_API_KEY` (required for AI features)
+   - `ALLOWED_ORIGINS=https://<your-railway-domain>`
+5. Redeploy and wait for healthy status.
+6. Open:
+   - `https://<your-railway-domain>/login`
+   - `https://<your-railway-domain>/api/health`
+   - `https://<your-railway-domain>/api/health/status`
+
+## Mobile access checks
+1. Confirm HTTPS is active on your live URL.
+2. Log in from mobile browser and verify pages load (`/`, `/profile`, `/companies`).
+3. Add the app to home screen in Safari/Chrome for app-like launch.

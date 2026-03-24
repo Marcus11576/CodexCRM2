@@ -11,7 +11,7 @@ from typing import Optional
 
 from backend.config import settings
 from backend.database import run_read, run_write
-from backend.services.ai_foundation import input_type_for_channel
+from backend.services.ai_foundation import infer_communication_channel, input_type_for_channel
 
 JOB_STATUS_QUEUED = "queued"
 JOB_STATUS_RUNNING = "running"
@@ -38,18 +38,16 @@ def _channel_from_image_context(default_channel: str, result: dict) -> str:
     if bool(result.get("is_profile_photo")):
         return default_channel
 
-    source_app = str(result.get("source_app") or "").strip().lower()
-    screen_context = str(result.get("screen_context") or "").strip().lower()
-
-    if source_app == "whatsapp" or screen_context == "whatsapp_chat":
-        return "whatsapp"
-    if source_app in {"outlook", "gmail"} or screen_context == "email":
-        return "email"
-    if source_app == "linkedin":
-        return "linkedin"
-    if screen_context == "document_capture":
-        return "document"
-    return default_channel
+    return infer_communication_channel(
+        channel=default_channel,
+        summary=result.get("summary"),
+        raw_text=result.get("raw_text"),
+        extracted_text=result.get("extracted_text"),
+        metadata={
+            "source_app": result.get("source_app"),
+            "screen_context": result.get("screen_context"),
+        },
+    )
 
 
 async def _maybe_attach_profile_photo(*, person_id: Optional[str], artifact: Optional[dict], result: dict, media_url: Optional[str]) -> bool:
@@ -563,6 +561,14 @@ async def _handle_signal_extraction(job: dict) -> dict:
                         result["key_professional_notes"] = profile_result.get("key_professional_notes")
                     if isinstance(profile_result.get("employment_history"), list):
                         result["employment_history"] = profile_result.get("employment_history")
+                    profile_updates = result.get("profile_updates")
+                    if not isinstance(profile_updates, dict):
+                        profile_updates = {}
+                        result["profile_updates"] = profile_updates
+                    for field in ("title_current", "company_name_raw", "email_primary", "phone_primary", "linkedin_url"):
+                        value = str(profile_result.get(field) or "").strip()
+                        if value and not str(profile_updates.get(field) or "").strip():
+                            profile_updates[field] = value
             else:
                 result = {
                     "summary": raw_text[:200],

@@ -275,27 +275,6 @@ function renderProfileEvents(events, directory) {
     });
 }
 
-function scrollToTop() {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
-    document.body.scrollTo({ top: 0, behavior: 'smooth' });
-
-    const container = document.querySelector('.container');
-    if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function updateScrollBtn() {
-    const btn = document.getElementById('scroll-top-btn');
-    if (!btn) return;
-
-    const container = document.querySelector('.container');
-    const windowScroll = window.pageYOffset || document.documentElement.scrollTop || 0;
-    const containerScroll = container ? container.scrollTop : 0;
-    const scrollPos = Math.max(windowScroll, containerScroll);
-
-    btn.style.display = scrollPos > 300 ? 'flex' : 'none';
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     renderUniversalLayout('profile', 'PROFILE');
     document.getElementById('refresh-ai-jobs-btn')?.addEventListener('click', loadAiJobs);
@@ -327,18 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(btn);
         }
     }
-
-    updateScrollBtn();
-    const container = document.querySelector('.container');
-    if (container) container.addEventListener('scroll', updateScrollBtn, { passive: true });
-    window.addEventListener('scroll', updateScrollBtn, { passive: true });
-
-    const observer = new MutationObserver(() => {
-        const c = document.querySelector('.container');
-        if (c) c.addEventListener('scroll', updateScrollBtn, { passive: true });
-        updateScrollBtn();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
 
     document.addEventListener('click', (e) => {
         if (!isEditingEnv && !isEditingCat && !isEditingDisc && !isEditingStatus) return;

@@ -204,6 +204,34 @@ def _create_tables_sync():
         )
     """)
 
+    # Canonical company directory layer (additive and non-breaking).
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS COMPANY_DIRECTORY (
+            company_key          TEXT PRIMARY KEY,
+            company_name         TEXT NOT NULL,
+            company_type         TEXT,
+            parent_company_key   TEXT REFERENCES COMPANY_DIRECTORY(company_key) ON DELETE SET NULL,
+            industry             TEXT,
+            website              TEXT,
+            headquarters         TEXT,
+            description          TEXT,
+            notes                TEXT,
+            created_at           TEXT NOT NULL,
+            updated_at           TEXT NOT NULL
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS COMPANY_ALIAS (
+            alias_key            TEXT PRIMARY KEY,
+            company_key          TEXT NOT NULL REFERENCES COMPANY_DIRECTORY(company_key) ON DELETE CASCADE,
+            alias_name           TEXT NOT NULL,
+            created_at           TEXT NOT NULL,
+            updated_at           TEXT NOT NULL,
+            UNIQUE(company_key, alias_name)
+        )
+    """)
+
     # --- TASKS ---
     c.execute("""
         CREATE TABLE IF NOT EXISTS TASK (
@@ -828,6 +856,10 @@ def _create_tables_sync():
         "CREATE INDEX IF NOT EXISTS idx_company_opportunity_name ON COMPANY_OPPORTUNITY(company_name_raw)",
         "CREATE INDEX IF NOT EXISTS idx_company_opportunity_status ON COMPANY_OPPORTUNITY(status)",
         "CREATE INDEX IF NOT EXISTS idx_company_opportunity_trigger_date ON COMPANY_OPPORTUNITY(trigger_date)",
+        "CREATE INDEX IF NOT EXISTS idx_company_directory_name ON COMPANY_DIRECTORY(company_name)",
+        "CREATE INDEX IF NOT EXISTS idx_company_directory_parent ON COMPANY_DIRECTORY(parent_company_key)",
+        "CREATE INDEX IF NOT EXISTS idx_company_alias_company ON COMPANY_ALIAS(company_key)",
+        "CREATE INDEX IF NOT EXISTS idx_company_alias_name ON COMPANY_ALIAS(alias_name)",
         "CREATE INDEX IF NOT EXISTS idx_interpreted_interaction_person ON INTERPRETED_INTERACTION(person_id)",
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_interpreted_interaction_source ON INTERPRETED_INTERACTION(source_interaction_id)",
         "CREATE INDEX IF NOT EXISTS idx_enduring_memory_person ON ENDURING_MEMORY(person_id)",

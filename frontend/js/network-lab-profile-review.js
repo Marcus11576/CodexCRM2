@@ -1,8 +1,12 @@
 const apiBase = window.API_BASE || '';
 const PROFILE_SIGNATURE_CACHE_PREFIX = 'ag.network_lab_profile.signature.v2.';
 const LEGACY_PROFILE_SIGNATURE_CACHE_PREFIXES = ['ag.network_lab_profile.signature.v1.'];
-const PROFILE_TRANSCRIPT_TAG_CACHE_PREFIX = 'ag.network_lab_profile.transcript_tags.v1.';
-const LEGACY_PROFILE_TRANSCRIPT_TAG_CACHE_PREFIXES = ['ag.network_lab_profile.transcript_tags.v0.'];
+const PROFILE_TRANSCRIPT_TAG_CACHE_PREFIX = 'ag.network_lab_profile.transcript_tags.v3.';
+const LEGACY_PROFILE_TRANSCRIPT_TAG_CACHE_PREFIXES = [
+    'ag.network_lab_profile.transcript_tags.v2.',
+    'ag.network_lab_profile.transcript_tags.v1.',
+    'ag.network_lab_profile.transcript_tags.v0.'
+];
 
 const profileState = {
     payload: null,
@@ -34,7 +38,8 @@ const profileState = {
     activeEvidenceId: null,
     modalEditing: false,
     modalBusy: false,
-    deletingEvidenceIds: new Set()
+    deletingEvidenceIds: new Set(),
+    retaggingEvidenceKeys: new Set()
 };
 
 const DEFAULT_RELATIONSHIP_STAGES = [
@@ -395,6 +400,7 @@ function resetTranscriptTagRuntime() {
     profileState.segmentTagHasRun.knowledge = false;
     profileState.segmentTagModelName = '';
     profileState.segmentTagLastError = '';
+    profileState.retaggingEvidenceKeys = new Set();
 }
 
 function safeSegmentRow(segment, fallbackIndex) {
@@ -469,14 +475,22 @@ function restoreTranscriptModeCache(mode, modePayload) {
 
 function readStoredTranscriptTagCache(personId, signature) {
     const key = transcriptTagCacheStorageKey(personId);
-    const expectedSignature = String(signature || '').trim();
-    if (!key || key.endsWith('.') || !expectedSignature) return false;
+    if (!key || key.endsWith('.')) return false;
     try {
         const raw = window.localStorage.getItem(key);
         if (!raw) return false;
         const payload = JSON.parse(raw);
         if (!payload || typeof payload !== 'object') return false;
-        if (String(payload.signature || '').trim() !== expectedSignature) return false;
+        const incomingSignature = String(signature || '').trim();
+        const cachedSignature = String(payload.signature || '').trim();
+        if (incomingSignature && cachedSignature && incomingSignature !== cachedSignature) {
+            window.localStorage.removeItem(key);
+            return false;
+        }
+        if (incomingSignature && !cachedSignature) {
+            window.localStorage.removeItem(key);
+            return false;
+        }
         const modes = payload.modes && typeof payload.modes === 'object' ? payload.modes : {};
         let restored = false;
         let restoredModelName = '';
@@ -897,22 +911,36 @@ function resolveStage2ForDisplay(payload = {}) {
         ? overrideResult.stage2.relationship_stage
         : null;
     const baseCode = String((baseStage && baseStage.code) || '').trim().toUpperCase();
+    if (!baseCode) {
+        return {
+            ...overrideResult.stage2,
+            relationship_stage: derived
+        };
+    }
     const derivedCode = String(derived.code || '').trim().toUpperCase();
     const baseRank = relationshipStageCodeRank(baseCode);
     const derivedRank = relationshipStageCodeRank(derivedCode);
-    if (baseCode && baseRank > 0 && derivedRank > 0 && derivedRank < baseRank) {
+    if (!(baseRank > 0 && derivedRank > 0)) return overrideResult.stage2;
+
+    const supportTotal = Number(derived.support_total || 0);
+    const supportCount = Number(derived.support_count || 0);
+    const confidencePct = Number(derived.confidence_pct || 0);
+    const hasStrongSupport = supportTotal >= 3 && supportCount >= 2 && confidencePct >= 55;
+    const isSmallStepForward = derivedRank >= baseRank && derivedRank <= (baseRank + 1);
+
+    if (!hasStrongSupport || !isSmallStepForward) {
         const reasons = Array.isArray(baseStage && baseStage.reasons) ? [...baseStage.reasons] : [];
-        reasons.push(`Continuity guard retained ${baseCode}; transcript tags inferred ${derivedCode}.`);
+        reasons.push(`Transcript tags suggested ${derivedCode || 'an update'}, but backend stage ${baseCode} was retained.`);
         return {
             ...overrideResult.stage2,
             relationship_stage: {
                 ...baseStage,
                 reasons: Array.from(new Set(reasons)).slice(0, 8),
-                continuity_guard_applied: true,
-                inferred_from_transcript_tags: derivedCode
+                transcript_tag_suggestion: derivedCode || ''
             }
         };
     }
+
     return {
         ...overrideResult.stage2,
         relationship_stage: derived
@@ -1209,19 +1237,97 @@ const TRANSCRIPT_BLOCK_MAX_LINES = 3;
 const TRANSCRIPT_BLOCK_MAX_CHARS = 420;
 const TRANSCRIPT_LINE_CHUNK_MAX = 260;
 
+const MIXED_CONTEXT_STAGE_PERSONAL_TERMS = [
+    'his back',
+    'her back',
+    'back pain',
+    'back problem',
+    'health issue',
+    'health issues',
+    'surgery',
+    'medical leave',
+    'hospitalized',
+    'hospitalised',
+    'wife',
+    'husband',
+    'daughter',
+    'son',
+    'children',
+    'family',
+    'safe',
+    'relationship remains'
+];
+
+const MIXED_CONTEXT_STAGE_BUSINESS_TERMS = [
+    'business',
+    'workload',
+    'delivery',
+    'resource',
+    'capacity',
+    'hiring',
+    'recruitment',
+    'project',
+    'projects',
+    'commercial',
+    'client',
+    'team',
+    'market',
+    'role',
+    'headcount',
+    'in charge',
+    'responsible for',
+    'team size',
+    'people in the region',
+    'regional director',
+    'leadership',
+    'committee',
+    'steering committee',
+    'region',
+    'people'
+];
+
+const STAGE_SENTENCE_SPLIT_MARKERS = [
+    'other than that',
+    'on the other hand',
+    'at the same time',
+    'however'
+];
+
+function containsAnyTerm(text, terms) {
+    const source = String(text || '').toLowerCase();
+    return Array.isArray(terms) && terms.some((term) => source.includes(String(term || '').toLowerCase()));
+}
+
+function shouldForceStageSentenceSplit(line, sentenceParts) {
+    if (!Array.isArray(sentenceParts) || sentenceParts.length <= 1) return false;
+    const lowered = normalizeWhitespace(line).toLowerCase();
+    const hasPersonalContext = containsAnyTerm(lowered, MIXED_CONTEXT_STAGE_PERSONAL_TERMS);
+    const hasBusinessContext = containsAnyTerm(lowered, MIXED_CONTEXT_STAGE_BUSINESS_TERMS);
+    const hasTransition = containsAnyTerm(lowered, STAGE_SENTENCE_SPLIT_MARKERS);
+    return !!(hasTransition || (hasPersonalContext && hasBusinessContext) || sentenceParts.length >= 4);
+}
+
 function chunkTranscriptLine(line, mode = 'stage') {
     const source = String(line || '').trim();
     if (!source) return [];
+    const normalizedMode = String(mode || '').trim().toLowerCase();
     const sentenceParts = source.split(/(?<=[.!?])\s+/).map((part) => part.trim()).filter(Boolean);
-    if (String(mode || '').trim().toLowerCase() === 'knowledge' && sentenceParts.length) {
-        return sentenceParts;
+    const forceSentenceLevel = normalizedMode === 'knowledge'
+        || (normalizedMode === 'stage' && shouldForceStageSentenceSplit(source, sentenceParts));
+    if (forceSentenceLevel && sentenceParts.length) {
+        return sentenceParts
+            .map((part) => normalizeWhitespace(part))
+            .filter(Boolean)
+            .map((text) => ({ text, lockSentence: true }));
     }
-    if (source.length <= TRANSCRIPT_LINE_CHUNK_MAX) return [source];
+    if (source.length <= TRANSCRIPT_LINE_CHUNK_MAX) {
+        return [{ text: source, lockSentence: false }];
+    }
     if (sentenceParts.length <= 1) {
         const chunks = [];
         for (let idx = 0; idx < source.length; idx += TRANSCRIPT_LINE_CHUNK_MAX) {
             const chunk = source.slice(idx, idx + TRANSCRIPT_LINE_CHUNK_MAX).trim();
-            if (chunk) chunks.push(chunk);
+            if (chunk) chunks.push({ text: chunk, lockSentence: false });
         }
         return chunks;
     }
@@ -1230,13 +1336,13 @@ function chunkTranscriptLine(line, mode = 'stage') {
     for (const sentence of sentenceParts) {
         const projected = buffer ? `${buffer} ${sentence}` : sentence;
         if (buffer && projected.length > TRANSCRIPT_LINE_CHUNK_MAX) {
-            chunks.push(buffer);
+            chunks.push({ text: buffer, lockSentence: false });
             buffer = sentence;
         } else {
             buffer = projected;
         }
     }
-    if (buffer) chunks.push(buffer);
+    if (buffer) chunks.push({ text: buffer, lockSentence: false });
     return chunks;
 }
 
@@ -1245,17 +1351,29 @@ function splitTranscriptSegments(content, mode = 'stage') {
     if (!source) return [];
     const normalizedMode = String(mode || 'stage').trim().toLowerCase();
     const blockMaxLines = normalizedMode === 'knowledge' ? 1 : TRANSCRIPT_BLOCK_MAX_LINES;
-    const lines = source
+    const entries = source
         .split(/\n+/)
         .map((line) => normalizeWhitespace(line))
         .filter(Boolean)
         .flatMap((line) => chunkTranscriptLine(line, normalizedMode));
-    if (!lines.length) return [];
+    if (!entries.length) return [];
 
     const blocks = [];
     let currentLines = [];
     let currentLength = 0;
-    for (const line of lines) {
+    for (const entry of entries) {
+        const line = normalizeWhitespace(entry && entry.text);
+        const lockSentence = !!(entry && entry.lockSentence);
+        if (!line) continue;
+        if (lockSentence) {
+            if (currentLines.length) {
+                blocks.push(currentLines.join(' ').trim());
+                currentLines = [];
+                currentLength = 0;
+            }
+            blocks.push(line);
+            continue;
+        }
         const projected = currentLength + line.length + (currentLines.length ? 1 : 0);
         if (
             currentLines.length
@@ -1308,7 +1426,11 @@ function isNonTranscriptRequestText(value) {
         /\bwhat\s+do\s+you\s+need\s+to\s+(?:complete|completion|completing|completed|compleate)\s+(?:the\s+)?profile\b/,
         /\bwhat\s+should\s+i\s+(?:provide|providing|provideing|provided)\s+to\s+(?:complete|completion|completing|completed|compleate)\s+(?:the\s+)?profile\b/,
         /\b(?:provide|providing|provideing|provided)\s+(?:data|information|infortmation|info|details?)\s+(?:to|for)\s+(?:complete|completion|completing|completed|compleate)\s+(?:the\s+)?profile\b/,
-        /\b(?:information|infortmation|info|data|details?|fields?)\s+(?:needed|required)\s+(?:to|for)\s+(?:complete|completion|completing|completed|compleate)\s+(?:the\s+)?profile\b/
+        /\b(?:information|infortmation|info|data|details?|fields?)\s+(?:needed|required)\s+(?:to|for)\s+(?:complete|completion|completing|completed|compleate)\s+(?:the\s+)?profile\b/,
+        /^(?:capture|log|save|record)\s+(?:this\s+)?update(?:\s+for\s+(?:the\s+)?profile)?[:.!?]*$/,
+        /^(?:capture|log|save|record)\s+update[:.!?]*$/,
+        /^(?:create|add)\s+task[:.!?]*$/,
+        /^next\s+action[:.!?]*$/
     ].some((pattern) => pattern.test(text));
 }
 
@@ -1358,6 +1480,7 @@ function transcriptTagCoverage(content, mode, stage2, evidenceId = '') {
     const lines = splitTranscriptLines(content);
     const segments = splitTranscriptSegments(content, mode);
     const evidenceKey = String(evidenceId || '');
+    const rowRetagging = isEvidenceRetagging(mode, evidenceKey);
     const cache = profileState.segmentTagsByMode && profileState.segmentTagsByMode[mode] instanceof Map
         ? profileState.segmentTagsByMode[mode]
         : new Map();
@@ -1378,7 +1501,7 @@ function transcriptTagCoverage(content, mode, stage2, evidenceId = '') {
             mappedSegments: 0,
             totalSegments: 0,
             totalLines: lines.length,
-            pending: false,
+            pending: rowRetagging,
             failed: false,
             error: ''
         };
@@ -1399,7 +1522,7 @@ function transcriptTagCoverage(content, mode, stage2, evidenceId = '') {
     }
 
     if (!cached || !Array.isArray(cached.segments) || cached.segments.length !== segments.length) {
-        const pending = !!profileState.segmentTagBusy;
+        const pending = !!profileState.segmentTagBusy || rowRetagging;
         return {
             tag: unknownTagForMode(mode),
             processedSegments: 0,
@@ -1442,24 +1565,24 @@ function transcriptTagCoverage(content, mode, stage2, evidenceId = '') {
             mappedSegments,
             totalSegments: segments.length,
             totalLines: lines.length,
-            pending: false,
+            pending: rowRetagging,
             failed: false,
             error: ''
         };
     }
 
-    return {
-        tag: unknownTagForMode(mode),
-        processedSegments: segments.length,
+        return {
+            tag: unknownTagForMode(mode),
+            processedSegments: segments.length,
         taggedSegments,
         mappedSegments,
-        totalSegments: segments.length,
-        totalLines: lines.length,
-        pending: false,
-        failed: false,
-        error: ''
-    };
-}
+            totalSegments: segments.length,
+            totalLines: lines.length,
+            pending: rowRetagging,
+            failed: false,
+            error: ''
+        };
+    }
 
 function renderTranscriptRow(item, mode, stage2, rowKey) {
     const evidenceId = String(rowKey || '');
@@ -1471,6 +1594,8 @@ function renderTranscriptRow(item, mode, stage2, rowKey) {
     const deleting = profileState.deletingEvidenceIds instanceof Set
         ? profileState.deletingEvidenceIds.has(evidenceId)
         : false;
+    const retagging = isEvidenceRetagging(mode, evidenceId);
+    const canRetag = !!evidenceId && !!String(rowContent || '').trim();
     const coverageLabel = coverage.failed
         ? 'Tagging failed'
         : coverage.pending
@@ -1481,6 +1606,16 @@ function renderTranscriptRow(item, mode, stage2, rowKey) {
     const summary = previewLine(item.preview || item.title || item.content || '(No transcript text)', 220);
     const dateTimeLabel = formatDateTimeLabel(item.date_at || item.date_label);
     const sourceLabel = normalizeWhitespace(item.source_type || item.source_kind || 'Input');
+    const retagButton = canRetag
+        ? `<button
+                class="transcript-row-retag"
+                type="button"
+                data-evidence-id="${encodedEvidenceId}"
+                data-mode="${esc(mode)}"
+                title="Re-tag this row only in ${esc(mode)} view"
+                ${retagging || profileState.segmentTagBusy ? 'disabled' : ''}
+            >${retagging ? 'Re-tagging...' : 'Re-tag row'}</button>`
+        : '';
     const deleteButton = editable
         ? `<button
                 class="transcript-row-delete"
@@ -1489,6 +1624,13 @@ function renderTranscriptRow(item, mode, stage2, rowKey) {
                 title="Delete this transcript block"
                 ${deleting ? 'disabled' : ''}
             >${deleting ? 'Deleting...' : 'Delete block'}</button>`
+        : '';
+    const actionButtons = (retagButton || deleteButton)
+        ? `<div class="transcript-row-actions">
+                <div class="transcript-row-actions-title">Actions</div>
+                ${retagButton}
+                ${deleteButton}
+            </div>`
         : '';
     return `
         <div class="transcript-row-wrap">
@@ -1503,7 +1645,7 @@ function renderTranscriptRow(item, mode, stage2, rowKey) {
                     <span class="transcript-summary-line">${esc(summary)}</span>
                 </div>
             </button>
-            ${deleteButton}
+            ${actionButtons}
         </div>
     `;
 }
@@ -1530,29 +1672,94 @@ function transcriptCoverageTotals(items, mode, stage2) {
     );
 }
 
-function modeCacheReady(mode, payload = profileState.payload || {}) {
+function transcriptEvidenceId(item, index = 0) {
+    return String((item && item.evidence_id) || `row-${index}`).trim();
+}
+
+function transcriptEvidenceContent(item) {
+    return String((item && item.content) || (item && item.preview) || (item && item.title) || '').trim();
+}
+
+function transcriptRetaggingKey(mode, evidenceId) {
+    return `${String(mode || '').trim().toLowerCase()}|${String(evidenceId || '').trim()}`;
+}
+
+function isEvidenceRetagging(mode, evidenceId) {
+    const key = transcriptRetaggingKey(mode, evidenceId);
+    if (!key || key === '|') return false;
+    return !!(profileState.retaggingEvidenceKeys instanceof Set && profileState.retaggingEvidenceKeys.has(key));
+}
+
+function pruneTranscriptTagCacheForMode(mode, validEvidenceIds = new Set()) {
+    const cache = profileState.segmentTagsByMode && profileState.segmentTagsByMode[mode] instanceof Map
+        ? profileState.segmentTagsByMode[mode]
+        : null;
+    const errorCache = profileState.segmentTagErrorsByMode && profileState.segmentTagErrorsByMode[mode] instanceof Map
+        ? profileState.segmentTagErrorsByMode[mode]
+        : null;
+    if (cache) {
+        for (const evidenceId of Array.from(cache.keys())) {
+            if (!validEvidenceIds.has(String(evidenceId || ''))) cache.delete(evidenceId);
+        }
+    }
+    if (errorCache) {
+        for (const evidenceId of Array.from(errorCache.keys())) {
+            if (!validEvidenceIds.has(String(evidenceId || ''))) errorCache.delete(evidenceId);
+        }
+    }
+}
+
+function cachedTranscriptTagValid(mode, evidenceId, content, options = {}) {
+    const retryFailed = !!options.retryFailed;
+    const cache = profileState.segmentTagsByMode && profileState.segmentTagsByMode[mode] instanceof Map
+        ? profileState.segmentTagsByMode[mode]
+        : null;
+    const errorCache = profileState.segmentTagErrorsByMode && profileState.segmentTagErrorsByMode[mode] instanceof Map
+        ? profileState.segmentTagErrorsByMode[mode]
+        : null;
+    if (!cache) return false;
+    const cached = cache.get(evidenceId);
+    if (!cached || typeof cached !== 'object') return false;
+    const failed = !!(
+        (errorCache && errorCache.has(evidenceId))
+        || String((cached && cached.error) || '').trim()
+    );
+    if (retryFailed && failed) return false;
+    const segments = splitTranscriptSegments(content, mode);
+    const cachedSegments = Array.isArray(cached.segments) ? cached.segments : [];
+    if (cachedSegments.length !== segments.length) return false;
+    for (let index = 0; index < segments.length; index += 1) {
+        const expected = normalizeWhitespace(segments[index] || '');
+        const actual = normalizeWhitespace((cachedSegments[index] && cachedSegments[index].text) || '');
+        if (expected !== actual) return false;
+    }
+    return true;
+}
+
+function modeCacheReady(mode, payload = profileState.payload || {}, options = {}) {
+    const retryFailed = !!options.retryFailed;
     const normalizedMode = String(mode || '').trim().toLowerCase();
     if (!['stage', 'knowledge'].includes(normalizedMode)) return false;
     const items = filterTranscriptItems(Array.isArray(payload.evidence_inputs) ? payload.evidence_inputs : []);
     if (!items.length) return true;
-    const cache = profileState.segmentTagsByMode && profileState.segmentTagsByMode[normalizedMode] instanceof Map
-        ? profileState.segmentTagsByMode[normalizedMode]
-        : null;
-    if (!cache) return false;
+    const validEvidenceIds = new Set(
+        items.map((item, index) => transcriptEvidenceId(item, index)).filter(Boolean)
+    );
+    pruneTranscriptTagCacheForMode(normalizedMode, validEvidenceIds);
     for (const [index, item] of items.entries()) {
-        const evidenceId = String((item && item.evidence_id) || `row-${index}`).trim();
-        const content = String((item && item.content) || (item && item.preview) || (item && item.title) || '').trim();
-        const segments = splitTranscriptSegments(content, normalizedMode);
-        const cached = cache.get(evidenceId);
-        const cachedSegments = Array.isArray(cached && cached.segments) ? cached.segments : [];
-        if (cachedSegments.length !== segments.length) return false;
+        const evidenceId = transcriptEvidenceId(item, index);
+        if (!evidenceId) return false;
+        const content = transcriptEvidenceContent(item);
+        if (!cachedTranscriptTagValid(normalizedMode, evidenceId, content, { retryFailed })) return false;
     }
     return true;
 }
 
 async function recalculateTranscriptTagsForModes(modes, options = {}) {
     const payload = profileState.payload || {};
-    const onlyMissing = !!options.onlyMissing;
+    const onlyMissing = options.onlyMissing !== false;
+    const retryFailed = !!options.retryFailed;
+    const forceFull = !!options.forceFull;
     const normalizedModes = Array.from(
         new Set(
             (Array.isArray(modes) ? modes : [])
@@ -1561,8 +1768,8 @@ async function recalculateTranscriptTagsForModes(modes, options = {}) {
         )
     );
     for (const mode of normalizedModes) {
-        if (onlyMissing && modeCacheReady(mode, payload)) continue;
-        await recalculateTranscriptTags({ mode });
+        if (onlyMissing && !forceFull && modeCacheReady(mode, payload, { retryFailed })) continue;
+        await recalculateTranscriptTags({ mode, onlyMissing, retryFailed, forceFull });
     }
 }
 
@@ -1815,6 +2022,9 @@ async function applySegmentTagOverrideFromModal(evidenceId, segmentIndex, reques
 async function recalculateTranscriptTags(options = {}) {
     const mode = String(options.mode || profileState.transcriptMode || 'stage').trim().toLowerCase();
     if (!['stage', 'knowledge'].includes(mode)) return;
+    const onlyMissing = options.onlyMissing !== false;
+    const retryFailed = !!options.retryFailed;
+    const forceFull = !!options.forceFull;
     const payload = profileState.payload || {};
     const items = filterTranscriptItems(Array.isArray(payload.evidence_inputs) ? payload.evidence_inputs : []);
     const cache = profileState.segmentTagsByMode && profileState.segmentTagsByMode[mode] instanceof Map
@@ -1823,9 +2033,18 @@ async function recalculateTranscriptTags(options = {}) {
     const errorCache = profileState.segmentTagErrorsByMode && profileState.segmentTagErrorsByMode[mode] instanceof Map
         ? profileState.segmentTagErrorsByMode[mode]
         : new Map();
+    if (!(profileState.segmentTagsByMode[mode] instanceof Map)) profileState.segmentTagsByMode[mode] = cache;
+    if (!(profileState.segmentTagErrorsByMode[mode] instanceof Map)) profileState.segmentTagErrorsByMode[mode] = errorCache;
     profileState.segmentTagHasRun[mode] = true;
-    cache.clear();
-    errorCache.clear();
+    const validEvidenceIds = new Set(
+        items.map((item, index) => transcriptEvidenceId(item, index)).filter(Boolean)
+    );
+    if (forceFull) {
+        cache.clear();
+        errorCache.clear();
+    } else {
+        pruneTranscriptTagCacheForMode(mode, validEvidenceIds);
+    }
     profileState.segmentTagLastError = '';
     const runId = Date.now();
     profileState.segmentTagRunId = runId;
@@ -1834,10 +2053,22 @@ async function recalculateTranscriptTags(options = {}) {
     if (mode === 'stage') refreshStageDisplayFromTranscript();
 
     try {
-        let failedCount = 0;
+        const targets = [];
         for (const [index, item] of items.entries()) {
-            const evidenceId = String((item && item.evidence_id) || `row-${index}`).trim();
+            const evidenceId = transcriptEvidenceId(item, index);
             if (!evidenceId) continue;
+            const content = transcriptEvidenceContent(item);
+            const shouldTag = forceFull || !onlyMissing || !cachedTranscriptTagValid(mode, evidenceId, content, { retryFailed });
+            if (!shouldTag) continue;
+            targets.push({ item, evidenceId });
+        }
+
+        if (!targets.length) return;
+
+        let failedCount = 0;
+        for (const target of targets) {
+            const item = target.item;
+            const evidenceId = target.evidenceId;
             try {
                 const requestItem = String((item && item.evidence_id) || '').trim()
                     ? item
@@ -2041,6 +2272,69 @@ async function saveTranscriptEdit() {
     }
 }
 
+async function retagTranscriptEvidenceById(evidenceId, options = {}) {
+    const normalizedEvidenceId = String(evidenceId || '').trim();
+    const mode = String(options.mode || profileState.transcriptMode || 'stage').trim().toLowerCase();
+    if (!normalizedEvidenceId || !['stage', 'knowledge'].includes(mode)) return;
+    if (profileState.segmentTagBusy) {
+        notify('Transcript recalculate is already running. Please wait.', 'info');
+        return;
+    }
+    const item = profileState.evidenceById.get(normalizedEvidenceId);
+    if (!item) return;
+    const content = transcriptEvidenceContent(item);
+    if (!content) return;
+    if (!(profileState.retaggingEvidenceKeys instanceof Set)) {
+        profileState.retaggingEvidenceKeys = new Set();
+    }
+    const retagKey = transcriptRetaggingKey(mode, normalizedEvidenceId);
+    if (profileState.retaggingEvidenceKeys.has(retagKey)) return;
+
+    const cache = profileState.segmentTagsByMode && profileState.segmentTagsByMode[mode] instanceof Map
+        ? profileState.segmentTagsByMode[mode]
+        : new Map();
+    const errorCache = profileState.segmentTagErrorsByMode && profileState.segmentTagErrorsByMode[mode] instanceof Map
+        ? profileState.segmentTagErrorsByMode[mode]
+        : new Map();
+    if (!(profileState.segmentTagsByMode[mode] instanceof Map)) profileState.segmentTagsByMode[mode] = cache;
+    if (!(profileState.segmentTagErrorsByMode[mode] instanceof Map)) profileState.segmentTagErrorsByMode[mode] = errorCache;
+
+    profileState.retaggingEvidenceKeys.add(retagKey);
+    errorCache.delete(normalizedEvidenceId);
+    renderTranscript(profileState.payload || {});
+    if (mode === 'stage') refreshStageDisplayFromTranscript();
+
+    try {
+        const requestItem = String((item && item.evidence_id) || '').trim()
+            ? item
+            : { ...item, evidence_id: normalizedEvidenceId };
+        const result = await tagEvidenceWithModel(requestItem, mode);
+        cache.set(normalizedEvidenceId, {
+            evidence_id: normalizedEvidenceId,
+            model_name: String((result && result.model_name) || ''),
+            segments: Array.isArray(result && result.segments) ? result.segments : [],
+            error: ''
+        });
+        profileState.segmentTagHasRun[mode] = true;
+        errorCache.delete(normalizedEvidenceId);
+        if (result && result.model_name) profileState.segmentTagModelName = String(result.model_name);
+        writeStoredTranscriptTagCache();
+        notify(`Row re-tagged (${mode})`, 'success');
+    } catch (error) {
+        const message = String((error && error.message) || 'Unable to re-tag row').trim();
+        profileState.segmentTagLastError = message;
+        notify(message, 'error');
+    } finally {
+        profileState.retaggingEvidenceKeys.delete(retagKey);
+        renderTranscript(profileState.payload || {});
+        if (mode === 'stage') refreshStageDisplayFromTranscript();
+        if (profileState.activeEvidenceId === normalizedEvidenceId && !profileState.modalEditing) {
+            const refreshedItem = profileState.evidenceById.get(normalizedEvidenceId);
+            if (refreshedItem) renderTranscriptModal(refreshedItem);
+        }
+    }
+}
+
 async function deleteTranscriptInteraction() {
     const item = activeEvidenceItem();
     if (!item || !interactionEditable(item)) return;
@@ -2238,18 +2532,27 @@ function setTranscriptMode(mode) {
     }
 }
 
-async function recalculateTranscript() {
+async function recalculateTranscript(event) {
     if (profileState.segmentTagBusy) return;
+    const forceFull = !!(event && event.shiftKey);
     const recalcButton = document.getElementById('transcript-recalculate');
     const statusLine = document.getElementById('status-line');
     if (recalcButton) {
         recalcButton.disabled = true;
         recalcButton.textContent = 'Recalculating...';
     }
-    if (statusLine) statusLine.textContent = 'Recalculating transcript tags (Stage + Knowledge)...';
+    if (statusLine) {
+        statusLine.textContent = forceFull
+            ? 'Recalculating all transcript tags (Stage + Knowledge)...'
+            : 'Recalculating new/changed transcript tags (Stage + Knowledge)...';
+    }
     try {
         await loadProfile(false, { autoTag: false, autoTagOnChange: false });
-        await recalculateTranscriptTagsForModes(['stage', 'knowledge']);
+        await recalculateTranscriptTagsForModes(['stage', 'knowledge'], {
+            onlyMissing: !forceFull,
+            retryFailed: true,
+            forceFull
+        });
         if (profileState.activeEvidenceId && !profileState.modalEditing) {
             const item = profileState.evidenceById.get(profileState.activeEvidenceId);
             if (item) renderTranscriptModal(item);
@@ -2291,6 +2594,16 @@ function initInteractions() {
     const transcriptList = document.getElementById('transcript-list');
     if (transcriptList) {
         transcriptList.addEventListener('click', (event) => {
+            const retagButton = event.target.closest('.transcript-row-retag');
+            if (retagButton) {
+                event.preventDefault();
+                event.stopPropagation();
+                const encodedRetagId = retagButton.getAttribute('data-evidence-id');
+                const mode = String(retagButton.getAttribute('data-mode') || profileState.transcriptMode || 'stage');
+                if (!encodedRetagId) return;
+                void retagTranscriptEvidenceById(decodeURIComponent(encodedRetagId), { mode });
+                return;
+            }
             const deleteButton = event.target.closest('.transcript-row-delete');
             if (deleteButton) {
                 event.preventDefault();
@@ -2314,6 +2627,7 @@ function initInteractions() {
 
     const recalculateButton = document.getElementById('transcript-recalculate');
     if (recalculateButton) {
+        recalculateButton.title = 'Recalculate new/changed rows only. Shift+Click to force full recalculate.';
         recalculateButton.addEventListener('click', recalculateTranscript);
     }
 
@@ -2810,8 +3124,11 @@ async function loadProfile(forceRefresh = false, options = {}) {
         renderTranscript(payload);
         if (statusLine) statusLine.textContent = `Loaded (${(payload.pipeline_meta && payload.pipeline_meta.cache_status) || 'miss'} cache).`;
         writeStoredProfileSignature(personId, incomingSignature);
-        if (autoTag || (autoTagOnChange && (changedSinceLastSeen || (firstSeenSignature && !restoredTagCache)))) {
-            recalculateTranscriptTagsForModes(['stage', 'knowledge'], { onlyMissing: true }).catch((error) => {
+        const restoredCacheValid = restoredTagCache
+            && modeCacheReady('stage', payload, { retryFailed: false })
+            && modeCacheReady('knowledge', payload, { retryFailed: false });
+        if (autoTag || (autoTagOnChange && (changedSinceLastSeen || (firstSeenSignature && !restoredTagCache) || (restoredTagCache && !restoredCacheValid)))) {
+            recalculateTranscriptTagsForModes(['stage', 'knowledge'], { onlyMissing: true, retryFailed: false }).catch((error) => {
                 profileState.segmentTagLastError = String((error && error.message) || 'Transcript tagging failed').trim();
                 if (profileState.transcriptMode) renderTranscript(profileState.payload || payload);
             });
@@ -2825,6 +3142,7 @@ async function loadProfile(forceRefresh = false, options = {}) {
 
 async function pollProfileIfChanged() {
     if (profileState.reactivePollBusy) return;
+    if (profileState.segmentTagBusy) return;
     if (document.hidden) return;
     const personId = personIdFromPath();
     if (!personId) return;

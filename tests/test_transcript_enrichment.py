@@ -127,6 +127,117 @@ def test_process_text_replaces_thin_nuggets_with_transcript_enrichment(monkeypat
     assert "somebody will need to pay twice" in payload["topic_nuggets"][0]["snippet"].lower()
 
 
+def test_process_text_skips_transcript_enrichment_for_profile_documents(monkeypatch):
+    cv_text = (
+        "John Example\n"
+        "Senior Commercial Director\n"
+        "Professional Summary: Commercial and delivery leader with 18 years in major projects.\n"
+        "Experience\n"
+        "- Senior Commercial Director, ACME Group, 2020 - Present\n"
+        "- Commercial Manager, BuildCo, 2016 - 2020\n"
+        "Education\n"
+        "- MSc Construction Management\n"
+        "Skills\n"
+        "- Contracts, claims, procurement, and delivery governance\n"
+        "LinkedIn: linkedin.com/in/john-example-profile\n"
+    )
+    enrichment_calls = {"count": 0}
+
+    async def fake_run_json_chat_task(**kwargs):
+        return (
+            {
+                "summary": "Document parsed as profile content.",
+                "sentiment": "Neutral",
+                "sentiment_confidence": 0.8,
+                "topics": [],
+                "action_items": [],
+                "profile_updates": {},
+                "topic_nuggets": [],
+                "success_metrics": {},
+                "global_insights": [],
+            },
+            "run-doc-1",
+        )
+
+    async def fake_summarize_transcript_intelligence(**kwargs):
+        enrichment_calls["count"] += 1
+        return {
+            "executive_summary": "Should not run for CV/profile documents.",
+            "sections": [],
+            "other_topics": [],
+            "omitted_content": [],
+        }
+
+    monkeypatch.setattr(ai_service, "run_json_chat_task", fake_run_json_chat_task)
+    monkeypatch.setattr(ai_service, "summarize_transcript_intelligence", fake_summarize_transcript_intelligence)
+
+    payload = asyncio.run(ai_service.process_text(cv_text, "document"))
+
+    assert enrichment_calls["count"] == 0
+    assert payload["summary"] == "Document parsed as profile content."
+    assert payload["topic_nuggets"] == []
+
+
+def test_process_text_keeps_transcript_enrichment_for_conversation_documents(monkeypatch):
+    transcript_doc = (
+        "Subject: Follow-up from site review\n"
+        "From: brian@example.com\n"
+        "To: marcus@example.com\n"
+        "[09:11] Brian: The developer can only release part payment this week.\n"
+        "[09:14] Marcus: Let's align on options before Thursday.\n"
+        "[09:19] Brian: Agreed, if we need handover this month we need a pragmatic deal.\n"
+    )
+    enrichment_calls = {"count": 0}
+
+    async def fake_run_json_chat_task(**kwargs):
+        return (
+            {
+                "summary": "Generic document summary.",
+                "sentiment": "Neutral",
+                "sentiment_confidence": 0.6,
+                "topics": [],
+                "action_items": [],
+                "profile_updates": {},
+                "topic_nuggets": [],
+                "success_metrics": {},
+                "global_insights": [],
+            },
+            "run-doc-2",
+        )
+
+    async def fake_summarize_transcript_intelligence(**kwargs):
+        enrichment_calls["count"] += 1
+        return {
+            "executive_summary": "Conversation highlights immediate commercial payment pressure.",
+            "sections": [
+                {
+                    "id": "business_focus",
+                    "summary": "Brian flags a payment constraint and requests pragmatic deal terms for handover.",
+                    "points": [
+                        {
+                            "text": "Handover depends on pragmatic payment alignment this month.",
+                            "evidence": "if we need handover this month we need a pragmatic deal",
+                            "subtopic": "commercial_position",
+                            "confidence": 0.92,
+                        }
+                    ],
+                    "confidence": 0.9,
+                }
+            ],
+            "other_topics": [],
+            "omitted_content": [],
+        }
+
+    monkeypatch.setattr(ai_service, "run_json_chat_task", fake_run_json_chat_task)
+    monkeypatch.setattr(ai_service, "summarize_transcript_intelligence", fake_summarize_transcript_intelligence)
+
+    payload = asyncio.run(ai_service.process_text(transcript_doc, "document"))
+
+    assert enrichment_calls["count"] == 1
+    assert payload["summary"].startswith("Conversation highlights immediate commercial payment pressure.")
+    assert payload["topic_nuggets"][0]["business_subtopic"] == "commercial_position"
+
+
 def test_process_image_reuses_transcript_enrichment_for_whatsapp_screenshots(monkeypatch, tmp_path):
     image_path = tmp_path / "wa.png"
     image_path.write_bytes(b"fakepng")

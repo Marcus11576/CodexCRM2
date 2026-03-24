@@ -217,6 +217,11 @@ PERSONAL_HEALTH_TERMS = {
     "knee operations",
     "operation on knee",
     "knee surgery",
+    "back pain",
+    "back issue",
+    "back issues",
+    "health issue",
+    "health issues",
     "surgery",
     "surgeries",
     "hospitalized",
@@ -463,6 +468,8 @@ STAGE1_BOX_KEYWORDS: dict[str, set[str]] = {
     "family_status": {
         "partner", "spouse", "wife", "husband", "married", "single", "divorced", "child", "children", "daughter",
         "son", "kids", "pet", "dog", "cat", "family based", "grandparents", "broke", "cast",
+        "health issue", "health issues", "knee operation", "knee surgery", "medical leave", "hospitalized", "hospitalised",
+        "his back", "her back",
         "years old", "50s", "60s", "70s", "in his 60s", "in her 60s", "in his 70s", "in her 70s", "in his 50s", "in her 50s",
     },
     "family_interests": {
@@ -1165,8 +1172,38 @@ def _stage1_claim_box_keys(claim: dict, box_keywords: Optional[dict[str, set[str
         keys.add("action_follow_up")
     if lens in {LENS_TRACK, LENS_ACTIVE} and _keywords_score(normalized_text, {"trust", "guarded", "warm", "relationship"}) > 0:
         keys.add("relationship_signal")
+    if _looks_like_personal_health_context(normalized_text):
+        keys.add("family_status")
+        if "challenges_demands" in keys and not _has_business_challenge_context(normalized_text):
+            keys.discard("challenges_demands")
 
     return keys
+
+
+def _clean_stage1_point_text(value: Any) -> str:
+    text = _clean_text(value)
+    if not text:
+        return ""
+    # Strip common transcript-tail filler fragments that should not be stored as intelligence.
+    text = re.sub(r"(?:[,\s;:\-]+|[.?!]\s*)(?:still\s+again|again\s+still)\s*[.?!]*$", "", text, flags=re.IGNORECASE)
+    return text.strip()
+
+
+def _has_business_challenge_context(line: str) -> bool:
+    return any(term in line for term in BUSINESS_CHALLENGE_TERMS)
+
+
+def _looks_like_personal_health_context(line: str) -> bool:
+    if not line:
+        return False
+    # Keep sector phrases like "health and safety" out of personal-health handling.
+    if "health and safety" in line:
+        return False
+    if re.search(r"\b(?:his|her|their)\s+back\b", line):
+        return True
+    if re.search(r"\b(?:back|health)\s+(?:problem|problems|issue|issues|concern|concerns)\b", line):
+        return True
+    return any(term in line for term in PERSONAL_HEALTH_TERMS)
 
 
 def _allow_stage1_line_for_box(box_key: str, text: str) -> bool:
@@ -1178,8 +1215,8 @@ def _allow_stage1_line_for_box(box_key: str, text: str) -> bool:
     if box_key != "challenges_demands":
         return True
 
-    has_personal_health = any(term in line for term in PERSONAL_HEALTH_TERMS)
-    has_business_context = any(term in line for term in BUSINESS_CHALLENGE_TERMS)
+    has_personal_health = _looks_like_personal_health_context(line)
+    has_business_context = _has_business_challenge_context(line)
     if has_personal_health and not has_business_context:
         return False
     return True
@@ -1237,6 +1274,22 @@ def _build_stage1_knowledge_bank(
             normalized_sentence = _normalize_match_text(sentence)
             if not normalized_sentence:
                 continue
+            if _looks_like_personal_health_context(normalized_sentence):
+                if "family_status" not in sentence_hits_by_box or "family_status" not in sentence_seen_by_box:
+                    continue
+                sentence_key = _canonical_text(sentence)
+                if sentence_key in sentence_seen_by_box["family_status"]:
+                    continue
+                sentence_seen_by_box["family_status"].add(sentence_key)
+                sentence_hits_by_box["family_status"].append(
+                    {
+                        "sentence": sentence.strip(),
+                        "date": item_dt,
+                        "source_id": item_source_id,
+                        "score": 2,
+                    }
+                )
+                continue
             best_key = None
             best_score = 0
             for box in effective_box_defs:
@@ -1287,7 +1340,7 @@ def _build_stage1_knowledge_bank(
                 for source_id in claim_source_ids
             ):
                 continue
-            line = _rewrite_claim_text_for_brief(claim) or _clean_text(claim.get("claim_text"))
+            line = _clean_stage1_point_text(_rewrite_claim_text_for_brief(claim) or _clean_text(claim.get("claim_text")))
             line = line.strip()
             if not line:
                 continue
@@ -1342,7 +1395,7 @@ def _build_stage1_knowledge_bank(
                 }
             )
         for hit in sentence_hits_by_box.get(key, []):
-                line = _clean_text(hit.get("sentence"))
+                line = _clean_stage1_point_text(hit.get("sentence"))
                 if not line:
                     continue
                 if not _allow_stage1_line_for_box(key, line):

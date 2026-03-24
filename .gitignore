@@ -48,6 +48,7 @@ backups_external/
 
 # Temp
 .tmp/
+tmp/
 temp/
 _restore_temp/
 .pytest_cache/

@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from typing import Optional
 from backend.database import get_db, run_read, run_write
 from backend.config import settings
+from backend.services.profile_background_backfill import backfill_missing_profile_background
 
 router = APIRouter()
 
@@ -156,8 +157,9 @@ def _parse_due_time(message: str) -> Optional[str]:
     return "09:00"
 
 
-async def _twin_search_people(query: str = "", limit: int = 12):
+async def _twin_search_people(query: str = "", limit: int = 12, company_filter: str = ""):
     search = (query or "").strip()
+    company_scope = (company_filter or "").strip()
 
     async def _load(db):
         sql = """
@@ -166,6 +168,9 @@ async def _twin_search_people(query: str = "", limit: int = 12):
             WHERE is_active = 1
         """
         params = []
+        if company_scope:
+            sql += " AND IFNULL(company_name_raw, '') LIKE ?"
+            params.append(f"%{company_scope}%")
         if search:
             sql += " AND (full_name LIKE ? OR company_name_raw LIKE ? OR title_current LIKE ? OR email_primary LIKE ?)"
             token = f"%{search}%"
@@ -175,7 +180,98 @@ async def _twin_search_people(query: str = "", limit: int = 12):
         async with db.execute(sql, params) as cursor:
             return [dict(row) for row in await cursor.fetchall()]
 
-    return await run_read(_load, label=f"twin search people {search or 'recent'}")
+    search_label = company_scope or search or "recent"
+    return await run_read(_load, label=f"twin search people {search_label}")
+
+
+def _tag_twin_people_results(rows: list[dict]) -> list[dict]:
+    for row in rows:
+        row["result_type"] = "person"
+    return rows
+
+
+async def _twin_search_companies(query: str = "", limit: int = 12):
+    from backend.routers.companies import (
+        _enrich_company_rollup,
+        _load_company_list_rows,
+        _load_people_for_company_keys,
+    )
+
+    _total, company_rows = await _load_company_list_rows(query=query, limit=limit, offset=0)
+    employees_by_key = await _load_people_for_company_keys([row.get("company_key") for row in company_rows])
+    companies = _enrich_company_rollup(company_rows, employees_by_key, preview_count=3)
+    for item in companies:
+        item["result_type"] = "company"
+    return companies
+
+
+async def _twin_search_combined(query: str, *, people_limit: int = 8, company_limit: int = 8) -> tuple[list[dict], list[dict], list[dict]]:
+    people = _tag_twin_people_results(await _twin_search_people(query=query, limit=people_limit))
+    companies = await _twin_search_companies(query=query, limit=company_limit)
+    combined = companies + people
+    return people, companies, combined
+
+
+def _extract_company_people_target(message: str) -> Optional[str]:
+    text = str(message or "").strip()
+    if not text:
+        return None
+    patterns = [
+        r"\b(?:show|list|find)\s+(?:me\s+)?(?:everyone|all|people|contacts)\s+(?:who\s+)?(?:work|works|working)\s+(?:for|at|in)\s+(?P<company>.+)$",
+        r"\b(?:everyone|all|people|contacts)\s+(?:who\s+)?(?:work|works|working)\s+(?:for|at|in)\s+(?P<company>.+)$",
+        r"\bwho\s+(?:works|is working|work)\s+(?:for|at|in)\s+(?P<company>.+)$",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if not match:
+            continue
+        company = re.sub(r"\b(?:please|now)\b", "", str(match.group("company") or ""), flags=re.IGNORECASE)
+        company = company.strip(" .,!?:;")
+        if len(company) >= 2:
+            return company
+    return None
+
+
+def _extract_company_lookup_target(message: str) -> Optional[str]:
+    text = str(message or "").strip()
+    if not text:
+        return None
+
+    patterns = [
+        r"\b(?:find|search|lookup|look up|show|open)\s+(?:the\s+)?(?:company|companies|employer|employers)\s*(?:for|named|called|about)?\s*(?P<query>.+)?$",
+        r"\b(?:tell me about|details for|details on)\s+(?P<query>.+?)\s+(?:company|employer)\b",
+        r"\b(?:parent company|holding company)\s+(?:for|of)\s+(?P<query>.+)$",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if not match:
+            continue
+        query = str(match.groupdict().get("query") or "").strip(" .,!?:;")
+        return query
+
+    if re.search(r"\b(show|list|top)\b.*\b(companies|employers)\b", text, flags=re.IGNORECASE):
+        return ""
+    return None
+
+
+async def _twin_db_snapshot() -> dict:
+    async def _load(db):
+        async with db.execute("SELECT COUNT(*) AS count FROM PERSON WHERE is_active = 1") as cursor:
+            people_count = int((await cursor.fetchone())["count"])
+        async with db.execute(
+            """
+            SELECT IFNULL(TRIM(company_name_raw), '') AS company_name, COUNT(*) AS people_count
+            FROM PERSON
+            WHERE is_active = 1 AND IFNULL(TRIM(company_name_raw), '') <> ''
+            GROUP BY IFNULL(TRIM(company_name_raw), '')
+            ORDER BY people_count DESC, company_name ASC
+            LIMIT 10
+            """
+        ) as cursor:
+            top_companies = [dict(row) for row in await cursor.fetchall()]
+        return {"people_count": people_count, "top_companies": top_companies}
+
+    return await run_read(_load, label="twin db snapshot")
 
 
 async def _resolve_person_for_task(person_ref: Optional[str]):
@@ -198,6 +294,19 @@ async def _resolve_person_for_task(person_ref: Optional[str]):
 
 def _infer_twin_action(message: str) -> dict:
     lowered = message.lower()
+    company_target = _extract_company_people_target(message)
+    if company_target:
+        return {"type": "search_company_people", "params": {"company": company_target}}
+
+    company_lookup_target = _extract_company_lookup_target(message)
+    if company_lookup_target is not None:
+        return {"type": "search_companies", "params": {"query": company_lookup_target}}
+
+    if re.search(r"\b(how many|count|total)\b.*\b(contacts|people|profiles)\b", lowered):
+        return {"type": "db_summary", "params": {"scope": "counts"}}
+    if re.search(r"\b(show|list|top)\b.*\b(companies|employers)\b", lowered):
+        return {"type": "search_companies", "params": {"query": ""}}
+
     search_prefixes = ("find ", "search ", "show ", "list ", "who is ", "look up ")
     if any(lowered.startswith(prefix) for prefix in search_prefixes) or "contacts" in lowered or "people" in lowered:
         query = re.sub(r"^(find|search|show|list|look up|who is)\s+", "", message, flags=re.IGNORECASE).strip(" ?.!" )
@@ -229,11 +338,52 @@ async def compat_twin_chat(req: TwinChatReq):
     if not message:
         raise HTTPException(400, "Please enter a message.")
     intent = _infer_twin_action(message)
+    if intent["type"] == "search_company_people":
+        company = intent["params"].get("company", "")
+        preview = await _twin_search_people(limit=25, company_filter=company)
+        reply = f"I found {len(preview)} contact{'s' if len(preview) != 1 else ''} at {company}."
+        return {"reply": reply, "data": preview, "pending_action": None}
+    if intent["type"] == "search_companies":
+        query = intent["params"].get("query", "")
+        companies = await _twin_search_companies(query=query, limit=20)
+        if query:
+            reply = f"I found {len(companies)} compan{'ies' if len(companies) != 1 else 'y'} matching '{query}'."
+        else:
+            reply = f"I found {len(companies)} companies with active coverage."
+        return {"reply": reply, "data": companies, "pending_action": None}
+    if intent["type"] == "db_summary":
+        snapshot = await _twin_db_snapshot()
+        scope = str(intent["params"].get("scope") or "")
+        if scope == "companies":
+            companies = snapshot.get("top_companies") or []
+            if not companies:
+                return {"reply": "No company data is available yet.", "data": [], "pending_action": None}
+            top_line = ", ".join(
+                f"{row.get('company_name')}: {row.get('people_count')}"
+                for row in companies[:5]
+            )
+            return {
+                "reply": f"Top companies by active contacts: {top_line}.",
+                "data": companies,
+                "pending_action": None,
+            }
+        total_people = int(snapshot.get("people_count") or 0)
+        return {
+            "reply": f"You currently have {total_people} active contacts in the database.",
+            "data": snapshot,
+            "pending_action": None,
+        }
     if intent["type"] == "search":
         query = intent["params"].get("query", "")
-        preview = await _twin_search_people(query=query, limit=8)
-        reply = f"I found {len(preview)} matching contact{'s' if len(preview) != 1 else ''}." if query else "Here are the most recently updated contacts."
-        return {"reply": reply, "data": preview, "pending_action": intent}
+        if query:
+            people_preview, company_preview, combined_preview = await _twin_search_combined(query=query, people_limit=8, company_limit=8)
+            reply = (
+                f"I found {len(people_preview)} contact{'s' if len(people_preview) != 1 else ''} and "
+                f"{len(company_preview)} compan{'ies' if len(company_preview) != 1 else 'y'} matching '{query}'."
+            )
+            return {"reply": reply, "data": combined_preview, "pending_action": intent}
+        preview = _tag_twin_people_results(await _twin_search_people(query=query, limit=8))
+        return {"reply": "Here are the most recently updated contacts.", "data": preview, "pending_action": intent}
     if intent["type"] == "create_task":
         title = intent["params"].get("title") or "Follow up"
         person_ref = intent["params"].get("person_ref")
@@ -253,16 +403,41 @@ async def compat_twin_chat(req: TwinChatReq):
     preview = await _twin_search_people(query=message, limit=5)
     if preview:
         return {"reply": "I found close contact matches. You can open one directly or ask me to refine the search.", "data": preview, "pending_action": None}
-    return {"reply": "I can find contacts, create tasks, add contacts, and process PDF contact documents. Try 'find Marcus', 'create task follow up with John tomorrow', or 'add contact Jane Doe at Acme'.", "data": None, "pending_action": None}
+    return {"reply": "I can find contacts, search employers and parent companies, answer basic DB counts, create tasks, add contacts, and process PDF contact documents. Try 'show companies', 'find company AECOM', 'show me everyone who works for WSP', or 'find Marcus'.", "data": None, "pending_action": None}
 
 
 @router.post("/api/intelligence/twin/execute", tags=["compat"])
 async def compat_twin_execute(req: dict):
     action_type = (req or {}).get("action_type")
     params = (req or {}).get("params") or {}
+    if action_type == "search_company_people":
+        results = await _twin_search_people(
+            query=(params.get("query") or ""),
+            company_filter=(params.get("company") or ""),
+            limit=25,
+        )
+        tagged = _tag_twin_people_results(results)
+        return {"status": "success", "message": f"Found {len(tagged)} contact{'s' if len(tagged) != 1 else '' }.", "data": tagged}
     if action_type == "search":
-        results = await _twin_search_people(query=(params.get("query") or ""), limit=25)
-        return {"status": "success", "message": f"Found {len(results)} contact{'s' if len(results) != 1 else '' }.", "data": results}
+        query = (params.get("query") or "").strip()
+        if query:
+            people_results, company_results, combined = await _twin_search_combined(query=query, people_limit=25, company_limit=25)
+            return {
+                "status": "success",
+                "message": (
+                    f"Found {len(people_results)} contact{'s' if len(people_results) != 1 else ''} and "
+                    f"{len(company_results)} compan{'ies' if len(company_results) != 1 else 'y'}."
+                ),
+                "data": combined,
+            }
+        recent_people = _tag_twin_people_results(await _twin_search_people(limit=25))
+        return {"status": "success", "message": f"Found {len(recent_people)} contact{'s' if len(recent_people) != 1 else '' }.", "data": recent_people}
+    if action_type == "search_companies":
+        results = await _twin_search_companies(query=(params.get("query") or ""), limit=25)
+        return {"status": "success", "message": f"Found {len(results)} compan{'ies' if len(results) != 1 else 'y'}.", "data": results}
+    if action_type == "db_summary":
+        snapshot = await _twin_db_snapshot()
+        return {"status": "success", "message": "Database snapshot ready.", "data": snapshot}
     if action_type == "create_task":
         title = (params.get("title") or "").strip()
         if not title:
@@ -312,8 +487,276 @@ async def compat_twin_execute(req: dict):
             await db.execute("INSERT INTO PERSON (person_id, full_name, title_current, company_name_raw, cat, created_at, last_updated_at) VALUES (?,?,?,?,?,?,?)", (person_id, name, title, company, "GEN", now, now))
             return {"status": "created", "person_id": person_id, "full_name": name}
         result = await run_write(_create, label=f"twin create person {name}")
+        if result.get("status") == "created":
+            try:
+                await backfill_missing_profile_background(person_ids=[result.get("person_id")], limit=1, dry_run=False)
+            except Exception as exc:
+                print(f"Twin create backfill skipped for {result.get('person_id')}: {exc}")
         return {"status": "success", "message": f"Contact ready: {result['full_name']}", "data": result}
     raise HTTPException(400, "Unsupported Twin action")
+
+
+def _extract_primary_email(text: str) -> Optional[str]:
+    match = re.search(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", text or "", flags=re.IGNORECASE)
+    return match.group(0).strip().lower() if match else None
+
+
+def _normalize_phone_candidate(value: str) -> Optional[str]:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    has_plus = raw.startswith("+")
+    digits = re.sub(r"\D+", "", raw)
+    if len(digits) < 8:
+        return None
+    return f"+{digits}" if has_plus else digits
+
+
+def _extract_primary_phone(text: str) -> Optional[str]:
+    for match in re.finditer(r"(?:\+?\d[\d\-\s().]{7,}\d)", text or ""):
+        normalized = _normalize_phone_candidate(match.group(0))
+        if normalized:
+            return normalized
+    return None
+
+
+def _extract_primary_linkedin(text: str) -> Optional[str]:
+    if not text:
+        return None
+    match = re.search(r"(https?://(?:www\.)?linkedin\.com/[^\s)]+)", text, flags=re.IGNORECASE)
+    if match:
+        return match.group(1).strip().rstrip(".,;")
+    match = re.search(r"(linkedin\.com/[^\s)]+)", text, flags=re.IGNORECASE)
+    if not match:
+        return None
+    return f"https://{match.group(1).strip().rstrip('.,;')}"
+
+
+_PROFILE_HEADING_TOKENS = {
+    "contact",
+    "top skills",
+    "skills",
+    "summary",
+    "experience",
+    "certifications",
+    "certification",
+    "education",
+    "projects",
+    "languages",
+    "publications",
+    "interests",
+    "about",
+    "profile",
+    "curriculum vitae",
+    "resume",
+}
+
+_PROFILE_ROLE_TOKENS = (
+    "manager",
+    "director",
+    "engineer",
+    "head",
+    "lead",
+    "consultant",
+    "partner",
+    "specialist",
+    "executive",
+    "chief",
+    "officer",
+    "founder",
+    "owner",
+    "president",
+    "vice president",
+)
+
+_NAME_CONNECTORS = {
+    "al",
+    "bin",
+    "bint",
+    "da",
+    "de",
+    "del",
+    "den",
+    "der",
+    "di",
+    "dos",
+    "du",
+    "el",
+    "ibn",
+    "la",
+    "le",
+    "st",
+    "van",
+    "von",
+}
+
+_NON_NAME_TERMS = {
+    "accounting",
+    "analysis",
+    "analytics",
+    "architecture",
+    "asset",
+    "business",
+    "capital",
+    "commercial",
+    "construction",
+    "consumer",
+    "corporate",
+    "delivery",
+    "design",
+    "development",
+    "digital",
+    "engineering",
+    "execution",
+    "finance",
+    "financial",
+    "growth",
+    "implementation",
+    "innovation",
+    "intelligence",
+    "investment",
+    "leadership",
+    "management",
+    "market",
+    "marketing",
+    "operations",
+    "performance",
+    "portfolio",
+    "procurement",
+    "program",
+    "project",
+    "real",
+    "risk",
+    "skills",
+    "strategy",
+    "supply",
+    "systems",
+    "talent",
+    "technology",
+    "transformation",
+    "valuation",
+    "value",
+}
+
+
+def _normalize_heading_candidate(value: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z]+", " ", str(value or "").lower())).strip()
+
+
+def _is_profile_heading(value: str) -> bool:
+    normalized = _normalize_heading_candidate(value)
+    if not normalized:
+        return False
+    if normalized in _PROFILE_HEADING_TOKENS:
+        return True
+    return any(normalized.startswith(f"{token} ") for token in _PROFILE_HEADING_TOKENS)
+
+
+def _strip_name_suffixes(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    text = re.sub(r"\s*\([^)]*\)\s*$", "", text).strip(" ,")
+    if "," in text:
+        parts = [part.strip() for part in text.split(",") if part.strip()]
+        if len(parts) > 1 and all(re.fullmatch(r"[A-Z]{2,8}", part) for part in parts[1:]):
+            text = parts[0]
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _looks_like_person_name(value: str) -> bool:
+    candidate = _strip_name_suffixes(value)
+    if not candidate or _is_profile_heading(candidate):
+        return False
+    lowered = candidate.lower()
+    if any(marker in lowered for marker in ("@", "http://", "https://", "linkedin.com")):
+        return False
+    if any(ch.isdigit() for ch in candidate):
+        return False
+    words = [word.strip(".,;:") for word in candidate.split() if word.strip(".,;:")]
+    if len(words) < 2 or len(words) > 4:
+        return False
+    lowered_words = {word.lower() for word in words}
+    if any(word in _NON_NAME_TERMS for word in lowered_words):
+        return False
+    heading_words = {token for token in " ".join(_PROFILE_HEADING_TOKENS).split()}
+    if lowered_words & heading_words:
+        return False
+    role_words = set(" ".join(_PROFILE_ROLE_TOKENS).split())
+    if lowered_words & role_words:
+        return False
+    first_word = words[0].lower()
+    last_word = words[-1].lower()
+    if first_word in _NAME_CONNECTORS or last_word in _NAME_CONNECTORS:
+        return False
+    for word in words:
+        lowered = word.lower()
+        if lowered in _NAME_CONNECTORS:
+            continue
+        if re.fullmatch(r"[A-Z]{2,}", word):
+            continue
+        if re.fullmatch(r"[A-Z][A-Za-z'\-]+", word):
+            continue
+        return False
+    return True
+
+
+def _candidate_line_is_heading_context(candidate: str, lines: list[str]) -> bool:
+    candidate_clean = _strip_name_suffixes(candidate)
+    if not candidate_clean:
+        return False
+    for idx, line in enumerate(lines[:80]):
+        if _strip_name_suffixes(line).lower() != candidate_clean.lower():
+            continue
+        for offset in (1, 2):
+            if idx - offset < 0:
+                break
+            if _is_profile_heading(lines[idx - offset]):
+                return True
+    return False
+
+
+def _extract_name_from_profile_lines(lines: list[str]) -> Optional[str]:
+    candidates: list[tuple[int, str]] = []
+    for idx, line in enumerate(lines[:40]):
+        previous_line = lines[idx - 1] if idx > 0 else ""
+        if _is_profile_heading(previous_line):
+            continue
+        candidate = _strip_name_suffixes(line)
+        if not _looks_like_person_name(candidate):
+            continue
+        score = 100 - idx
+        if "," in line:
+            score += 8
+        if idx + 1 < len(lines):
+            next_line = lines[idx + 1].lower()
+            if any(token in next_line for token in _PROFILE_ROLE_TOKENS):
+                score += 20
+        candidates.append((score, candidate))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    return candidates[0][1]
+
+
+def _sanitize_employment_history(raw_value) -> list[dict]:
+    if not isinstance(raw_value, list):
+        return []
+    cleaned = []
+    for item in raw_value:
+        if not isinstance(item, dict):
+            continue
+        role = {
+            "title": str(item.get("title") or "").strip(),
+            "company": str(item.get("company") or "").strip(),
+            "start_date": str(item.get("start_date") or "").strip(),
+            "end_date": str(item.get("end_date") or "").strip(),
+            "location": str(item.get("location") or "").strip(),
+            "description": str(item.get("description") or "").strip(),
+        }
+        if any(role.values()):
+            cleaned.append(role)
+    return cleaned
 
 
 @router.post("/api/twin/upload_pdf", tags=["compat"])
@@ -327,32 +770,119 @@ async def twin_upload_pdf(file: UploadFile = File(...)):
     file_path = os.path.join(intake_dir, temp_name)
     with open(file_path, "wb") as handle:
         handle.write(await file.read())
-    from backend.services.ai_service import extract_text_from_file
+    from backend.services.ai_service import extract_document_profile, extract_text_from_file
     extracted_text = extract_text_from_file(file_path) or ""
     if not extracted_text.strip():
         raise HTTPException(400, "I could not extract readable text from that PDF.")
-    name = None
-    company = None
-    title = None
-    for line in [line.strip() for line in extracted_text.splitlines() if line.strip()][:8]:
-        if not name and re.match(r"^[A-Z][A-Za-z'\-]+(?:\s+[A-Z][A-Za-z'\-]+){1,3}$", line):
-            name = line
-            continue
-        if not title and any(token in line.lower() for token in ["manager", "director", "engineer", "head", "lead", "consultant", "partner", "specialist"]):
+
+    profile_result = {}
+    if settings.OPENAI_CONFIGURED:
+        try:
+            profile_result = await extract_document_profile(extracted_text)
+        except Exception as exc:
+            print(f"twin upload pdf profile extraction error: {exc}")
+
+    lines = [line.strip() for line in extracted_text.splitlines() if line.strip()]
+    name = str((profile_result or {}).get("full_name") or "").strip() or None
+    if name and (not _looks_like_person_name(name) or _candidate_line_is_heading_context(name, lines)):
+        name = None
+    title = str((profile_result or {}).get("title_current") or "").strip() or None
+    company = str((profile_result or {}).get("company_name_raw") or "").strip() or None
+
+    if not name:
+        name = _extract_name_from_profile_lines(lines)
+    for line in lines[:18]:
+        if not title and any(token in line.lower() for token in _PROFILE_ROLE_TOKENS):
             title = line
             continue
-        if not company and line not in {name, title} and len(line.split()) <= 6:
+        if (
+            not company
+            and line not in {name, title}
+            and len(line.split()) <= 6
+            and not _is_profile_heading(line)
+            and "linkedin" not in line.lower()
+        ):
             company = line
+
+    email_primary = str((profile_result or {}).get("email_primary") or "").strip().lower() or _extract_primary_email(extracted_text)
+    phone_primary = _normalize_phone_candidate(str((profile_result or {}).get("phone_primary") or "")) or _extract_primary_phone(extracted_text)
+    linkedin_url = str((profile_result or {}).get("linkedin_url") or "").strip() or _extract_primary_linkedin(extracted_text)
+    career_summary = str((profile_result or {}).get("career_summary") or "").strip() or extracted_text[:1200]
+    key_professional_notes = str((profile_result or {}).get("key_professional_notes") or "").strip() or None
+    employment_history = _sanitize_employment_history((profile_result or {}).get("employment_history"))
+    if not title and employment_history:
+        title = str(employment_history[0].get("title") or "").strip() or title
+    if not company and employment_history:
+        company = str(employment_history[0].get("company") or "").strip() or company
+    employment_history_json = json.dumps(employment_history, ensure_ascii=False) if employment_history else None
+
     if not name:
         raise HTTPException(400, "I could not confidently identify a contact name from that PDF.")
     person_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
+
     async def _create(db):
-        async with db.execute("SELECT person_id, full_name FROM PERSON WHERE full_name = ? AND IFNULL(company_name_raw, '') = IFNULL(?, '') LIMIT 1", (name, company)) as cursor:
+        async with db.execute(
+            """
+            SELECT person_id, full_name, title_current, company_name_raw, email_primary, phone_primary,
+                   linkedin_url, career_summary, key_professional_notes, employment_history
+            FROM PERSON
+            WHERE full_name = ? AND IFNULL(company_name_raw, '') = IFNULL(?, '')
+            LIMIT 1
+            """,
+            (name, company),
+        ) as cursor:
             existing = await cursor.fetchone()
         if existing:
+            existing = dict(existing)
+            updates = []
+            values = []
+            for field, value in (
+                ("title_current", title),
+                ("company_name_raw", company),
+                ("email_primary", email_primary),
+                ("phone_primary", phone_primary),
+                ("linkedin_url", linkedin_url),
+                ("career_summary", career_summary),
+                ("key_professional_notes", key_professional_notes),
+            ):
+                if value and not str(existing.get(field) or "").strip():
+                    updates.append(f"{field}=?")
+                    values.append(value)
+            if employment_history_json and not str(existing.get("employment_history") or "").strip():
+                updates.append("employment_history=?")
+                values.append(employment_history_json)
+            if updates:
+                updates.append("last_updated_at=?")
+                values.append(now)
+                values.append(existing["person_id"])
+                await db.execute(f"UPDATE PERSON SET {', '.join(updates)} WHERE person_id=?", values)
+                return {"status": "updated", "person_id": existing["person_id"], "full_name": existing["full_name"]}
             return {"status": "exists", "person_id": existing["person_id"], "full_name": existing["full_name"]}
-        await db.execute("INSERT INTO PERSON (person_id, full_name, title_current, company_name_raw, cat, career_summary, created_at, last_updated_at) VALUES (?,?,?,?,?,?,?,?)", (person_id, name, title, company, "GEN", extracted_text[:1200], now, now))
+        await db.execute(
+            """
+            INSERT INTO PERSON (
+                person_id, full_name, title_current, company_name_raw, email_primary, phone_primary, linkedin_url,
+                cat, career_summary, key_professional_notes, employment_history, created_at, last_updated_at
+            )
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                person_id,
+                name,
+                title,
+                company,
+                email_primary,
+                phone_primary,
+                linkedin_url,
+                "GEN",
+                career_summary,
+                key_professional_notes,
+                employment_history_json,
+                now,
+                now,
+            ),
+        )
         return {"status": "created", "person_id": person_id, "full_name": name}
     result = await run_write(_create, label=f"twin pdf create person {name}")
     return {"status": result["status"], "reply": f"Contact ready: {result['full_name']}", "data": result}

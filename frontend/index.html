@@ -57,13 +57,19 @@
                     <div class="relationship-age-summary" id="relationship-age-summary">Action priority map loading...</div>
                     <button class="filter-chip relationship-age-reset" type="button" onclick="resetRelationshipAgeFilter()">Reset</button>
                 </div>
-                <div class="relationship-age-slider">
+                <div class="relationship-age-summary dashboard-priority-summary" id="dashboard-priority-summary">
+                    Ranking mode: Default queue order.
+                </div>
+                <div class="relationship-age-slider" id="relationship-age-slider">
                     <input id="relationship-age-min" type="range" min="0" max="100" step="1" value="0" oninput="handleRelationshipAgeSliderChange()">
                     <input id="relationship-age-max" type="range" min="0" max="100" step="1" value="100" oninput="handleRelationshipAgeSliderChange()">
                     <div class="relationship-age-track">
                         <div class="relationship-age-track-fill" id="relationship-age-track-fill"></div>
                     </div>
+                    <div class="relationship-age-value-pill relationship-age-value-min" id="relationship-age-min-value">0</div>
+                    <div class="relationship-age-value-pill relationship-age-value-max" id="relationship-age-max-value">100</div>
                 </div>
+                <div class="relationship-age-selected-count" id="relationship-age-selected-count">Selected 0 of 0</div>
             </div>
 
             <div class="compact-filter-bar">
@@ -143,19 +149,19 @@
 
             <!-- Stats -->
             <div class="stats-grid">
-                <div class="stat-card status-past" onclick="filterByStatus('act_now')">
+                <div class="stat-card status-past" data-dashboard-preset="action" onclick="setDashboardPriorityPreset('action')" title="Rank by highest Action Priority">
                     <div class="stat-value" id="stat-overdue">0</div>
                     <div class="stat-label">Act Now</div>
                 </div>
-                <div class="stat-card status-soon" onclick="filterByStatus('maintain')">
+                <div class="stat-card status-soon" data-dashboard-preset="commercial" onclick="setDashboardPriorityPreset('commercial')" title="Rank by highest Commercial Opportunity">
                     <div class="stat-value" id="stat-soon">0</div>
                     <div class="stat-label">Maintain</div>
                 </div>
-                <div class="stat-card status-on_track" onclick="filterByStatus('preserve')">
+                <div class="stat-card status-on_track" data-dashboard-preset="critical" onclick="setDashboardPriorityPreset('critical')" title="Rank by most Critical Relationships">
                     <div class="stat-value" id="stat-ontrack">0</div>
                     <div class="stat-label">Preserve</div>
                 </div>
-                <div class="stat-card status-not_scheduled" onclick="filterByStatus('monitor')">
+                <div class="stat-card status-not_scheduled" data-dashboard-preset="default" onclick="setDashboardPriorityPreset('default')" title="Reset ranking to default queue order">
                     <div class="stat-value" id="stat-not-scheduled">0</div>
                     <div class="stat-label">Monitor</div>
             </div>
@@ -294,11 +300,6 @@
             <span class="twin-fab-label">AI</span>
         </div>
 
-        <!-- Scroll to Top Button -->
-        <div id="scroll-top-btn" class="scroll-top-btn" onclick="scrollToTop()" title="Return to Top">
-            ^
-        </div>
-
         <!-- Floating Action Button (Quick Capture) - REMOVED AS PER USER REQUEST -->
 
     </div>
@@ -312,7 +313,7 @@
     </script>
 
     <script src="/static/relationship-temperature.js"></script>
-  <script src="/js/index.js?v=20260321i"></script>
+  <script src="/js/index.js?v=20260323a"></script>
     <script>
         // --- Drag & Drop for PDF ---
         const twinModal = document.getElementById('twin-chat-modal');

@@ -39,7 +39,10 @@ from backend.services.correspondence_intelligence_service import (
 )
 from backend.services.network_orchestration_service import build_network_feed, get_network_contact_context
 from backend.services.pilot_cohort_service import is_person_in_pilot_cohort, resolve_pilot_cohort
-from backend.services.relationship_intelligence_pipeline import build_relationship_intelligence_pipeline
+from backend.services.relationship_intelligence_pipeline import (
+    STAGE2_SENTENCE_SIGNAL_KEYWORDS,
+    build_relationship_intelligence_pipeline,
+)
 from backend.services.system_settings_service import get_intelligence_settings
 from backend.services.transcript_guardrails import (
     is_non_transcript_chat_input as _is_non_transcript_chat_input,
@@ -358,9 +361,24 @@ def _looks_like_profile_photo_interaction(row: dict) -> bool:
 
 
 def _normalize_stage_code_for_segment(segment: str, code: str) -> str:
-    normalized = _normalize_opportunity_code(str(code or "").strip().upper())
+    normalized = _normalize_stage_tag_code(str(code or "").strip().upper())
+    lowered_segment = _normalize_segment_text(segment)
     if normalized in {"S8", "S9"} and _segment_prefers_positioning_stage(segment):
         return "S3"
+    if normalized in {"S8", "S9"}:
+        if _contains_any_term(lowered_segment, STAGE2_SENTENCE_SIGNAL_KEYWORDS.get("conversion_pending", set())):
+            return "S7"
+        if _contains_any_term(lowered_segment, STAGE2_SENTENCE_SIGNAL_KEYWORDS.get("active_discussion", set())):
+            return "S6"
+        if _contains_any_term(lowered_segment, STAGE2_SENTENCE_SIGNAL_KEYWORDS.get("problem_identified", set())):
+            return "S5"
+    if normalized in {"S8", "S9"} and (
+        _contains_any_term(lowered_segment, UNDERSTAND_STAGE_TERMS)
+        or re.search(r"\b\d{2,}\s+people\b", lowered_segment)
+    ):
+        return "S2"
+    if normalized == "S9" and not _contains_any_term(lowered_segment, MATURE_NURTURE_MARKERS):
+        return "S4"
     return normalized
 
 
@@ -635,7 +653,7 @@ DEFAULT_KNOWLEDGE_BUCKETS = [
     {"code": "K11", "box_key": "relationship_signal", "box_title": "Relationship Signal"},
 ]
 
-TRANSCRIPT_TAGGING_APPROACH_VERSION = "global-block-v1"
+TRANSCRIPT_TAGGING_APPROACH_VERSION = "global-block-v2"
 _TRANSCRIPT_TAGGING_STATE_READY = False
 _TRANSCRIPT_SEGMENT_BLOCK_MAX_LINES = 3
 _TRANSCRIPT_SEGMENT_BLOCK_MAX_CHARS = 420
@@ -643,15 +661,163 @@ _TRANSCRIPT_SEGMENT_LINE_CHUNK_MAX = 260
 _TRANSCRIPT_LEARNING_MAX_ROWS = 600
 _TRANSCRIPT_LEARNING_FUZZY_THRESHOLD = 0.72
 
+MATURE_NURTURE_MARKERS: tuple[str, ...] = (
+    "trusted relationship",
+    "mature trusted relationship",
+    "active nurture",
+    "between assignments",
+    "repeat relationship",
+)
+
+UNDERSTAND_STAGE_TERMS: tuple[str, ...] = (
+    "in charge",
+    "responsible for",
+    "team size",
+    "people in the region",
+    "regional director",
+)
+
+PERSONAL_HEALTH_SEGMENT_TERMS: tuple[str, ...] = (
+    "his back",
+    "her back",
+    "back pain",
+    "back problem",
+    "health issue",
+    "health issues",
+    "surgery",
+    "medical leave",
+    "hospitalized",
+    "hospitalised",
+)
+
+BUSINESS_PRESSURE_SEGMENT_TERMS: tuple[str, ...] = (
+    "business",
+    "workload",
+    "delivery",
+    "resource",
+    "capacity",
+    "hiring",
+    "recruitment",
+    "project",
+    "projects",
+    "commercial",
+    "client",
+    "team",
+    "market",
+    "role",
+    "headcount",
+)
+
+MIXED_CONTEXT_STAGE_PERSONAL_TERMS: tuple[str, ...] = (
+    *PERSONAL_HEALTH_SEGMENT_TERMS,
+    "wife",
+    "husband",
+    "daughter",
+    "son",
+    "children",
+    "family",
+    "safe",
+    "relationship remains",
+)
+
+MIXED_CONTEXT_STAGE_BUSINESS_TERMS: tuple[str, ...] = (
+    *BUSINESS_PRESSURE_SEGMENT_TERMS,
+    *UNDERSTAND_STAGE_TERMS,
+    "leadership",
+    "committee",
+    "steering committee",
+    "region",
+    "people",
+)
+
+STAGE_SENTENCE_SPLIT_MARKERS: tuple[str, ...] = (
+    "other than that",
+    "on the other hand",
+    "at the same time",
+    "however",
+)
+
 
 def _relationship_model() -> str:
     configured = str(getattr(settings, "RELATIONSHIP_STORY_MODEL", "") or "").strip()
     return configured or "gpt-5.2"
 
 
+def _is_ai_quota_or_rate_error(error: Exception) -> bool:
+    if error is None:
+        return False
+    status_code = getattr(error, "status_code", None)
+    try:
+        if int(status_code) == 429:
+            return True
+    except (TypeError, ValueError):
+        pass
+    text = str(error).lower()
+    return any(
+        token in text
+        for token in (
+            "429",
+            "insufficient_quota",
+            "quota",
+            "rate limit",
+            "rate_limit",
+            "billing",
+        )
+    )
+
+
 def _normalize_opportunity_code(code: str) -> str:
     normalized = str(code or "").strip().upper()
     return LEGACY_OPPORTUNITY_STAGE_CODE_MAP.get(normalized, normalized)
+
+
+def _normalize_stage_tag_code(code: str) -> str:
+    normalized = str(code or "").strip().upper()
+    if re.fullmatch(r"S[1-9]", normalized):
+        return normalized
+    return _normalize_opportunity_code(normalized)
+
+
+def _normalize_knowledge_code(code: str) -> str:
+    raw = str(code or "").strip().upper()
+    match = re.fullmatch(r"K?\s*(\d{1,2})", raw)
+    return f"K{int(match.group(1))}" if match else raw
+
+
+def _knowledge_code_for_box_key(tagging: dict, box_key: str) -> str:
+    wanted_key = re.sub(r"[^a-z0-9_]+", "_", str(box_key or "").strip().lower()).strip("_")
+    for row in tagging.get("knowledge_buckets") or []:
+        if not isinstance(row, dict):
+            continue
+        row_key = re.sub(r"[^a-z0-9_]+", "_", str(row.get("box_key") or "").strip().lower()).strip("_")
+        if row_key != wanted_key:
+            continue
+        return _normalize_knowledge_code(str(row.get("code") or ""))
+    return ""
+
+
+def _normalize_segment_text(value: str) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip().lower())
+
+
+def _contains_any_term(text: str, terms: set[str] | tuple[str, ...]) -> bool:
+    return any(term in text for term in (terms or []))
+
+
+def _normalize_knowledge_code_for_segment(segment: str, code: str, tagging: dict) -> str:
+    normalized = _normalize_knowledge_code(code)
+    if not normalized:
+        return normalized
+    challenge_code = _knowledge_code_for_box_key(tagging, "challenges_demands")
+    family_code = _knowledge_code_for_box_key(tagging, "family_status")
+    if not challenge_code or not family_code or normalized != challenge_code:
+        return normalized
+    lowered = _normalize_segment_text(segment)
+    has_personal_health = _contains_any_term(lowered, PERSONAL_HEALTH_SEGMENT_TERMS)
+    has_business_context = _contains_any_term(lowered, BUSINESS_PRESSURE_SEGMENT_TERMS)
+    if has_personal_health and not has_business_context:
+        return family_code
+    return normalized
 
 
 def _stage_class(code: str) -> str:
@@ -683,22 +849,33 @@ def _split_transcript_segments(value: str, mode: str = "stage") -> list[str]:
     if not lines:
         return []
 
-    segmented_lines: list[str] = []
+    segmented_lines: list[tuple[str, bool]] = []
     for line in lines:
         sentence_chunks = [
             part.strip()
             for part in re.split(r"(?<=[.!?])\s+", line)
             if part and part.strip()
         ]
-        if sentence_level and sentence_chunks:
-            segmented_lines.extend(sentence_chunks)
+        lowered_line = _normalize_segment_text(line)
+        force_sentence_level = sentence_level
+        if normalized_mode == "stage" and len(sentence_chunks) > 1:
+            has_personal_context = _contains_any_term(lowered_line, MIXED_CONTEXT_STAGE_PERSONAL_TERMS)
+            has_business_context = _contains_any_term(lowered_line, MIXED_CONTEXT_STAGE_BUSINESS_TERMS)
+            has_transition = _contains_any_term(lowered_line, STAGE_SENTENCE_SPLIT_MARKERS)
+            force_sentence_level = bool(
+                has_transition
+                or (has_personal_context and has_business_context)
+                or len(sentence_chunks) >= 4
+            )
+        if force_sentence_level and sentence_chunks:
+            segmented_lines.extend((chunk, True) for chunk in sentence_chunks)
             continue
         if len(line) <= _TRANSCRIPT_SEGMENT_LINE_CHUNK_MAX:
-            segmented_lines.append(line)
+            segmented_lines.append((line, False))
             continue
         if len(sentence_chunks) <= 1:
             segmented_lines.extend(
-                chunk.strip()
+                (chunk.strip(), False)
                 for chunk in (
                     line[idx : idx + _TRANSCRIPT_SEGMENT_LINE_CHUNK_MAX]
                     for idx in range(0, len(line), _TRANSCRIPT_SEGMENT_LINE_CHUNK_MAX)
@@ -712,20 +889,27 @@ def _split_transcript_segments(value: str, mode: str = "stage") -> list[str]:
         for chunk in sentence_chunks:
             projected = buffer_len + len(chunk) + (1 if buffer else 0)
             if buffer and projected > _TRANSCRIPT_SEGMENT_LINE_CHUNK_MAX:
-                segmented_lines.append(" ".join(buffer).strip())
+                segmented_lines.append((" ".join(buffer).strip(), False))
                 buffer = [chunk]
                 buffer_len = len(chunk)
             else:
                 buffer.append(chunk)
                 buffer_len = projected
         if buffer:
-            segmented_lines.append(" ".join(buffer).strip())
+            segmented_lines.append((" ".join(buffer).strip(), False))
 
     segments: list[str] = []
     current: list[str] = []
     current_len = 0
     block_max_lines = 1 if sentence_level else _TRANSCRIPT_SEGMENT_BLOCK_MAX_LINES
-    for line in segmented_lines:
+    for line, lock_sentence in segmented_lines:
+        if lock_sentence:
+            if current:
+                segments.append(" ".join(current).strip())
+                current = []
+                current_len = 0
+            segments.append(line)
+            continue
         projected = current_len + len(line) + (1 if current else 0)
         if current and (
             projected > _TRANSCRIPT_SEGMENT_BLOCK_MAX_CHARS
@@ -762,7 +946,7 @@ def _stage_tag_map(tagging: dict) -> dict[str, dict]:
         raw_code = str(row.get("code") or "").strip().upper()
         if not raw_code:
             continue
-        code = _normalize_opportunity_code(raw_code)
+        code = _normalize_stage_tag_code(raw_code)
         if not code:
             continue
         label = str(row.get("label") or code).strip() or code
@@ -830,7 +1014,7 @@ def _default_tag_code(mode: str, tagging: dict, tag_map: dict[str, dict]) -> str
     )
     for row in ordered_rows:
         raw_code = str((row or {}).get("code") or "").strip().upper()
-        code = _normalize_opportunity_code(raw_code) if mode == "stage" else raw_code
+        code = _normalize_stage_tag_code(raw_code) if mode == "stage" else raw_code
         if code in tag_map:
             return code
     for code in sorted(tag_map.keys()):
@@ -1636,7 +1820,10 @@ async def tag_profile_transcript_segments(person_id: str, req: TranscriptSegment
         manual_row = manual_overrides.get(segment_hash)
         if manual_row:
             manual_code = str(manual_row.get("tag_code") or "").strip().upper()
-            manual_code = _normalize_opportunity_code(manual_code) if mode == "stage" else manual_code
+            if mode == "stage":
+                manual_code = _normalize_stage_tag_code(manual_code)
+            else:
+                manual_code = _normalize_knowledge_code(manual_code)
             if manual_code in tag_map:
                 by_index[index] = {
                     "code": manual_code,
@@ -1649,7 +1836,10 @@ async def tag_profile_transcript_segments(person_id: str, req: TranscriptSegment
         learning_row = learning_by_hash.get(segment_hash)
         if learning_row:
             learned_code = str(learning_row.get("tag_code") or "").strip().upper()
-            learned_code = _normalize_stage_code_for_segment(segment, learned_code) if mode == "stage" else learned_code
+            if mode == "stage":
+                learned_code = _normalize_stage_code_for_segment(segment, learned_code)
+            else:
+                learned_code = _normalize_knowledge_code_for_segment(segment, learned_code, tagging)
             if learned_code in tag_map:
                 by_index[index] = {
                     "code": learned_code,
@@ -1661,6 +1851,8 @@ async def tag_profile_transcript_segments(person_id: str, req: TranscriptSegment
 
     unresolved_indexes = [index for index in range(len(segments)) if index not in prefilled_indexes]
     model_name = _relationship_model()
+    model_degraded = False
+    model_error = ""
     if unresolved_indexes:
         knowledge_mode_guidance = []
         if mode == "knowledge":
@@ -1727,7 +1919,12 @@ async def tag_profile_transcript_segments(person_id: str, req: TranscriptSegment
                 },
             )
         except Exception as exc:
-            raise HTTPException(502, f"Transcript tagging failed: {exc}") from exc
+            if _is_ai_quota_or_rate_error(exc) or "openai api key not configured" in str(exc).lower():
+                llm_result = {}
+                model_degraded = True
+                model_error = str(exc).strip()
+            else:
+                raise HTTPException(502, f"Transcript tagging failed: {exc}") from exc
 
         raw_rows = []
         if isinstance(llm_result, dict):
@@ -1745,7 +1942,10 @@ async def tag_profile_transcript_segments(person_id: str, req: TranscriptSegment
             if index not in unresolved_indexes:
                 continue
             raw_code = str(row.get("tag_code") or "").strip().upper()
-            code = _normalize_stage_code_for_segment(segments[index], raw_code) if mode == "stage" else raw_code
+            if mode == "stage":
+                code = _normalize_stage_code_for_segment(segments[index], raw_code)
+            else:
+                code = _normalize_knowledge_code_for_segment(segments[index], raw_code, tagging)
             confidence_raw = row.get("confidence")
             try:
                 confidence = float(confidence_raw)
@@ -1764,13 +1964,19 @@ async def tag_profile_transcript_segments(person_id: str, req: TranscriptSegment
     for index, segment in enumerate(segments):
         tagged = by_index.get(index)
         code = str((tagged or {}).get("code") or "").strip().upper()
-        code = _normalize_stage_code_for_segment(segment, code) if mode == "stage" else code
+        if mode == "stage":
+            code = _normalize_stage_code_for_segment(segment, code)
+        else:
+            code = _normalize_knowledge_code_for_segment(segment, code, tagging)
         mapped = code in tag_map
         if not mapped:
             learning_match = _pick_learning_match(segment, learning_rows)
             if learning_match:
                 learned_code = str(learning_match.get("tag_code") or "").strip().upper()
-                learned_code = _normalize_stage_code_for_segment(segment, learned_code) if mode == "stage" else learned_code
+                if mode == "stage":
+                    learned_code = _normalize_stage_code_for_segment(segment, learned_code)
+                else:
+                    learned_code = _normalize_knowledge_code_for_segment(segment, learned_code, tagging)
                 if learned_code in tag_map:
                     code = learned_code
                     tagged = {
@@ -1783,11 +1989,13 @@ async def tag_profile_transcript_segments(person_id: str, req: TranscriptSegment
         if not mapped:
             code = default_code
             mapped = code in tag_map
+            fallback_reason = "Model unavailable; default tag mapping used" if model_degraded else "Default tag mapping used"
+            fallback_source = "default_mapping_model_unavailable" if model_degraded else "default_mapping"
             tagged = {
                 "code": code,
                 "confidence": float((tagged or {}).get("confidence") or 0.2),
-                "reason": str((tagged or {}).get("reason") or "Default tag mapping used"),
-                "source": str((tagged or {}).get("source") or "default_mapping"),
+                "reason": str((tagged or {}).get("reason") or fallback_reason),
+                "source": str((tagged or {}).get("source") or fallback_source),
             }
         if mapped:
             tagged_segments += 1
@@ -1814,6 +2022,8 @@ async def tag_profile_transcript_segments(person_id: str, req: TranscriptSegment
         "model_name": model_name,
         "evidence_id": evidence_id or None,
         "approach_version": TRANSCRIPT_TAGGING_APPROACH_VERSION,
+        "model_degraded": model_degraded,
+        "model_error": model_error[:220] if model_error else None,
         "segments": response_rows,
         "totals": {
             "tagged_segments": tagged_segments,
@@ -1853,7 +2063,7 @@ async def set_profile_transcript_segment_override(person_id: str, req: Transcrip
     if not tag_map:
         raise HTTPException(400, "No configured tags available for this mode")
 
-    tag_code = _normalize_opportunity_code(raw_tag_code) if mode == "stage" else raw_tag_code
+    tag_code = _normalize_stage_tag_code(raw_tag_code) if mode == "stage" else raw_tag_code
     metadata = tag_map.get(tag_code)
     if not metadata:
         raise HTTPException(400, f"Invalid tag code '{raw_tag_code}' for mode '{mode}'")

@@ -1012,39 +1012,6 @@
             }
         }
 
-        /* Scroll to Top Button */
-        .scroll-top-btn {
-            position: fixed;
-            bottom: 1.5rem;
-            right: 1.5rem;
-            width: 50px;
-            height: 50px;
-            background: rgba(30, 41, 59, 0.4);
-            backdrop-filter: none !important;
-            border: 1px solid var(--glass-border);
-            border-radius: 50%;
-            display: none;
-            /* Hidden by default */
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.25rem;
-            cursor: pointer;
-            z-index: 999;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-        }
-
-        .scroll-top-btn:hover {
-            background: rgba(53, 232, 255, 0.2);
-            border-color: var(--accent-cyan);
-            box-shadow: 0 8px 32px rgba(53, 232, 255, 0.3);
-        }
-
-        .scroll-top-btn:active {
-            opacity: 0.8;
-        }
-
         /* Responsive */
         @media (max-width: 768px) {
             .quick-actions {
@@ -6154,4 +6121,17 @@
     grid-template-columns: 1fr;
     gap: 0.4rem;
   }
+}
+
+.profile-inline-edit.danger {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.48);
+  background: rgba(127, 29, 29, 0.2);
+}
+
+.profile-inline-edit.danger:hover,
+.profile-inline-edit.danger:focus-visible {
+  color: #ffffff;
+  border-color: rgba(248, 113, 113, 0.88);
+  background: rgba(220, 38, 38, 0.32);
 }

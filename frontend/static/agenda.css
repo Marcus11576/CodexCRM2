@@ -338,6 +338,138 @@
             flex-wrap: wrap;
         }
 
+.agenda-alarm-shell {
+            width: 100%;
+            padding: 0.9rem 1rem;
+            border-radius: 16px;
+            border: 1px solid rgba(53, 232, 255, 0.25);
+            background: linear-gradient(120deg, rgba(0, 71, 255, 0.16), rgba(53, 232, 255, 0.1));
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.85rem;
+            flex-wrap: wrap;
+        }
+
+        .agenda-alarm-main {
+            min-width: 0;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .agenda-alarm-kicker {
+            font-size: 0.62rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(225, 248, 255, 0.92);
+        }
+
+        .agenda-alarm-clock {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.08rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+
+        .agenda-alarm-next {
+            font-size: 0.73rem;
+            color: rgba(223, 248, 255, 0.92);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .agenda-alarm-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .agenda-alarm-btn {
+            border: 1px solid rgba(223, 248, 255, 0.38);
+            background: rgba(7, 15, 32, 0.4);
+            color: #ffffff;
+            border-radius: 999px;
+            padding: 0.45rem 0.8rem;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .agenda-alarm-btn:hover:not(:disabled) {
+            border-color: rgba(255, 255, 255, 0.75);
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .agenda-alarm-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .agenda-alarm-feed {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        .agenda-alarm-item {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 59, 48, 0.35);
+            background: rgba(127, 29, 29, 0.28);
+            padding: 0.6rem 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.7rem;
+        }
+
+        .agenda-alarm-item-copy {
+            min-width: 0;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .agenda-alarm-item-time {
+            font-size: 0.64rem;
+            color: #ffd9d7;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .agenda-alarm-item-text {
+            font-size: 0.75rem;
+            color: #ffffff;
+            line-height: 1.35;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .agenda-alarm-dismiss {
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            border-radius: 8px;
+            padding: 0.35rem 0.6rem;
+            font-size: 0.66rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
 .day-label {
     margin: 0;
 }
@@ -1270,6 +1402,14 @@
     flex-direction: column;
     align-items: stretch;
   }
+
+  .agenda-alarm-shell {
+    padding: 0.8rem;
+  }
+
+  .agenda-alarm-next {
+    white-space: normal;
+  }
 }
 
 @media (max-width: 560px) {
@@ -1319,6 +1459,30 @@
 
   .agenda-search-shell {
     padding: 0.8rem;
+  }
+
+  .agenda-alarm-shell {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .agenda-alarm-actions {
+    width: 100%;
+  }
+
+  .agenda-alarm-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .agenda-alarm-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .agenda-alarm-dismiss {
+    width: 100%;
   }
 
   .task-card {

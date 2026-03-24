@@ -10,6 +10,25 @@ const PROFILE_NAV_STORAGE_KEY = 'crm.profile.nav.v1';
 const relationshipTemperatureApi = window.RelationshipTemperature;
 let relationshipAgeRange = { min: 0, max: 100 };
 let dashboardMobileControlsOpen = false;
+let activeDashboardPriorityPreset = 'default';
+const DASHBOARD_PRIORITY_PRESETS = Object.freeze({
+    default: {
+        label: 'Default',
+        summary: 'Ranking mode: Default queue order (Monitor).',
+    },
+    action: {
+        label: 'Highest Priority',
+        summary: 'Ranking mode: Highest Action Priority score to lowest (Act Now).',
+    },
+    commercial: {
+        label: 'Commercial Opportunity',
+        summary: 'Ranking mode: Highest commercial opportunity signal to lowest (Maintain).',
+    },
+    critical: {
+        label: 'Critical Relationships',
+        summary: 'Ranking mode: Highest relationship risk/importance to lowest (Preserve).',
+    },
+});
 
 // Get initials from name
 function getInitials(name) {
@@ -19,16 +38,6 @@ function getInitials(name) {
         return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
     return name[0].toUpperCase();
-}
-
-// Cat badge mapping
-function getCatBadge(catStr) {
-    if (!catStr) return '<span class="badge">GEN</span>';
-
-    return catStr.split(',').map(cat => {
-        cat = cat.trim();
-        return `<span class="badge">${cat}</span>`;
-    }).join(' ');
 }
 
 function normalizeCatValue(value) {
@@ -361,6 +370,14 @@ function buildActionPriorityPreview(contact, temperature) {
     const model = contact?.action_priority || computeActionPriorityModel(contact, temperature);
     const scoreText = model.hasScore ? `${model.score}%` : '--';
     const scoreValue = model.hasScore ? model.score : 0;
+    const compactReason = String(model.reasonText || '')
+        .split('|')
+        .map((part) => part.trim())
+        .filter(Boolean)[0] || 'Review relationship momentum and next step.';
+    const compactMeta = [model.contactSummary, model.taskSummary]
+        .map((text) => String(text || '').trim())
+        .filter(Boolean)
+        .slice(0, 2);
     return `
                     <div class="contact-task-preview is-pinned action-priority-preview ${escapeHtml(model.band.className)}" style="--priority-accent:${escapeHtml(model.band.accent)}; --priority-soft:${escapeHtml(model.band.soft)};">
                         <div class="action-priority-head">
@@ -373,16 +390,12 @@ function buildActionPriorityPreview(contact, temperature) {
                                 <div class="action-priority-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${scoreValue}">
                                     <span style="width:${scoreValue}%"></span>
                                 </div>
-                                <div class="action-priority-reason">${escapeHtml(model.reasonText)}</div>
+                                <div class="action-priority-reason">${escapeHtml(compactReason)}</div>
                             </div>
                         </div>
                         <div class="action-priority-meta-row">
-                            <span class="action-priority-chip">${escapeHtml(model.contactSummary)}</span>
-                            <span class="action-priority-chip">${escapeHtml(model.taskSummary)}</span>
-                            <span class="action-priority-chip">Stage ${escapeHtml(model.stageLabel)}</span>
-                            <span class="action-priority-chip">Health ${model.healthScore}%</span>
+                            ${compactMeta.map((item) => `<span class="action-priority-chip">${escapeHtml(item)}</span>`).join('')}
                         </div>
-                        <div class="action-priority-next"><strong>Next action:</strong> ${escapeHtml(model.nextActionLabel || 'Add/confirm a next step.')}</div>
                         <div class="action-priority-next"><strong>Next task:</strong> ${escapeHtml(model.nextTaskLabel)}</div>
                         <div class="action-priority-links">
                             <a href="${escapeHtml(model.agendaHref)}" onclick="event.stopPropagation();">Open in Agenda</a>
@@ -423,6 +436,9 @@ function syncRelationshipAgeSlider() {
     const maxInput = document.getElementById('relationship-age-max');
     const fill = document.getElementById('relationship-age-track-fill');
     const legend = document.getElementById('relationship-age-legend');
+    const slider = document.getElementById('relationship-age-slider');
+    const minValueBadge = document.getElementById('relationship-age-min-value');
+    const maxValueBadge = document.getElementById('relationship-age-max-value');
     const sliderMax = getRelationshipAgeSliderMax();
     if (!minInput || !maxInput || !fill || !legend) return;
 
@@ -437,6 +453,23 @@ function syncRelationshipAgeSlider() {
     const endPct = (relationshipAgeRange.max / sliderMax) * 100;
     fill.style.left = `${startPct}%`;
     fill.style.width = `${Math.max(0, endPct - startPct)}%`;
+
+    if (minValueBadge && maxValueBadge && slider) {
+        minValueBadge.textContent = String(relationshipAgeRange.min);
+        maxValueBadge.textContent = String(relationshipAgeRange.max);
+
+        const sliderWidth = slider.clientWidth || 1;
+        const minBadgeWidth = minValueBadge.offsetWidth || 24;
+        const maxBadgeWidth = maxValueBadge.offsetWidth || 24;
+
+        const minPosition = (startPct / 100) * sliderWidth;
+        const maxPosition = (endPct / 100) * sliderWidth;
+        const clampedMin = Math.min(Math.max(minPosition, minBadgeWidth / 2), sliderWidth - (minBadgeWidth / 2));
+        const clampedMax = Math.min(Math.max(maxPosition, maxBadgeWidth / 2), sliderWidth - (maxBadgeWidth / 2));
+
+        minValueBadge.style.left = `${clampedMin}px`;
+        maxValueBadge.style.left = `${clampedMax}px`;
+    }
 
     legend.textContent = 'Action Priority: Stable 0-39 | In Motion 40-69 | Needs Action 70-100';
 }
@@ -458,12 +491,14 @@ function handleRelationshipAgeSliderChange() {
     }
     relationshipAgeRange = { min: minValue, max: maxValue };
     syncRelationshipAgeSlider();
+    updateRelationshipAgeSelectedCount(0, 0, true);
     loadDashboard();
 }
 
 function resetRelationshipAgeFilter() {
     relationshipAgeRange = { min: 0, max: getRelationshipAgeSliderMax() };
     syncRelationshipAgeSlider();
+    updateRelationshipAgeSelectedCount(0, 0, true);
     loadDashboard();
 }
 
@@ -558,6 +593,144 @@ function updateOverlaySummary(feed) {
     target.textContent = `No next step ${summary.no_next_step_count || 0} | Follow-up check ${summary.follow_up_confirmation_count || 0} | Meeting churn ${summary.meeting_churn_count || 0} | Task pressure ${summary.open_task_pressure_count || 0} | Invisible ${summary.invisible_count || 0}`;
 }
 
+function updateRelationshipAgeSelectedCount(selectedCount = 0, totalCount = 0, loading = false) {
+    const target = document.getElementById('relationship-age-selected-count');
+    if (!target) return;
+    if (loading) {
+        target.textContent = 'Updating selection...';
+        return;
+    }
+    target.textContent = `Selected ${selectedCount} of ${totalCount}`;
+}
+
+function getDashboardPriorityPresetConfig() {
+    return DASHBOARD_PRIORITY_PRESETS[activeDashboardPriorityPreset] || DASHBOARD_PRIORITY_PRESETS.default;
+}
+
+function updateDashboardPrioritySummary(visibleCount = null) {
+    const target = document.getElementById('dashboard-priority-summary');
+    if (!target) return;
+    const config = getDashboardPriorityPresetConfig();
+    const countSuffix = Number.isFinite(visibleCount) ? ` | ${visibleCount} shown` : '';
+    target.textContent = `${config.summary}${countSuffix}`;
+}
+
+function syncDashboardPriorityPresetControls() {
+    const buttons = document.querySelectorAll('[data-dashboard-preset]');
+    buttons.forEach((button) => {
+        const preset = button.dataset.dashboardPreset || 'default';
+        if (preset === activeDashboardPriorityPreset) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+    updateDashboardPrioritySummary();
+}
+
+function setDashboardPriorityPreset(preset) {
+    const normalized = String(preset || 'default').trim().toLowerCase();
+    if (!DASHBOARD_PRIORITY_PRESETS[normalized]) return;
+    activeDashboardPriorityPreset = normalized;
+    activeMeetingStatuses.clear();
+    syncDashboardPriorityPresetControls();
+    loadDashboard();
+}
+
+function dashboardActionPriorityScore(contact) {
+    const model = contact?.action_priority || computeActionPriorityModel(
+        contact,
+        contact?.relationship_temperature || relationshipTemperatureApi.getTemperature(contact)
+    );
+    if (!model?.hasScore) return -1;
+    return clampPercent(model.score);
+}
+
+function dashboardCommercialPriorityScore(contact) {
+    const directCommercial = toFiniteNumber(contact?.commercial_priority_score, null);
+    if (Number.isFinite(directCommercial)) return clampPercent(directCommercial);
+
+    const opportunityReadiness = clampPercent(toFiniteNumber(contact?.opportunity_readiness_score, 0));
+    const strategicValue = clampPercent(toFiniteNumber(contact?.strategic_value_score, 0));
+    const influence = clampPercent(toFiniteNumber(contact?.influence_score, 0));
+    const openOpportunityCount = Math.max(
+        0,
+        Math.round(toFiniteNumber(contact?.open_opportunity_count, toFiniteNumber(contact?.opportunity_count, 0)))
+    );
+    const openOpportunitySignal = clampPercent(openOpportunityCount * 20);
+    const blended = (
+        (opportunityReadiness * 0.45)
+        + (strategicValue * 0.25)
+        + (influence * 0.2)
+        + (openOpportunitySignal * 0.1)
+    );
+    return clampPercent(blended);
+}
+
+function dashboardTierWeightScore(contact) {
+    const rawTier = String(contact?.effective_network_tier || contact?.network_tier || '').trim().toUpperCase();
+    const matchedTier = rawTier.match(/T([1-4])/);
+    const tierCode = matchedTier ? `T${matchedTier[1]}` : rawTier;
+    if (tierCode === 'T1') return 100;
+    if (tierCode === 'T2') return 80;
+    if (tierCode === 'T3') return 60;
+    if (tierCode === 'T4') return 40;
+    return 20;
+}
+
+function dashboardCriticalRelationshipScore(contact) {
+    const coverageRisk = clampPercent(toFiniteNumber(contact?.coverage_risk_score, 0));
+    const executionPressure = clampPercent(toFiniteNumber(contact?.execution_pressure_score, 0));
+    const relationshipHealth = clampPercent(toFiniteNumber(contact?.relationship_health_score, toFiniteNumber(contact?.network_health_score, 55)));
+    const relationshipWeakness = clampPercent(100 - relationshipHealth);
+    const influence = clampPercent(toFiniteNumber(contact?.influence_score, 0));
+    const tierWeight = dashboardTierWeightScore(contact);
+
+    let score = (
+        (coverageRisk * 0.32)
+        + (executionPressure * 0.24)
+        + (relationshipWeakness * 0.18)
+        + (influence * 0.12)
+        + (tierWeight * 0.14)
+    );
+
+    if (!contact?.has_future_cover) score += 12;
+    if (contact?.has_task_pressure) score += 10;
+    if (Math.max(0, Math.round(toFiniteNumber(contact?.overdue_open_task_count, 0))) > 0) score += 8;
+    if (contact?.is_high_priority) score += 10;
+    if (contact?.has_meeting_churn) score += 6;
+
+    return clampPercent(score);
+}
+
+function dashboardPresetScore(contact) {
+    if (activeDashboardPriorityPreset === 'action') return dashboardActionPriorityScore(contact);
+    if (activeDashboardPriorityPreset === 'commercial') return dashboardCommercialPriorityScore(contact);
+    if (activeDashboardPriorityPreset === 'critical') return dashboardCriticalRelationshipScore(contact);
+    return 0;
+}
+
+function applyDashboardPriorityPreset(list) {
+    const ranked = Array.isArray(list) ? [...list] : [];
+    if (activeDashboardPriorityPreset === 'default') return ranked;
+
+    ranked.sort((left, right) => {
+        const rightScore = dashboardPresetScore(right);
+        const leftScore = dashboardPresetScore(left);
+        if (rightScore !== leftScore) return rightScore - leftScore;
+
+        const rightAction = dashboardActionPriorityScore(right);
+        const leftAction = dashboardActionPriorityScore(left);
+        if (rightAction !== leftAction) return rightAction - leftAction;
+
+        const leftName = String(left?.full_name || '').toLowerCase();
+        const rightName = String(right?.full_name || '').toLowerCase();
+        return leftName.localeCompare(rightName);
+    });
+
+    return ranked;
+}
+
 // Helper to filter lists based on UI state
 const filterList = (list) => {
     let filtered = list || [];
@@ -606,7 +779,8 @@ const filterList = (list) => {
             c,
             c.relationship_temperature || relationshipTemperatureApi.getTemperature(c)
         );
-        if (!model?.hasScore) return true;
+        const isDefaultRange = relationshipAgeRange.min === 0 && relationshipAgeRange.max === getRelationshipAgeSliderMax();
+        if (!model?.hasScore) return isDefaultRange;
         return model.score >= relationshipAgeRange.min && model.score <= relationshipAgeRange.max;
     });
 
@@ -628,6 +802,7 @@ async function loadDashboard() {
         if (emptyState) {
             emptyState.style.display = 'none';
         }
+        updateRelationshipAgeSelectedCount(0, 0, true);
 
         const feedRes = await fetch(`${API_BASE}/api/dashboard/network-feed`);
         const feed = attachRelationshipTemperature(await feedRes.json());
@@ -641,10 +816,14 @@ async function loadDashboard() {
 
         // --- Filter Logic ---
 
-        const actNow = filterList(feed.act_now);
-        const maintain = filterList(feed.maintain || []);
-        const preserve = filterList(feed.preserve);
-        const monitor = filterList(feed.monitor);
+        const actNow = applyDashboardPriorityPreset(filterList(feed.act_now));
+        const maintain = applyDashboardPriorityPreset(filterList(feed.maintain || []));
+        const preserve = applyDashboardPriorityPreset(filterList(feed.preserve));
+        const monitor = applyDashboardPriorityPreset(filterList(feed.monitor));
+        const visibleCount = actNow.length + maintain.length + preserve.length + monitor.length;
+        const totalCount = (feed.act_now || []).length + (feed.maintain || []).length + (feed.preserve || []).length + (feed.monitor || []).length;
+        updateDashboardPrioritySummary(visibleCount);
+        updateRelationshipAgeSelectedCount(visibleCount, totalCount);
 
         // Update Stats to reflect 'Filtered' counts
         const oCount = document.getElementById('stat-overdue');
@@ -652,22 +831,12 @@ async function loadDashboard() {
         const otCount = document.getElementById('stat-ontrack');
         const nsCount = document.getElementById('stat-not-scheduled');
         
-        if (oCount) oCount.textContent = feed.act_now.length;
-        if (sCount) sCount.textContent = feed.maintain.length;
-        if (otCount) otCount.textContent = feed.preserve.length;
-        if (nsCount) nsCount.textContent = (feed.monitor || []).length;
+        if (oCount) oCount.textContent = actNow.length;
+        if (sCount) sCount.textContent = maintain.length;
+        if (otCount) otCount.textContent = preserve.length;
+        if (nsCount) nsCount.textContent = monitor.length;
 
-        // Update Stat Card Active States
-        document.querySelectorAll('.stat-card').forEach(card => {
-            const type = card.className.split('status-')[1]?.split(' ')[0];
-            // Normalize overdue vs past for mapping
-            const cleanType = type === 'past' ? 'act_now' : type;
-            if (activeMeetingStatuses.has(cleanType)) {
-                card.classList.add('active');
-            } else {
-                card.classList.remove('active');
-            }
-        });
+        syncDashboardPriorityPresetControls();
 
         // --- Render ---
         const hasContacts = actNow.length + maintain.length + preserve.length + monitor.length > 0;
@@ -728,6 +897,7 @@ async function loadDashboard() {
 
     } catch (error) {
         console.error('Dashboard load error:', error);
+        updateRelationshipAgeSelectedCount(0, 0);
         document.getElementById('loading-state').style.display = 'block';
         document.getElementById('loading-state').innerHTML = `
                     <p style="color: var(--accent-red);">Failed to load dashboard</p>
@@ -1174,17 +1344,6 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-function dashboardCoverLabel(contact) {
-    const labels = {
-        meeting: 'Booked meeting',
-        task: 'Dated task',
-        scheduled_touchpoint: 'Scheduled follow-up',
-        undated_task: 'Undated task only',
-        none: 'No reliable cover',
-    };
-    return labels[String(contact.cover_kind || 'none')] || String(contact.cover_kind || 'No reliable cover');
-}
-
 function categoryDisplayLabel(value) {
     const normalized = normalizeCatValue(value);
     if (normalized === 'OBE M') return 'OBE Member';
@@ -1214,10 +1373,31 @@ function buildDashboardAttributeChips(contact) {
         .filter(Boolean);
     const categoryDisplay = categoryValues.map(categoryDisplayLabel).filter(Boolean).join(', ');
     if (categoryDisplay) chips.push(`<span class="contact-attr-chip">${escapeHtml(categoryDisplay)}</span>`);
-    if (contact.env) chips.push(`<span class="contact-attr-chip">${escapeHtml(normalizeEnvValue(contact.env))}</span>`);
-    if (contact.disc) chips.push(`<span class="contact-attr-chip">${escapeHtml(normalizeDiscValue(contact.disc))}</span>`);
     if (contact.contact_value) chips.push(`<span class="contact-attr-chip contact-attr-chip-status">${escapeHtml(normalizeContactValue(contact.contact_value))}</span>`);
-    return chips.join('');
+    if (!chips.length && contact.env) {
+        chips.push(`<span class="contact-attr-chip">${escapeHtml(normalizeEnvValue(contact.env))}</span>`);
+    }
+    return chips.slice(0, 2).join('');
+}
+
+function buildDashboardAttentionFlags(contact) {
+    const flags = [];
+    const overdueTaskCount = Math.max(0, Math.round(toFiniteNumber(contact?.overdue_open_task_count, 0)));
+    if (overdueTaskCount > 0) {
+        flags.push(`<span class="contact-alert-chip tone-danger">${overdueTaskCount} overdue</span>`);
+    }
+    if (!contact.has_future_cover) {
+        flags.push('<span class="contact-alert-chip tone-danger">No next step</span>');
+    }
+    if (contact.follow_up_confirmation_needed) {
+        flags.push('<span class="contact-alert-chip tone-warn">Confirm outcome</span>');
+    }
+    if ((contact.recent_cancelled_meeting_count || 0) > 0) {
+        flags.push('<span class="contact-alert-chip tone-warn">Meeting cancelled</span>');
+    } else if ((contact.recent_rescheduled_meeting_count || 0) > 0) {
+        flags.push('<span class="contact-alert-chip tone-info">Meeting moved</span>');
+    }
+    return flags.slice(0, 2);
 }
 
 function renderContact(contact, listId) {
@@ -1242,13 +1422,7 @@ function renderContact(contact, listId) {
         : `<div class="contact-avatar">${initials}</div>`;
 
     const taskPreviewHtml = buildActionPriorityPreview(contact, temperature);
-    const attentionFlags = [];
-    if (contact.follow_up_confirmation_needed) attentionFlags.push('<span class="contact-alert-chip tone-danger">Confirm outcome</span>');
-    if (contact.has_task_pressure) attentionFlags.push('<span class="contact-alert-chip tone-danger">Task pressure</span>');
-    if ((contact.recent_cancelled_meeting_count || 0) > 0) attentionFlags.push('<span class="contact-alert-chip tone-danger">Meeting cancelled</span>');
-    else if ((contact.recent_rescheduled_meeting_count || 0) > 0) attentionFlags.push('<span class="contact-alert-chip tone-warn">Meeting rescheduled</span>');
-    if (contact.has_future_cover) attentionFlags.push(`<span class="contact-alert-chip tone-info">${escapeHtml(dashboardCoverLabel(contact))}</span>`);
-    else attentionFlags.push('<span class="contact-alert-chip tone-danger">No next step</span>');
+    const attentionFlags = buildDashboardAttentionFlags(contact);
     const attentionFlagsHtml = attentionFlags.length ? `<div class="contact-alert-row">${attentionFlags.join('')}</div>` : '';
     const attributeChips = buildDashboardAttributeChips(contact);
     const mainTitle = formatDashboardTitle(contact);
@@ -1344,6 +1518,7 @@ function showMeetingFeed(updateHistory = true) {
     const title = document.getElementById('dashboard-mode-title');
     if (title) title.textContent = 'Dashboard';
     syncRelationshipAgeSlider();
+    syncDashboardPriorityPresetControls();
     updateCompactFilterLabels();
 
     // Update History
@@ -1364,31 +1539,13 @@ window.onpopstate = function () {
 // Load on page ready
 function initDashboardFromUrl() {
     relationshipAgeRange = { min: 0, max: getRelationshipAgeSliderMax() };
+    activeDashboardPriorityPreset = 'default';
     dashboardMobileControlsOpen = !dashboardMobileMode();
     syncRelationshipAgeSlider();
+    syncDashboardPriorityPresetControls();
     updateCompactFilterLabels();
     syncDashboardMobileControls();
     showMeetingFeed(false);
-}
-
-function renderEventDashboardWidget(summary) {
-    const widget = document.getElementById('event-dashboard-widget');
-    const title = document.getElementById('event-dashboard-mini-title');
-    const meta = document.getElementById('event-dashboard-mini-meta');
-    if (!widget || !title || !meta) return;
-
-    const upcomingEvents = summary.upcoming_events || [];
-    if (!upcomingEvents.length) {
-        widget.style.display = 'none';
-        return;
-    }
-
-    const nextEvent = upcomingEvents[0];
-    widget.style.display = 'block';
-    widget.href = nextEvent?.event_id ? `/events/${nextEvent.event_id}` : '/events';
-    title.textContent = nextEvent?.event_name || 'Upcoming events';
-    meta.textContent = `${formatDate(nextEvent?.event_date)} · ${summary.upcoming_event_count || 0} upcoming`;
-    widget.title = `${summary.upcoming_event_count || 0} upcoming events · ${summary.upcoming_linked_people || 0} linked people`;
 }
 
 async function loadEventDashboardWidget() {
@@ -1424,7 +1581,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initDashboardFromUrl();
     syncRelationshipAgeSlider();
     loadEventDashboardWidget();
-    window.addEventListener('resize', () => syncDashboardMobileControls());
+    window.addEventListener('resize', () => {
+        syncDashboardMobileControls();
+        syncRelationshipAgeSlider();
+    });
     document.addEventListener('click', (event) => {
         if (!event.target.closest('.compact-filter-group')) {
             closeAllFilterDropdowns();
@@ -1448,6 +1608,15 @@ function escapeTwinHtml(value) {
 
 function formatTwinText(value) {
     return escapeTwinHtml(value).replace(/\n/g, '<br>');
+}
+
+function twinCompanyHref(item) {
+    const name = String(item?.company_name || item?.company_name_raw || '').trim();
+    if (typeof window.companyDirectoryHref === 'function') {
+        return window.companyDirectoryHref(name || item?.company_key || '');
+    }
+    const key = String(item?.company_key || name).trim().toLowerCase();
+    return key ? `/companies/${encodeURIComponent(key)}` : '/companies';
 }
 
 
@@ -1517,14 +1686,25 @@ async function sendTwinMessage() {
         if (data.reply) appendMessage('twin', data.reply);
         if (data.data && Array.isArray(data.data)) renderSearchResults(data.data);
         if (data.pending_action && data.pending_action.type !== 'search') {
-            renderActionCard(data.pending_action);
+            await executeTwinAction(data.pending_action);
         }
         twinHistory.push({ role: 'user', content: message });
         const assistantBits = [];
         if (data.reply) assistantBits.push(data.reply);
         if (data.data && Array.isArray(data.data) && data.data.length) {
-            const contextList = data.data.map((p) => `${p.full_name || 'Unknown'} (${p.company_name_raw || 'Unknown'})`).join(', ');
-            assistantBits.push(`[System Context: ${contextList}]`);
+            const first = data.data[0] || {};
+            const looksLikeCompanies = !!(first.result_type === 'company' || first.company_key);
+            if (looksLikeCompanies) {
+                const contextList = data.data
+                    .map((company) => `${company.company_name || company.company_key || 'Unknown'} (${company.employee_count || 0} employees)`)
+                    .join(', ');
+                assistantBits.push(`[System Context: ${contextList}]`);
+            } else {
+                const contextList = data.data
+                    .map((person) => `${person.full_name || 'Unknown'} (${person.company_name_raw || 'Unknown'})`)
+                    .join(', ');
+                assistantBits.push(`[System Context: ${contextList}]`);
+            }
         }
         if (assistantBits.length) twinHistory.push({ role: 'assistant', content: assistantBits.join('\n\n') });
     } catch (err) {
@@ -1539,29 +1719,6 @@ async function sendTwinMessage() {
 }
 
 
-
-let actionCache = {};
-
-function renderActionCard(action) {
-    const historyDiv = document.getElementById('twin-history');
-    const div = document.createElement('div');
-    const actionId = 'action-' + Date.now();
-    actionCache[actionId] = action;
-    div.className = 'chat-message twin';
-    div.innerHTML = `
-        <div class="action-card">
-            <h4>Confirm Action</h4>
-            <p><strong>Type:</strong> ${escapeTwinHtml(action.type || 'action')}</p>
-            <p><strong>Details:</strong> <pre style="font-size:0.8rem; overflow-x:auto;">${escapeTwinHtml(JSON.stringify(action.params || {}, null, 2))}</pre></p>
-            <div style="margin-top:0.5rem; display:flex; gap:0.5rem;">
-                <button class="btn btn-primary" onclick="executeTwinAction(actionCache['${actionId}'])">Confirm</button>
-                <button class="btn btn-secondary" onclick="this.closest('.chat-message').remove()">Cancel</button>
-            </div>
-        </div>
-    `;
-    historyDiv.appendChild(div);
-    historyDiv.scrollTop = historyDiv.scrollHeight;
-}
 
 async function executeTwinAction(action) {
     if (!action || twinState.actionRunning) return;
@@ -1601,36 +1758,31 @@ function renderSearchResults(results) {
         appendMessage('twin', 'No results found.');
         return;
     }
+    const companyCount = results.filter((item) => item && (item.result_type === 'company' || item.company_key)).length;
+    const peopleCount = Math.max(0, results.length - companyCount);
     const historyDiv = document.getElementById('twin-history');
     const container = document.createElement('div');
     container.className = 'chat-message twin';
     container.style.background = 'transparent';
     container.style.border = 'none';
     container.style.padding = '0';
-    const exportId = 'export-' + Date.now();
-    const exportCSV = () => {
-        const headers = ['Name', 'Title', 'Company', 'Category', 'Environment'];
-        const rows = results.map((p) => [p.full_name || '', p.title_current || '', p.company_name_raw || '', p.cat || '', p.env || '']);
-        const csvContent = [headers, ...rows].map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `crm_export_${new Date().toISOString().slice(0, 10)}.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
-
-    };
     let html = `<div style="display:flex; flex-direction:column; gap:0.5rem; width:100%;">`;
-    html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;"><span style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:1px;">${results.length} results</span><button id="${exportId}" style="background:rgba(53,232,255,0.1); border:1px solid var(--accent-cyan); color:var(--accent-cyan); padding:4px 10px; border-radius:6px; font-size:0.7rem; font-weight:700; cursor:pointer;">Export CSV</button></div>`;
+    html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;"><span style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:1px;">${results.length} results (${peopleCount} contacts, ${companyCount} companies)</span></div>`;
     results.forEach((p) => {
-        html += `<div onclick="window.location.href='/person/${escapeTwinHtml(p.person_id || '')}'" style="background: var(--bg-card); border: 1px solid var(--glass-border); padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: transform 0.2s; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--glass-border)'"><div><div style="font-weight:700; color:var(--text-primary);">${escapeTwinHtml(p.full_name || 'Unknown')}</div><div style="font-size:0.8rem; color:var(--text-secondary);">${escapeTwinHtml(p.title_current || 'No Title')} @ ${escapeTwinHtml(p.company_name_raw || 'Unknown')}</div><div style="font-size:0.7rem; color:var(--accent-cyan); margin-top:2px;">${escapeTwinHtml(p.cat || '')}</div></div><div style="color:var(--accent-blue);">View</div></div>`;
+        const isCompanyResult = !!(p && (p.result_type === 'company' || p.company_key));
+        if (isCompanyResult) {
+            const href = twinCompanyHref(p);
+            const parentMeta = p.parent_company_name ? ` | Parent: ${escapeTwinHtml(p.parent_company_name)}` : '';
+            const scoreText = Number.isFinite(Number(p.highest_employee_score)) ? `${Math.round(Number(p.highest_employee_score))}%` : '--';
+            html += `<div onclick="window.location.href='${escapeTwinHtml(href)}'" style="background: var(--bg-card); border: 1px solid var(--glass-border); padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: transform 0.2s; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--glass-border)'"><div><div style="font-weight:700; color:var(--text-primary);">${escapeTwinHtml(p.company_name || p.company_key || 'Unknown company')}</div><div style="font-size:0.8rem; color:var(--text-secondary);">${escapeTwinHtml(p.company_type || 'Type not set')}${parentMeta}</div><div style="font-size:0.7rem; color:var(--accent-cyan); margin-top:2px;">${escapeTwinHtml(String(p.employee_count || 0))} employees | Highest score ${escapeTwinHtml(scoreText)}</div></div><div style="color:var(--accent-blue);">View</div></div>`;
+        } else {
+            html += `<div onclick="window.location.href='/person/${escapeTwinHtml(p.person_id || '')}'" style="background: var(--bg-card); border: 1px solid var(--glass-border); padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: transform 0.2s; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--glass-border)'"><div><div style="font-weight:700; color:var(--text-primary);">${escapeTwinHtml(p.full_name || 'Unknown')}</div><div style="font-size:0.8rem; color:var(--text-secondary);">${escapeTwinHtml(p.title_current || 'No Title')} @ ${escapeTwinHtml(p.company_name_raw || 'Unknown')}</div><div style="font-size:0.7rem; color:var(--accent-cyan); margin-top:2px;">${escapeTwinHtml(p.cat || '')}</div></div><div style="color:var(--accent-blue);">View</div></div>`;
+        }
     });
     html += `</div>`;
     container.innerHTML = html;
     historyDiv.appendChild(container);
     historyDiv.scrollTop = historyDiv.scrollHeight;
-    document.getElementById(exportId)?.addEventListener('click', exportCSV);
 }
 
 async function pollTranscriptionJob(jobId) {
@@ -1758,3 +1910,4 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+

@@ -681,7 +681,7 @@ function renderBriefing(payload) {
     const container = document.getElementById('briefing-content');
     if (!container) return;
     const forceRefresh = !!payload?.forceRefresh;
-    const assetRevision = '20260321m';
+    const assetRevision = '20260323n';
     const existingFrame = container.querySelector('#lab-profile-embed');
     if (existingFrame && !forceRefresh) {
         try {

@@ -10,7 +10,7 @@
     <script src="/static/utils.js?v=20260318d"></script>
     <script src="/js/background.js?v=20260311u"></script>
     <link rel="stylesheet" href="/static/design-system.css?v=20260318b">
-    <link rel="stylesheet" href="/static/agenda.css?v=20260311u">
+    <link rel="stylesheet" href="/static/agenda.css?v=20260323d">
 </head>
 
 <body>
@@ -64,6 +64,18 @@
                         <button class="fpill" id="fp-all" onclick="setFilter('all')">All</button>
                     </div>
                 </div>
+
+                <div class="agenda-alarm-shell" id="agenda-alarm-shell">
+                    <div class="agenda-alarm-main">
+                        <div class="agenda-alarm-kicker">Task Alarm</div>
+                        <div class="agenda-alarm-clock" id="agenda-alarm-clock">--:--:--</div>
+                        <div class="agenda-alarm-next" id="agenda-alarm-next">No timed tasks pending.</div>
+                    </div>
+                    <div class="agenda-alarm-actions">
+                        <button id="agenda-notify-btn" class="agenda-alarm-btn" type="button" onclick="toggleAgendaBrowserAlerts()">Enable Browser Alerts</button>
+                    </div>
+                </div>
+                <div id="agenda-alarm-feed" class="agenda-alarm-feed" hidden></div>
 
                 <div class="agenda-search-shell">
                 <div class="agenda-search-row">
@@ -147,7 +159,7 @@
     <!-- TOAST -->
     <div class="toast" id="toast"></div>
 
-    <script src="/js/agenda.js?v=20260311u"></script>
+    <script src="/js/agenda.js?v=20260323d"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             renderUniversalLayout('agenda', 'AGENDA & STRATEGIC TASKS');

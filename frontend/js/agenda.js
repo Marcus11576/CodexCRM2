@@ -29,6 +29,15 @@ let agendaSearchTerm = '';
 let agendaPersonId = '';
 let agendaEmployer = '';
 let agendaContactName = '';
+let agendaAlarmClockTimer = null;
+let agendaAlarmPollTimer = null;
+let agendaAlarmSeen = {};
+
+const AGENDA_ALARM_STORAGE_KEY = 'agendaAlarmSeenV1';
+const AGENDA_ALARM_PREF_KEY = 'agendaBrowserAlertsEnabled';
+const AGENDA_ALARM_POLL_MS = 15000;
+const AGENDA_ALARM_TRIGGER_WINDOW_MS = 60 * 60 * 1000;
+const AGENDA_ALARM_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 
 const toDateStr = d => {
     const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
@@ -157,6 +166,305 @@ function fmt12(t) {
     return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+function supportsBrowserNotifications() {
+    return typeof window !== 'undefined' && 'Notification' in window;
+}
+
+function alarmPrefEnabled() {
+    try {
+        return localStorage.getItem(AGENDA_ALARM_PREF_KEY) === '1';
+    } catch (e) {
+        return false;
+    }
+}
+
+function setAlarmPrefEnabled(enabled) {
+    try {
+        localStorage.setItem(AGENDA_ALARM_PREF_KEY, enabled ? '1' : '0');
+    } catch (e) {
+        // ignore storage failures; in-app alarm still works
+    }
+}
+
+function loadAlarmSeenMap() {
+    try {
+        const raw = localStorage.getItem(AGENDA_ALARM_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return {};
+        return parsed;
+    } catch (e) {
+        return {};
+    }
+}
+
+function saveAlarmSeenMap() {
+    try {
+        localStorage.setItem(AGENDA_ALARM_STORAGE_KEY, JSON.stringify(agendaAlarmSeen));
+    } catch (e) {
+        // ignore storage failures; alarm will still run for this session
+    }
+}
+
+function purgeOldAlarmMarks(nowMs) {
+    let dirty = false;
+    Object.keys(agendaAlarmSeen).forEach((key) => {
+        const ts = Number(agendaAlarmSeen[key] || 0);
+        if (!ts || nowMs - ts > AGENDA_ALARM_RETENTION_MS) {
+            delete agendaAlarmSeen[key];
+            dirty = true;
+        }
+    });
+    if (dirty) saveAlarmSeenMap();
+}
+
+function toTaskDueDate(task) {
+    if (!task || !task.due_date) return null;
+    const datePart = String(task.due_date).slice(0, 10);
+    const timePart = String(task.due_time || '09:00').slice(0, 5);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return null;
+    if (!/^\d{2}:\d{2}$/.test(timePart)) return null;
+    const due = new Date(`${datePart}T${timePart}:00`);
+    if (Number.isNaN(due.getTime())) return null;
+    return due;
+}
+
+function taskAlarmKey(task) {
+    const datePart = String(task?.due_date || '').slice(0, 10);
+    const timePart = String(task?.due_time || '09:00').slice(0, 5);
+    return `${String(task?.task_id || '')}|${datePart}|${timePart}`;
+}
+
+function browserNotificationStateLabel() {
+    if (!supportsBrowserNotifications()) return 'Browser alerts unavailable';
+    if (Notification.permission === 'granted') {
+        return alarmPrefEnabled() ? 'Browser alerts enabled' : 'Browser alerts disabled';
+    }
+    if (Notification.permission === 'denied') return 'Browser alerts blocked';
+    return 'Browser alerts not granted';
+}
+
+function updateAlarmClockUI() {
+    const clock = document.getElementById('agenda-alarm-clock');
+    if (!clock) return;
+    const now = new Date();
+    clock.textContent = now.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
+function updateAlarmStatusUI() {
+    const nextEl = document.getElementById('agenda-alarm-next');
+    if (!nextEl) return;
+    const nowMs = Date.now();
+    const activeTasks = allTasks.filter((task) => ['open', 'in_progress'].includes(task.status));
+    const dated = activeTasks
+        .map((task) => ({ task, due: toTaskDueDate(task) }))
+        .filter((entry) => entry.due)
+        .sort((a, b) => a.due.getTime() - b.due.getTime());
+
+    const upcoming = dated.find((entry) => entry.due.getTime() > nowMs);
+    if (!upcoming) {
+        nextEl.textContent = 'No timed tasks pending.';
+        return;
+    }
+
+    const msUntil = upcoming.due.getTime() - nowMs;
+    const minutesUntil = Math.max(1, Math.round(msUntil / 60000));
+    const timeLabel = upcoming.due.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const taskLabel = String(upcoming.task.task_text || 'Task').trim();
+    nextEl.textContent = `Next alarm: ${taskLabel} at ${timeLabel} (${minutesUntil}m).`;
+}
+
+function refreshAlarmNotifyButton() {
+    const btn = document.getElementById('agenda-notify-btn');
+    const shell = document.getElementById('agenda-alarm-shell');
+    if (shell) shell.title = browserNotificationStateLabel();
+    if (!btn) return;
+    if (!supportsBrowserNotifications()) {
+        btn.textContent = 'Browser Alerts Unavailable';
+        btn.disabled = true;
+        return;
+    }
+    btn.disabled = Notification.permission === 'denied';
+    if (Notification.permission === 'granted') {
+        btn.textContent = alarmPrefEnabled() ? 'Browser Alerts On' : 'Enable Browser Alerts';
+    } else if (Notification.permission === 'denied') {
+        btn.textContent = 'Browser Alerts Blocked';
+    } else {
+        btn.textContent = 'Allow Browser Alerts';
+    }
+}
+
+function appendAlarmFeedItem(text, taskId = '') {
+    const feed = document.getElementById('agenda-alarm-feed');
+    if (!feed) return;
+    const item = document.createElement('div');
+    item.className = 'agenda-alarm-item';
+    item.innerHTML = `
+        <div class="agenda-alarm-item-copy">
+            <div class="agenda-alarm-item-time">${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+            <div class="agenda-alarm-item-text">${esc(text)}</div>
+        </div>
+        <button type="button" class="agenda-alarm-dismiss">Dismiss</button>
+    `;
+    const dismiss = item.querySelector('.agenda-alarm-dismiss');
+    dismiss?.addEventListener('click', () => {
+        item.remove();
+        if (!feed.children.length) feed.hidden = true;
+    });
+    if (taskId) item.dataset.taskId = String(taskId);
+    feed.prepend(item);
+    while (feed.children.length > 5) {
+        feed.removeChild(feed.lastElementChild);
+    }
+    feed.hidden = false;
+}
+
+function playAlarmTone() {
+    try {
+        const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextCtor) return;
+        const audioCtx = new AudioContextCtor();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 880;
+        gainNode.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.start(audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.06, audioCtx.currentTime + 0.04);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.55);
+        oscillator.stop(audioCtx.currentTime + 0.58);
+        oscillator.onended = () => audioCtx.close();
+    } catch (e) {
+        // Audio can fail on some browsers; in-app toast still surfaces alarm.
+    }
+}
+
+function maybeSendBrowserNotification(task, message) {
+    if (!supportsBrowserNotifications()) return;
+    if (Notification.permission !== 'granted') return;
+    if (!alarmPrefEnabled()) return;
+    try {
+        const title = task?.person_name
+            ? `Task alarm: ${task.person_name}`
+            : 'Task alarm';
+        const notice = new Notification(title, {
+            body: message,
+            tag: `agenda-task-${String(task?.task_id || 'general')}`,
+            renotify: true
+        });
+        setTimeout(() => {
+            try {
+                notice.close();
+            } catch (err) {
+                // ignore close failures
+            }
+        }, 12000);
+    } catch (e) {
+        // ignore notification exceptions
+    }
+}
+
+function fireTaskAlarm(task, dueDate, lateMs) {
+    const dueLabel = dueDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const taskLabel = String(task?.task_text || 'Task').trim();
+    const personLabel = task?.person_name ? ` (${task.person_name})` : '';
+    const lateMinutes = Math.max(0, Math.round(lateMs / 60000));
+    const lateSuffix = lateMinutes > 0 ? ` - ${lateMinutes}m late` : '';
+    const message = `${taskLabel}${personLabel} due at ${dueLabel}${lateSuffix}`;
+    playAlarmTone();
+    toast(`Alarm: ${message}`, 'error');
+    appendAlarmFeedItem(message, task?.task_id);
+    maybeSendBrowserNotification(task, message);
+}
+
+function runAgendaAlarmCheck() {
+    if (!Array.isArray(allTasks) || !allTasks.length) {
+        updateAlarmStatusUI();
+        return;
+    }
+    const nowMs = Date.now();
+    purgeOldAlarmMarks(nowMs);
+
+    allTasks.forEach((task) => {
+        if (!['open', 'in_progress'].includes(task.status)) return;
+        const dueDate = toTaskDueDate(task);
+        if (!dueDate) return;
+        const delta = nowMs - dueDate.getTime();
+        if (delta < 0 || delta > AGENDA_ALARM_TRIGGER_WINDOW_MS) return;
+        const key = taskAlarmKey(task);
+        if (agendaAlarmSeen[key]) return;
+        agendaAlarmSeen[key] = nowMs;
+        saveAlarmSeenMap();
+        fireTaskAlarm(task, dueDate, delta);
+    });
+
+    updateAlarmStatusUI();
+}
+
+function startAgendaAlarmEngine() {
+    agendaAlarmSeen = loadAlarmSeenMap();
+    refreshAlarmNotifyButton();
+    updateAlarmClockUI();
+    updateAlarmStatusUI();
+
+    if (agendaAlarmClockTimer) clearInterval(agendaAlarmClockTimer);
+    if (agendaAlarmPollTimer) clearInterval(agendaAlarmPollTimer);
+
+    agendaAlarmClockTimer = setInterval(updateAlarmClockUI, 1000);
+    agendaAlarmPollTimer = setInterval(runAgendaAlarmCheck, AGENDA_ALARM_POLL_MS);
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) runAgendaAlarmCheck();
+    });
+}
+
+async function toggleAgendaBrowserAlerts() {
+    if (!supportsBrowserNotifications()) {
+        toast('Browser notifications are not supported on this device.', 'error');
+        return;
+    }
+
+    if (Notification.permission === 'denied') {
+        toast('Browser alerts are blocked. Re-enable notifications in browser settings.', 'error');
+        refreshAlarmNotifyButton();
+        return;
+    }
+
+    if (Notification.permission === 'granted') {
+        const enable = !alarmPrefEnabled();
+        setAlarmPrefEnabled(enable);
+        toast(enable ? 'Browser task alarms enabled.' : 'Browser task alarms disabled.');
+        refreshAlarmNotifyButton();
+        return;
+    }
+
+    try {
+        const result = await Notification.requestPermission();
+        if (result === 'granted') {
+            setAlarmPrefEnabled(true);
+            toast('Browser task alarms enabled.', 'success');
+        } else {
+            setAlarmPrefEnabled(false);
+            toast('Browser task alarms not granted.', 'error');
+        }
+    } catch (e) {
+        toast('Unable to request browser notification permission.', 'error');
+    }
+    refreshAlarmNotifyButton();
+}
+
+function initializeAgendaAlarmUI() {
+    const shell = document.getElementById('agenda-alarm-shell');
+    if (shell) shell.title = browserNotificationStateLabel();
+    refreshAlarmNotifyButton();
+}
+
 function getTaskSortWeight(task) {
     if (task.status === 'open') return 0;
     if (task.status === 'in_progress') return 1;
@@ -183,6 +491,7 @@ async function loadTasks() {
         allTasks = await r.json();
         buildDotMap();
         renderCalendar(); renderMini(); renderTasks();
+        runAgendaAlarmCheck();
 
         // Restore scroll position if returning
         const scrollPos = sessionStorage.getItem('agendaScrollPos');
@@ -515,6 +824,7 @@ async function setTaskStatus(id, status) {
         renderCalendar();
         renderMini();
         renderTasks();
+        runAgendaAlarmCheck();
         const messages = {
             open: 'Task moved to open',
             in_progress: 'Task marked in progress',
@@ -543,6 +853,7 @@ async function setTaskSegment(id, segment) {
         if (t) t.due_time = due_time;
         renderMini();
         renderTasks();
+        runAgendaAlarmCheck();
         toast(`Task moved to ${segment}`, 'success');
     } catch (e) {
         toast('Move failed', 'error');
@@ -557,6 +868,7 @@ async function deleteTask(id) {
         renderCalendar();
         renderMini();
         renderTasks();
+        runAgendaAlarmCheck();
         toast('Task deleted', 'success');
     } catch (e) {
         toast('Delete failed', 'error');
@@ -674,8 +986,16 @@ document.getElementById(`vb-${currentView}`).classList.add('active');
 document.querySelectorAll('.fpill').forEach(p => p.classList.remove('active'));
 document.getElementById(`fp-${currentFilter}`).classList.add('active');
 syncAgendaSearchUI();
+initializeAgendaAlarmUI();
+startAgendaAlarmEngine();
 
 loadTasks();
+
+window.addEventListener('beforeunload', () => {
+    if (agendaAlarmClockTimer) clearInterval(agendaAlarmClockTimer);
+    if (agendaAlarmPollTimer) clearInterval(agendaAlarmPollTimer);
+    saveAlarmSeenMap();
+});
 
 
 

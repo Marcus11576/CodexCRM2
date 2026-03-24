@@ -49,6 +49,9 @@ def test_non_transcript_filter_does_not_drop_real_commercial_chat():
 def test_non_transcript_filter_only_applies_to_chat_like_channels():
     assert not is_non_transcript_chat_input("show stages please", channel="email")
     assert is_non_transcript_chat_input("show stages please", channel="chat")
+    assert is_non_transcript_chat_input("Capture this update for the profile:", channel="chat")
+    assert is_non_transcript_chat_input("Create task:", channel="chat")
+    assert is_non_transcript_chat_input("Next Action", channel="chat")
 
 
 def test_positioning_phrase_detection_for_stage_remap():

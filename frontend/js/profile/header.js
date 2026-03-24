@@ -100,20 +100,6 @@ function cadenceDaysForRelationshipStage(stageCode) {
     return 10;
 }
 
-function stagePressureForRelationship(stageCode) {
-    const code = String(stageCode || '').trim().toUpperCase();
-    if (code === 'S1') return 24;
-    if (code === 'S2') return 32;
-    if (code === 'S3') return 44;
-    if (code === 'S4') return 52;
-    if (code === 'S5') return 68;
-    if (code === 'S6') return 76;
-    if (code === 'S7') return 84;
-    if (code === 'S8') return 74;
-    if (code === 'S9') return 66;
-    return 45;
-}
-
 function actionBandFromScore(score) {
     const normalized = clampActionScore(score);
     if (normalized >= 70) return { className: 'band-red', label: 'Needs Action' };
@@ -817,8 +803,32 @@ function renderPerson(person, briefing) {
         document.getElementById('profile-chat-title').textContent = `Assistant for ${person.full_name}`;
     }
 
-    document.getElementById('profile-name').innerHTML = `${person.full_name || 'Unnamed Contact'} <button type="button" class="profile-inline-edit primary" onclick="editProfileHeader()" title="Edit profile">Edit Profile</button>`;
+    const profileNameLabel = escapeHtml(person.full_name || 'Unnamed Contact');
+    document.getElementById('profile-name').innerHTML = `${profileNameLabel} <button type="button" class="profile-inline-edit primary" onclick="editProfileHeader()" title="Edit profile">Edit Profile</button> <button type="button" class="profile-inline-edit danger" onclick="confirmDeleteProfile()" title="Delete profile">Delete Profile</button>`;
     document.getElementById('profile-title').textContent = formatProfileTitle(person);
+    let employerLink = document.getElementById('profile-employer-link');
+    if (!employerLink) {
+        employerLink = document.createElement('div');
+        employerLink.id = 'profile-employer-link';
+        employerLink.style.marginTop = '0.35rem';
+        const profileTitleNode = document.getElementById('profile-title');
+        if (profileTitleNode && profileTitleNode.parentElement) {
+            profileTitleNode.insertAdjacentElement('afterend', employerLink);
+        }
+    }
+    const employerName = String(person.company_name_raw || '').trim();
+    if (employerLink) {
+        if (employerName) {
+            const employerHref = typeof window.companyDirectoryHref === 'function'
+                ? window.companyDirectoryHref(employerName)
+                : `/companies/${encodeURIComponent(employerName.toLowerCase())}`;
+            employerLink.innerHTML = `<a href="${escapeHtml(employerHref)}" style="font-size:0.82rem; color:var(--accent-blue); text-decoration:none;">Employer: ${escapeHtml(employerName)}</a>`;
+            employerLink.style.display = '';
+        } else {
+            employerLink.innerHTML = '';
+            employerLink.style.display = 'none';
+        }
+    }
 
     // Contact Info Row
     let contactRow = document.getElementById('contact-info-row');
@@ -826,7 +836,8 @@ function renderPerson(person, briefing) {
         contactRow = document.createElement('div');
         contactRow.id = 'contact-info-row';
         contactRow.className = 'contact-info-row contact-strip';
-        document.getElementById('profile-title').insertAdjacentElement('afterend', contactRow);
+        const anchorNode = employerLink || document.getElementById('profile-title');
+        anchorNode.insertAdjacentElement('afterend', contactRow);
     }
 
     const primaryEmailHref = mailtoHref(person.email_primary);
@@ -1560,6 +1571,34 @@ async function saveProfileHeader() {
         }
     } catch (e) {
         toast(`Error: ${e.message}`, 'error');
+    }
+}
+
+async function confirmDeleteProfile() {
+    const person = window.currentPersonData || {};
+    const targetName = String(person.full_name || 'this profile').trim() || 'this profile';
+    const approved = window.confirm(`Delete "${targetName}"? This hides the profile and keeps historical data for audit.`);
+    if (!approved) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/people/${personId}`, {
+            method: 'DELETE'
+        });
+        let payload = {};
+        try {
+            payload = await res.json();
+        } catch (_err) {
+            payload = {};
+        }
+        if (!res.ok || String(payload.status || '').toLowerCase() !== 'success') {
+            throw new Error(payload.detail || payload.message || `Delete failed (${res.status})`);
+        }
+        toast('Profile deleted', 'success');
+        window.setTimeout(() => {
+            window.location.href = '/';
+        }, 350);
+    } catch (err) {
+        toast(`Delete failed: ${err.message}`, 'error');
     }
 }
 

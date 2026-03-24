@@ -8,10 +8,11 @@ from fastapi.testclient import TestClient
 
 from backend.database import run_read, run_write
 from backend.main import app
+from backend.routers.compat_v1 import _infer_twin_action
 from backend.routers import intelligence as intelligence_router
 from backend.routers.interactions import _create_pending_interaction, _persist_interaction
 from backend.services import ai_service
-from backend.services.ai_jobs import _handle_brief_generation, _handle_signal_extraction
+from backend.services.ai_jobs import _channel_from_image_context, _handle_brief_generation, _handle_signal_extraction
 from backend.services.ai_pipeline_service import create_or_update_artifact
 from backend.services.auth_service import create_user, get_user_by_email
 
@@ -241,6 +242,504 @@ def test_profile_picture_signal_extraction_auto_attaches_when_profile_has_no_pho
     assert requires_confirmation == 0
     assert audit_row["media_url"] == "/uploads/new-headshot.jpg"
     assert "Profile photo updated" in audit_row["summary"]
+
+
+def test_channel_from_image_context_infers_whatsapp_from_transcript_text():
+    channel = _channel_from_image_context(
+        "screenshot",
+        {
+            "is_profile_photo": False,
+            "source_app": "",
+            "screen_context": "",
+            "summary": "Screenshot intake",
+            "extracted_text": "[14:26] Brian: Somebody will need to pay twice. Last seen today at 10:22.",
+        },
+    )
+    assert channel == "whatsapp"
+
+
+def test_twin_action_infers_company_people_query():
+    intent = _infer_twin_action("show me everyone who works for Acme Build Group")
+    assert intent["type"] == "search_company_people"
+    assert intent["params"]["company"] == "Acme Build Group"
+
+
+def test_twin_action_infers_db_summary_count_query():
+    intent = _infer_twin_action("how many contacts do we have?")
+    assert intent["type"] == "db_summary"
+    assert intent["params"]["scope"] == "counts"
+
+
+def test_twin_chat_company_people_query_returns_company_matches():
+    company = f"TwinLookup-{uuid.uuid4().hex[:8]}"
+    now = "2026-03-23T00:00:00Z"
+
+    async def setup(db):
+        await db.execute(
+            """
+            INSERT INTO PERSON (person_id, full_name, title_current, company_name_raw, cat, created_at, last_updated_at)
+            VALUES (?,?,?,?,?,?,?)
+            """,
+            (f"tw1-{uuid.uuid4().hex[:8]}", "Twin One", "Director", company, "GEN", now, now),
+        )
+        await db.execute(
+            """
+            INSERT INTO PERSON (person_id, full_name, title_current, company_name_raw, cat, created_at, last_updated_at)
+            VALUES (?,?,?,?,?,?,?)
+            """,
+            (f"tw2-{uuid.uuid4().hex[:8]}", "Twin Two", "Manager", company, "GEN", now, now),
+        )
+
+    asyncio.run(run_write(setup))
+
+    client = login_client()
+    try:
+        response = client.post(
+            "/api/intelligence/twin/chat",
+            json={"message": f"show me everyone who works for {company}", "history": []},
+        )
+    finally:
+        client.close()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "found" in str(payload.get("reply") or "").lower()
+    matches = payload.get("data") or []
+    assert len(matches) >= 2
+    assert all(company.lower() in str(row.get("company_name_raw") or "").lower() for row in matches)
+
+
+def test_twin_chat_generic_search_returns_company_and_people_matches():
+    company = f"TwinGeneric-{uuid.uuid4().hex[:8]}"
+    now = "2026-03-24T00:00:00Z"
+    person_id = f"twg-{uuid.uuid4().hex[:8]}"
+
+    async def setup(db):
+        await db.execute(
+            """
+            INSERT INTO PERSON (person_id, full_name, title_current, company_name_raw, cat, created_at, last_updated_at)
+            VALUES (?,?,?,?,?,?,?)
+            """,
+            (person_id, "Twin Generic", "Commercial Director", company, "GEN", now, now),
+        )
+
+    asyncio.run(run_write(setup))
+
+    client = login_client()
+    try:
+        response = client.post(
+            "/api/intelligence/twin/chat",
+            json={"message": f"search {company}", "history": []},
+        )
+    finally:
+        client.close()
+
+    assert response.status_code == 200
+    payload = response.json()
+    data = payload.get("data") or []
+    assert any(str(item.get("result_type") or "") == "company" for item in data)
+    assert any(str(item.get("result_type") or "") == "person" for item in data)
+
+
+def test_people_create_auto_backfills_career_background():
+    full_name = f"Backfill Person {uuid.uuid4().hex[:6]}"
+    company = f"BackfillCo-{uuid.uuid4().hex[:6]}"
+
+    client = login_client()
+    try:
+        response = client.post(
+            "/api/people",
+            json={
+                "full_name": full_name,
+                "title_current": "Associate Director",
+                "company_name_raw": company,
+                "cat": "GEN",
+            },
+        )
+    finally:
+        client.close()
+
+    assert response.status_code == 200
+    payload = response.json()
+    person_id = payload.get("person_id")
+    assert person_id
+
+    async def verify(db):
+        async with db.execute(
+            "SELECT career_summary, employment_history FROM PERSON WHERE person_id=?",
+            (person_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else {}
+
+    person = asyncio.run(run_read(verify))
+    assert "Associate Director" in str(person.get("career_summary") or "")
+    history = json.loads(person.get("employment_history") or "[]")
+    assert isinstance(history, list)
+    assert history
+    assert history[0].get("company") == company
+
+
+def test_companies_page_route_renders():
+    client = login_client()
+    try:
+        response = client.get("/companies")
+    finally:
+        client.close()
+
+    assert response.status_code == 200
+    assert "Companies" in response.text
+
+
+def test_persist_interaction_conflict_updates_channel_field():
+    person_id = f"channel-person-{uuid.uuid4().hex[:8]}"
+    now = "2026-03-10T00:00:00Z"
+
+    async def setup(db):
+        await db.execute(
+            "INSERT INTO PERSON (person_id, full_name, created_at, last_updated_at) VALUES (?,?,?,?)",
+            (person_id, "Channel Update", now, now),
+        )
+
+    asyncio.run(run_write(setup))
+    interaction_id = asyncio.run(
+        _create_pending_interaction(
+            person_id,
+            "screenshot",
+            "Image uploaded: chat.png",
+            now,
+            media_url="/uploads/chat.png",
+        )
+    )
+
+    result = {
+        "summary": "WhatsApp chat processed.",
+        "action_items": [],
+        "topics": [],
+        "sentiment": "Neutral",
+        "success_metrics": {},
+        "profile_updates": {},
+    }
+
+    async def persist(db):
+        await _persist_interaction(
+            db,
+            interaction_id,
+            person_id,
+            "whatsapp",
+            "WhatsApp conversation captured.",
+            result,
+            now,
+            now,
+            media_url="/uploads/chat.png",
+        )
+
+    asyncio.run(run_write(persist))
+
+    async def verify(db):
+        async with db.execute("SELECT channel FROM INTERACTION WHERE interaction_id = ?", (interaction_id,)) as cursor:
+            row = await cursor.fetchone()
+        return row["channel"] if row else None
+
+    channel = asyncio.run(run_read(verify))
+    assert channel == "whatsapp"
+
+
+def test_document_persist_interaction_fills_missing_fields_without_overwriting_existing_profile():
+    person_id = f"doc-merge-{uuid.uuid4().hex[:8]}"
+    interaction_id = f"doc-interaction-{uuid.uuid4().hex[:8]}"
+    now = "2026-03-23T00:00:00Z"
+    existing_history = [
+        {
+            "title": "Development Manager",
+            "company": "OldCo",
+            "start_date": "2019-01",
+            "end_date": "2022-12",
+            "location": "",
+            "description": "",
+        }
+    ]
+
+    async def setup(db):
+        await db.execute(
+            """
+            INSERT INTO PERSON (
+                person_id, full_name, title_current, company_name_raw, cat, email_primary,
+                career_summary, employment_history, created_at, last_updated_at
+            )
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                person_id,
+                "Document Merge Guard",
+                "Old Title",
+                "OldCo",
+                "TGT",
+                "existing@example.com",
+                "Existing summary",
+                json.dumps(existing_history),
+                now,
+                now,
+            ),
+        )
+
+    asyncio.run(run_write(setup))
+
+    async def persist(db):
+        await _persist_interaction(
+            db,
+            interaction_id,
+            person_id,
+            "document",
+            "Profile document uploaded",
+            {
+                "summary": "Document parsed",
+                "action_items": [],
+                "topics": [],
+                "sentiment": "Neutral",
+                "success_metrics": {},
+                "profile_updates": {
+                    "title_current": "Managing Director",
+                    "company_name_raw": "NewCo",
+                    "email_primary": "new@example.com",
+                    "phone_primary": "+971500000000",
+                    "linkedin_url": "https://linkedin.com/in/doc-merge-guard",
+                    "cat": "GEN",
+                    "disc": "Corporate",
+                },
+                "career_summary": "New summary from CV",
+                "key_professional_notes": "Strong project delivery track record.",
+                "employment_history": [
+                    {
+                        "title": "Managing Director",
+                        "company": "NewCo",
+                        "start_date": "2023-01",
+                        "end_date": "",
+                        "location": "",
+                        "description": "",
+                    }
+                ],
+            },
+            now,
+            now,
+        )
+
+    asyncio.run(run_write(persist))
+
+    async def verify(db):
+        async with db.execute(
+            """
+            SELECT title_current, company_name_raw, cat, email_primary, phone_primary, linkedin_url,
+                   career_summary, key_professional_notes, employment_history
+            FROM PERSON WHERE person_id=?
+            """,
+            (person_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        return dict(row)
+
+    person = asyncio.run(run_read(verify))
+    assert person["title_current"] == "Managing Director"
+    assert person["company_name_raw"] == "NewCo"
+    assert person["cat"] == "TGT"
+    assert person["email_primary"] == "existing@example.com"
+    assert person["phone_primary"] == "+971500000000"
+    assert person["linkedin_url"] == "https://linkedin.com/in/doc-merge-guard"
+    assert person["career_summary"] == "Existing summary"
+    assert person["key_professional_notes"] == "Strong project delivery track record."
+    merged_history = json.loads(person["employment_history"] or "[]")
+    assert isinstance(merged_history, list)
+    assert len(merged_history) == 2
+    assert merged_history[0]["title"] == "Development Manager"
+    assert merged_history[0]["company"] == "OldCo"
+    assert merged_history[1]["title"] == "Managing Director"
+    assert merged_history[1]["company"] == "NewCo"
+
+
+def test_document_signal_extraction_maps_header_updates_even_without_employment_history(monkeypatch):
+    person_id = f"doc-extract-{uuid.uuid4().hex[:8]}"
+    now = "2026-03-23T00:00:00Z"
+
+    async def setup(db):
+        await db.execute(
+            """
+            INSERT INTO PERSON (person_id, full_name, title_current, company_name_raw, created_at, last_updated_at)
+            VALUES (?,?,?,?,?,?)
+            """,
+            (person_id, "Document Extract", "Old Role", "OldCo", now, now),
+        )
+
+    asyncio.run(run_write(setup))
+    interaction_id = asyncio.run(
+        _create_pending_interaction(
+            person_id,
+            "document",
+            "Document uploaded",
+            now,
+            media_url="/uploads/doc-extract.txt",
+        )
+    )
+
+    with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as handle:
+        handle.write(b"Test CV text")
+        file_path = handle.name
+
+    async def fake_process_text(_text, _channel, _person_id=None):
+        return {
+            "summary": "Document parsed",
+            "sentiment": "Neutral",
+            "sentiment_confidence": 0.6,
+            "topics": [],
+            "action_items": [],
+            "profile_updates": {},
+            "topic_nuggets": [],
+            "success_metrics": {},
+            "global_insights": [],
+        }
+
+    async def fake_extract_document_profile(_text):
+        return {
+            "title_current": "Chief Growth Officer",
+            "company_name_raw": "FutureWorks",
+            "email_primary": "doc.extract@example.com",
+            "phone_primary": "",
+            "linkedin_url": "",
+            "career_summary": "",
+            "key_professional_notes": "",
+            "employment_history": [],
+        }
+
+    monkeypatch.setattr(ai_service, "extract_text_from_file", lambda _path: "Document CV text")
+    monkeypatch.setattr(ai_service, "process_text", fake_process_text)
+    monkeypatch.setattr(ai_service, "extract_document_profile", fake_extract_document_profile)
+
+    try:
+        asyncio.run(
+            _handle_signal_extraction(
+                {
+                    "job_id": f"job-{uuid.uuid4().hex[:8]}",
+                    "payload": {
+                        "interaction_id": interaction_id,
+                        "person_id": person_id,
+                        "channel": "document",
+                        "raw_text": "Document uploaded",
+                        "file_path": file_path,
+                        "media_url": "/uploads/doc-extract.txt",
+                        "source_kind": "document",
+                    },
+                }
+            )
+        )
+    finally:
+        os.unlink(file_path)
+
+    async def verify(db):
+        async with db.execute(
+            "SELECT title_current, company_name_raw, email_primary, employment_history FROM PERSON WHERE person_id=?",
+            (person_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        return dict(row)
+
+    person = asyncio.run(run_read(verify))
+    assert person["title_current"] == "Chief Growth Officer"
+    assert person["company_name_raw"] == "FutureWorks"
+    assert person["email_primary"] == "doc.extract@example.com"
+    assert json.loads(person["employment_history"] or "[]") == []
+
+
+def test_document_persist_interaction_replaces_seeded_summary_and_enriches_existing_role():
+    person_id = f"doc-seeded-{uuid.uuid4().hex[:8]}"
+    interaction_id = f"doc-interaction-{uuid.uuid4().hex[:8]}"
+    now = "2026-03-24T00:00:00Z"
+    full_name = "Iustina Blidariu"
+    title = "Talent Acquisition Manager - Middle East"
+    company = "Mott MacDonald"
+    seeded_summary = f"{full_name} is currently {title} at {company}."
+    existing_history = [
+        {
+            "title": title,
+            "company": company,
+            "start_date": "",
+            "end_date": "Present",
+            "location": "",
+            "description": "",
+        }
+    ]
+
+    async def setup(db):
+        await db.execute(
+            """
+            INSERT INTO PERSON (
+                person_id, full_name, title_current, company_name_raw,
+                career_summary, employment_history, created_at, last_updated_at
+            )
+            VALUES (?,?,?,?,?,?,?,?)
+            """,
+            (person_id, full_name, title, company, seeded_summary, json.dumps(existing_history), now, now),
+        )
+
+    asyncio.run(run_write(setup))
+
+    async def persist(db):
+        await _persist_interaction(
+            db,
+            interaction_id,
+            person_id,
+            "document",
+            "Profile document uploaded",
+            {
+                "summary": "Document parsed",
+                "action_items": [],
+                "topics": [],
+                "sentiment": "Neutral",
+                "success_metrics": {},
+                "profile_updates": {
+                    "title_current": title,
+                    "company_name_raw": company,
+                },
+                "career_summary": "Over 7 years of experience in talent acquisition and mobility across the Middle East.",
+                "employment_history": [
+                    {
+                        "title": title,
+                        "company": company,
+                        "start_date": "2023-01",
+                        "end_date": "Present",
+                        "location": "Dubai, United Arab Emirates",
+                        "description": "Owns talent acquisition strategy for the region.",
+                    },
+                    {
+                        "title": "Talent Acquisition Lead - Middle East",
+                        "company": company,
+                        "start_date": "2021-03",
+                        "end_date": "2022-12",
+                        "location": "Dubai, United Arab Emirates",
+                        "description": "Implemented TA strategy across the Middle East unit.",
+                    },
+                ],
+            },
+            now,
+            now,
+        )
+
+    asyncio.run(run_write(persist))
+
+    async def verify(db):
+        async with db.execute(
+            "SELECT career_summary, employment_history FROM PERSON WHERE person_id=?",
+            (person_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        return dict(row)
+
+    person = asyncio.run(run_read(verify))
+    assert person["career_summary"].startswith("Over 7 years of experience")
+    history = json.loads(person["employment_history"] or "[]")
+    assert len(history) == 2
+    assert history[0]["title"] == title
+    assert history[0]["start_date"] == "2023-01"
+    assert history[0]["location"] == "Dubai, United Arab Emirates"
+    assert history[1]["title"] == "Talent Acquisition Lead - Middle East"
 
 
 def test_brief_generation_uses_signals_only(monkeypatch):

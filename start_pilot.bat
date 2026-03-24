@@ -2,11 +2,18 @@
 setlocal
 
 echo ===========================================
-echo Starting Antigravity CRM Pilot
+echo Pilot launch is locked by default
 echo ===========================================
 
+echo This workspace is running MAIN only.
+echo To force pilot start, run: set ALLOW_PILOT=1 ^&^& start_pilot.bat
+
+if /I not "%ALLOW_PILOT%"=="1" (
+    echo Pilot blocked. Set ALLOW_PILOT=1 to override.
+    exit /b 1
+)
+
 if not exist ".env" (
-    echo Creating default .env file...
     copy .env.example .env >nul
 )
 
@@ -21,7 +28,6 @@ if not exist "pilot\backups_external" mkdir pilot\backups_external
 if not exist "pilot\uploads" mkdir pilot\uploads
 
 if not exist "pilot\pilot_crm.db" (
-    echo Provisioning isolated pilot database...
     "%PYTHON_EXE%" scripts\provision_pilot_instance.py --force
     if errorlevel 1 goto end
 )

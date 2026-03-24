@@ -244,7 +244,7 @@ async def page_auth_dependency(request: Request):
 
 
 # API Routers
-from backend.routers import auth, people, interactions, tasks, taxonomy, intelligence, intelligence_v2, analytics, analytics_v2, compat_v1, health, ai_pipeline, events, m365, standalone_tool, network_lab, settings as system_settings
+from backend.routers import auth, people, interactions, tasks, taxonomy, intelligence, intelligence_v2, analytics, analytics_v2, compat_v1, health, ai_pipeline, events, m365, standalone_tool, network_lab, companies, settings as system_settings
 
 app.include_router(auth.router)
 
@@ -264,6 +264,7 @@ app.include_router(ai_pipeline.router, dependencies=API_DEPS)
 app.include_router(m365.router, dependencies=API_DEPS)
 app.include_router(compat_v1.router, dependencies=API_DEPS)
 app.include_router(network_lab.router, dependencies=API_DEPS)
+app.include_router(companies.router, dependencies=API_DEPS)
 app.include_router(standalone_tool.router)
 
 
@@ -330,6 +331,13 @@ async def serve_analytics(auth: Annotated[None, Depends(page_auth_dependency)]):
 @app.get("/network-lab.html")
 async def serve_network_lab(auth: Annotated[None, Depends(page_auth_dependency)]):
     return FileResponse(os.path.join(FRONTEND, "network-lab.html"), headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/companies")
+@app.get("/companies.html")
+@app.get("/companies/{company_key}")
+async def serve_companies(company_key: Optional[str] = None, auth: Annotated[None, Depends(page_auth_dependency)] = None):
+    return FileResponse(os.path.join(FRONTEND, "companies.html"), headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/network-lab/profile/{person_id}")

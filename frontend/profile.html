@@ -215,7 +215,7 @@
     <script src="/js/profile/header.js?v=20260321g"></script>
     <script src="/js/profile/signals.js"></script>
     <script src="/js/profile/interactions.js"></script>
-    <script src="/js/profile/briefing.js?v=20260321c"></script>
+<script src="/js/profile/briefing.js?v=20260323d"></script>
     <script src="/js/profile/workflow.js"></script>
     <script src="/js/profile.js"></script>
     <!-- Profile Chat - Floating Sidebar -->
@@ -551,6 +551,33 @@
             border-color: rgba(56, 189, 248, 0.7);
             background: rgba(14, 165, 233, 0.26);
         }
+
+        .assistant-sources {
+            margin-top: 0.55rem;
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: 10px;
+            padding: 0.35rem 0.55rem 0.45rem 0.55rem;
+            background: rgba(15, 23, 42, 0.36);
+            color: #cbd5e1;
+            font-size: 0.74rem;
+            line-height: 1.4;
+        }
+
+        .assistant-sources summary {
+            cursor: pointer;
+            font-weight: 700;
+            color: #e2e8f0;
+            outline: none;
+        }
+
+        .assistant-sources ul {
+            margin: 0.4rem 0 0 1rem;
+            padding: 0;
+        }
+
+        .assistant-sources li {
+            margin-bottom: 0.28rem;
+        }
     </style>
 
     <!-- File Drop Zone Removed for better UX -->
@@ -564,7 +591,7 @@
             const chatModal = document.getElementById('chat-modal');
             const history = document.getElementById('chat-history');
             const fallbackName = document.getElementById('profile-name')
-                ? String(document.getElementById('profile-name').innerText || '').replace(/Edit Profile/gi, '').trim()
+                ? String(document.getElementById('profile-name').innerText || '').replace(/Edit Profile|Delete Profile/gi, '').trim()
                 : '';
             const name = (window.currentPersonData && window.currentPersonData.full_name)
                 ? window.currentPersonData.full_name
@@ -585,11 +612,6 @@
                 welcomeMsg.append(nameNode);
                 welcomeMsg.append(`. How can I help you with this profile today?`);
                 history.appendChild(welcomeMsg);
-                appendAssistantOptions(welcomeMsg, [
-                    { label: 'Capture Update', prompt: 'Capture this update for the profile: ' },
-                    { label: 'Create Task', prompt: 'Create a follow-up task with this title: ' },
-                    { label: 'Next Action', prompt: 'What is the most important next action for this profile now?' },
-                ]);
             }
 
             chatModal.style.display = 'flex';
@@ -626,13 +648,13 @@
                 actions.push({ label: 'Next Action', prompt: 'What is the most important next action for this profile now?' });
             }
             if (/log|intelligence|update/.test(lower)) {
-                actions.push({ label: 'Capture Update', prompt: 'Capture this update for the profile: ' });
+                actions.push({ label: 'Capture Update', prompt: 'Capture update: ' });
             }
             if (/task|follow[- ]?up|next step|schedule|call/.test(lower)) {
-                actions.push({ label: 'Create Task', prompt: 'Create a follow-up task with this title: ' });
+                actions.push({ label: 'Create Task', prompt: 'Create task: ' });
             }
             if (isOfferingChoice) {
-                actions.push({ label: 'No Change', prompt: 'No changes needed for now.' });
+                actions.push({ label: 'No Change', prompt: 'No change.' });
             }
             if (!actions.length && /error|failed|unable/.test(lower)) {
                 actions.push({ label: 'Retry', prompt: 'Please retry the last action.' });
@@ -646,24 +668,152 @@
             }).slice(0, 3);
         }
 
+        function resolveChatPersonId() {
+            if (typeof personId !== 'undefined' && personId) return String(personId);
+            if (window.currentPersonData && window.currentPersonData.person_id) return String(window.currentPersonData.person_id);
+            const parts = String(window.location.pathname || '').split('/').filter(Boolean);
+            return String(parts[parts.length - 1] || '');
+        }
+
+        function normalizeAssistantAction(action) {
+            if (!action || typeof action !== 'object') return null;
+            const kind = String(action.kind || (action.prompt ? 'chat_prompt' : '')).trim().toLowerCase() || 'chat_prompt';
+            const label = String(action.label || '').trim();
+            if (!label) return null;
+            return {
+                kind,
+                label,
+                prompt: String(action.prompt || action.message || '').trim(),
+                auto_send: !!action.auto_send,
+                title: String(action.title || '').trim(),
+                due_date: String(action.due_date || '').trim(),
+                due_time: String(action.due_time || '').trim(),
+                priority: String(action.priority || '').trim() || 'medium',
+            };
+        }
+
+        async function executeAssistantCreateTaskAction(action, buttonEl) {
+            const personKey = resolveChatPersonId();
+            if (!personKey) throw new Error('Cannot create task without a person id.');
+            const taskText = String(action.title || '').trim();
+            if (!taskText) throw new Error('Task action is missing a task title.');
+            const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(String(action.due_date || '').trim()) ? String(action.due_date).trim() : null;
+            const dueTime = /^\d{2}:\d{2}$/.test(String(action.due_time || '').trim()) ? String(action.due_time).trim() : '09:00';
+            const payload = {
+                task_text: taskText,
+                person_id: personKey,
+                due_date: dueDate,
+                due_time: dueTime,
+                priority: String(action.priority || 'medium').toLowerCase(),
+            };
+            if (buttonEl) {
+                buttonEl.disabled = true;
+                buttonEl.textContent = 'Creating...';
+            }
+            const res = await fetch(`${API_BASE}/api/tasks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await readJsonSafe(res);
+            if (!res.ok) {
+                throw new Error(data.detail || data.message || `Task creation failed (${res.status})`);
+            }
+            const historyEl = document.getElementById('chat-history');
+            if (historyEl) {
+                const msg = document.createElement('div');
+                msg.className = 'assistant-message';
+                msg.textContent = `Task created: ${taskText}${dueDate ? ` (due ${dueDate} ${dueTime})` : ''}.`;
+                historyEl.appendChild(msg);
+                historyEl.scrollTop = historyEl.scrollHeight;
+            }
+            currentChatHistory.push({
+                role: 'assistant',
+                content: `Task created: ${taskText}${dueDate ? ` (due ${dueDate} ${dueTime})` : ''}.`
+            });
+            regenerateBrief();
+            setTimeout(() => loadPerson(), 500);
+        }
+
         function appendAssistantOptions(targetMessage, actions) {
             if (!targetMessage || !Array.isArray(actions) || !actions.length) return;
+            const normalized = actions
+                .map((item) => normalizeAssistantAction(item))
+                .filter(Boolean);
+            if (!normalized.length) return;
+            const unique = [];
+            const seen = new Set();
+            for (const action of normalized) {
+                const key = `${action.kind}|${action.label}`.toLowerCase();
+                if (seen.has(key)) continue;
+                seen.add(key);
+                unique.push(action);
+            }
+            if (!unique.length) return;
+
             const wrap = document.createElement('div');
             wrap.className = 'assistant-options';
-            actions.forEach((action) => {
+            for (const action of unique.slice(0, 4)) {
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'assistant-option-btn';
-                btn.textContent = String(action.label || '').trim();
-                btn.addEventListener('click', () => {
-                    const input = document.getElementById('chat-input');
-                    if (!input) return;
-                    input.value = String(action.prompt || '').trim();
-                    input.focus();
+                btn.textContent = action.label;
+                btn.addEventListener('click', async () => {
+                    try {
+                        if (action.kind === 'create_task') {
+                            await executeAssistantCreateTaskAction(action, btn);
+                            return;
+                        }
+                        const prompt = String(action.prompt || '').trim();
+                        if (!prompt) return;
+                        const input = document.getElementById('chat-input');
+                        if (!input) return;
+                        input.value = prompt;
+                        input.focus();
+                        if (action.auto_send) {
+                            await askQuestion();
+                        }
+                    } catch (error) {
+                        const historyEl = document.getElementById('chat-history');
+                        if (historyEl) {
+                            const msg = document.createElement('div');
+                            msg.className = 'assistant-message';
+                            msg.style.color = 'var(--accent-red)';
+                            msg.textContent = `Action failed: ${String(error && error.message || 'Unknown error')}`;
+                            historyEl.appendChild(msg);
+                        }
+                    } finally {
+                        if (btn && btn.disabled && btn.textContent === 'Creating...') {
+                            btn.disabled = false;
+                            btn.textContent = action.label;
+                        }
+                    }
                 });
                 wrap.appendChild(btn);
-            });
+            }
             targetMessage.appendChild(wrap);
+        }
+
+        function appendAssistantSources(targetMessage, sources) {
+            const rows = Array.isArray(sources) ? sources.filter((item) => item && typeof item === 'object') : [];
+            if (!targetMessage || !rows.length) return;
+            const details = document.createElement('details');
+            details.className = 'assistant-sources';
+            const summary = document.createElement('summary');
+            summary.textContent = 'Sources';
+            details.appendChild(summary);
+            const list = document.createElement('ul');
+            for (const row of rows.slice(0, 8)) {
+                const label = String(row.label || row.type || 'Source').trim();
+                const detail = String(row.detail || row.value || '').trim();
+                const origin = String(row.origin || '').trim();
+                const line = [label, detail].filter(Boolean).join(': ');
+                const li = document.createElement('li');
+                li.textContent = origin ? `${line} (${origin})` : line;
+                list.appendChild(li);
+            }
+            details.appendChild(list);
+            targetMessage.appendChild(details);
         }
 
         async function readJsonSafe(response) {
@@ -711,12 +861,47 @@
             throw new Error('Transcription timed out.');
         }
 
+        function tryHandleDirectPlaceholder(question, historyEl) {
+            const text = String(question || '').trim();
+            if (!text || !historyEl) return false;
+            const captureOnly = /^(capture this update for the profile:|capture this update:|capture update:?)\s*$/i.test(text);
+            if (captureOnly) {
+                const msg = document.createElement('div');
+                msg.className = 'assistant-message';
+                msg.textContent = "Please add the update after 'Capture update:' so I can save it.";
+                historyEl.appendChild(msg);
+                return true;
+            }
+            const taskOnly = /^(create a follow-up task with this title:|create follow-up task:|create a task:|create task:?)\s*$/i.test(text);
+            if (taskOnly) {
+                const msg = document.createElement('div');
+                msg.className = 'assistant-message';
+                msg.textContent = "Please add the task title after 'Create task:' so I can create it.";
+                historyEl.appendChild(msg);
+                return true;
+            }
+            const noChangeOnly = /^no changes needed for now\.?$|^no change\.?$/i.test(text);
+            if (noChangeOnly) {
+                const msg = document.createElement('div');
+                msg.className = 'assistant-message';
+                msg.textContent = 'No change applied.';
+                historyEl.appendChild(msg);
+                return true;
+            }
+            return false;
+        }
+
         async function askQuestion() {
             const input = document.getElementById('chat-input');
             const history = document.getElementById('chat-history');
             const question = input.value.trim();
 
             if (!question) return;
+            if (tryHandleDirectPlaceholder(question, history)) {
+                input.value = '';
+                history.scrollTop = history.scrollHeight;
+                return;
+            }
 
             // Add user message with new styling
             const userMsg = document.createElement('div');
@@ -757,7 +942,10 @@
                 assistantMsg.textContent = assistantText;
                 history.appendChild(assistantMsg);
                 const operations = Array.isArray(data.operations) ? data.operations : [];
-                appendAssistantOptions(assistantMsg, deriveAssistantQuickActions(assistantText, operations));
+                const backendActions = Array.isArray(data.quick_actions) ? data.quick_actions : [];
+                const suggestedActions = deriveAssistantQuickActions(assistantText, operations);
+                appendAssistantOptions(assistantMsg, [...backendActions, ...suggestedActions]);
+                appendAssistantSources(assistantMsg, Array.isArray(data.sources) ? data.sources : []);
 
                 // Add assistant message to history state
                 currentChatHistory.push({ "role": "assistant", "content": assistantText });
@@ -787,12 +975,26 @@
                 errorMsg.className = 'assistant-message';
                 errorMsg.style.color = 'var(--accent-red)';
                 const rawMessage = String(err && err.message ? err.message : 'Unknown error');
-                const serviceIssue = rawMessage.toLowerCase().includes('ai service error');
-                errorMsg.textContent = serviceIssue
-                    ? 'Assistant service error. Please retry. If this keeps happening, confirm the OpenAI key and quota in Settings.'
-                    : 'Error: ' + rawMessage;
+                const lowered = rawMessage.toLowerCase();
+                const serviceIssue = lowered.includes('ai service error') || lowered.includes('assistant is temporarily unavailable');
+                const quotaIssue = lowered.includes('429') || lowered.includes('quota') || lowered.includes('insufficient_quota') || lowered.includes('rate limit');
+                if (quotaIssue) {
+                    errorMsg.textContent = "AI service is temporarily quota-limited. You can still use direct commands now: 'Capture update: ...', 'Create task: ...', or 'Add end date YYYY-MM-DD ...'.";
+                } else if (serviceIssue) {
+                    errorMsg.textContent = 'Assistant service is temporarily unavailable. Please retry.';
+                } else {
+                    errorMsg.textContent = 'Error: ' + rawMessage;
+                }
                 history.appendChild(errorMsg);
-                appendAssistantOptions(errorMsg, [{ label: 'Retry', prompt: question }]);
+                if (quotaIssue) {
+                    appendAssistantOptions(errorMsg, [
+                        { label: 'Capture Update', prompt: 'Capture update: ' },
+                        { label: 'Create Task', prompt: 'Create task: ' },
+                        { label: 'Retry', prompt: question },
+                    ]);
+                } else {
+                    appendAssistantOptions(errorMsg, [{ label: 'Retry', prompt: question }]);
+                }
             }
             history.scrollTop = history.scrollHeight;
         }
@@ -1082,10 +1284,6 @@
         <span
             style="font-size:0.8rem; font-weight:700; color:transparent; background:linear-gradient(135deg,#35E8FF,#0047FF); -webkit-background-clip:text; background-clip:text;">Ask
             AI</span>
-    </div>
-    <!-- Scroll to Top Button -->
-    <div id="scroll-top-btn" class="scroll-top-btn" onclick="scrollToTop()" title="Return to Top">
-        ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬Ëœ
     </div>
     <!-- ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â CREATE TASK MODAL ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â -->
     <div id="task-modal-overlay" onclick="closeTaskModal(event)"

@@ -1,0 +1,163 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Companies - Antigravity</title>
+    <script src="/static/utils.js?v=20260324a"></script>
+    <script src="/js/background.js?v=20260318a"></script>
+    <link rel="stylesheet" href="/static/design-system.css?v=20260318b">
+    <style>
+        .companies-shell {
+            max-width: 1240px;
+            margin: 5.8rem auto 2rem;
+            padding: 0 1rem 2rem;
+        }
+        .companies-grid {
+            display: grid;
+            grid-template-columns: 360px minmax(0, 1fr);
+            gap: 1rem;
+        }
+        .companies-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 1rem;
+        }
+        .companies-search {
+            width: 100%;
+            padding: 0.65rem 0.75rem;
+            border-radius: 10px;
+            border: 1px solid var(--glass-border);
+            background: rgba(20, 28, 48, 0.35);
+            color: var(--text-primary);
+            font-size: 0.92rem;
+        }
+        .companies-list {
+            margin-top: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+            max-height: calc(100vh - 250px);
+            overflow: auto;
+        }
+        .company-card {
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 0.65rem 0.75rem;
+            cursor: pointer;
+            background: rgba(18, 26, 44, 0.4);
+        }
+        .company-card:hover,
+        .company-card.is-active {
+            border-color: var(--accent-blue);
+        }
+        .company-name {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+        .company-meta {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        .company-detail-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .company-score-pill {
+            border: 1px solid var(--glass-border);
+            border-radius: 999px;
+            padding: 0.4rem 0.65rem;
+            font-size: 0.82rem;
+            color: var(--text-primary);
+            background: rgba(18, 26, 44, 0.45);
+        }
+        .company-attrs {
+            margin-top: 0.85rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.6rem;
+        }
+        .company-attr {
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 0.55rem 0.6rem;
+            background: rgba(18, 26, 44, 0.3);
+        }
+        .company-attr-label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+        }
+        .company-attr-value {
+            margin-top: 0.2rem;
+            color: var(--text-primary);
+            font-size: 0.88rem;
+        }
+        .company-link {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+        .company-link:hover {
+            text-decoration: underline;
+        }
+        .employees-table {
+            margin-top: 1rem;
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+        .employees-table th,
+        .employees-table td {
+            text-align: left;
+            border-bottom: 1px solid var(--glass-border);
+            padding: 0.5rem 0.35rem;
+            vertical-align: top;
+        }
+        .companies-empty {
+            font-size: 0.84rem;
+            color: var(--text-muted);
+            margin-top: 0.55rem;
+        }
+        @media (max-width: 980px) {
+            .companies-grid {
+                grid-template-columns: 1fr;
+            }
+            .companies-list {
+                max-height: 280px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content-wrap">
+        <main class="companies-shell">
+            <section class="companies-grid">
+                <div class="companies-panel">
+                    <div class="panel-kicker">Company Search</div>
+                    <input id="company-search" class="companies-search" type="text" placeholder="Search company, employer, parent, alias">
+                    <div id="company-list" class="companies-list"></div>
+                    <div id="company-list-empty" class="companies-empty" style="display:none;">No companies matched your search.</div>
+                </div>
+                <div class="companies-panel">
+                    <div id="company-detail">
+                        <div class="companies-empty">Select a company to view employer details, hierarchy, and covered employees.</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            renderUniversalLayout('companies', 'COMPANIES');
+        });
+    </script>
+    <script src="/js/company.js?v=20260324a"></script>
+</body>
+</html>

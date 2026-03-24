@@ -348,6 +348,70 @@ def test_stage2_does_not_treat_follow_up_need_to_as_problem_identified():
         assert stage2["opportunity_stage"]["code"] not in {"O1", "O4"}
 
 
+def test_stage1_personal_health_line_is_not_misfiled_under_k5_and_trims_tail_noise():
+    original_key = settings.OPENAI_API_KEY
+    settings.OPENAI_API_KEY = ""
+    person_id = f"health-{uuid.uuid4().hex[:8]}"
+    person = {
+        "person_id": person_id,
+        "full_name": "David Clifton",
+        "company_name_raw": "Top Skills",
+        "title_current": "Leadership @ Contact",
+        "relationship_owner": "Marcus",
+    }
+    evidence = [
+        {
+            "evidence_id": "health-1",
+            "source_kind": "interaction",
+            "source_type": "chat",
+            "date_at": "2026-03-21T09:30:00Z",
+            "date_label": "2026-03-21",
+            "title": "Health update",
+            "preview": "Continued a problem with his back and health. still again",
+            "content": "Continued a problem with his back and health. still again",
+        }
+    ]
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    async def setup(db):
+        await db.execute(
+            """
+            INSERT INTO PERSON (
+                person_id, full_name, title_current, company_name_raw, created_at, last_updated_at
+            ) VALUES (?,?,?,?,?,?)
+            """,
+            (person_id, person["full_name"], person["title_current"], person["company_name_raw"], now, now),
+        )
+
+    async def cleanup(db):
+        await db.execute("DELETE FROM REL_INTEL_AGENT_OUTPUT WHERE run_id IN (SELECT run_id FROM REL_INTEL_RUN WHERE person_id=?)", (person_id,))
+        await db.execute("DELETE FROM REL_INTEL_RUN WHERE person_id=?", (person_id,))
+        await db.execute("DELETE FROM PERSON WHERE person_id=?", (person_id,))
+
+    asyncio.run(run_write(setup))
+    try:
+        result = asyncio.run(
+            build_relationship_intelligence_pipeline(
+                person=person,
+                evidence_inputs=evidence,
+                force_refresh=True,
+            )
+        )
+    finally:
+        settings.OPENAI_API_KEY = original_key
+        asyncio.run(run_write(cleanup))
+
+    boxes = {str(box.get("box_key") or ""): box for box in result["knowledge_bank_stage1"]["boxes"]}
+    family_points = [str(item.get("point") or "").lower() for item in (boxes.get("family_status") or {}).get("what_is_known", [])]
+    k5_points = [str(item.get("point") or "").lower() for item in (boxes.get("challenges_demands") or {}).get("what_is_known", [])]
+    all_points = family_points + k5_points
+
+    assert any("back and health" in point for point in family_points)
+    assert all("still again" not in point for point in all_points)
+    assert all("back and health" not in point for point in k5_points)
+
+
 def test_stage2_uses_mature_cycle_after_active_nurture():
     original_key = settings.OPENAI_API_KEY
     settings.OPENAI_API_KEY = ""

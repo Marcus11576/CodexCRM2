@@ -1,17 +1,23 @@
-﻿@echo off
+@echo off
+setlocal
+
 echo ===========================================
-echo âš¡ Starting Antigravity CRM âš¡
+echo Starting Antigravity CRM (MAIN)
 echo ===========================================
 
-:: Check if .env exists, if not copy from example
+:: Ensure .env exists
 if not exist ".env" (
     echo Creating default .env file...
-    copy .env.example .env
+    copy .env.example .env >nul
 )
 
-:: Start the FastAPI server
-echo Starting server on http://localhost:8009
-python -m backend.main
+set "PYTHON_EXE=python"
+if exist ".venv\Scripts\python.exe" (
+    set "PYTHON_EXE=.venv\Scripts\python.exe"
+)
 
+echo Starting main server on http://localhost:8009
+"%PYTHON_EXE%" -m backend.main
+
+endlocal
 pause
-

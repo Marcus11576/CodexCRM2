@@ -19,6 +19,7 @@ from backend.services.ai_foundation import (
 from backend.services.ai_pipeline_service import grouped_profile_signals, invalidate_briefs_for_profile, load_profile_signals
 from backend.services.preference_learning import record_feedback_event
 from backend.services.network_orchestration_service import get_network_contact_context
+from backend.services.profile_background_backfill import backfill_missing_profile_background
 
 router = APIRouter(prefix="/api/people", tags=["people"])
 
@@ -119,6 +120,12 @@ class OpportunityUpdate(BaseModel):
     status: Optional[str] = None
     owner: Optional[str] = None
     notes: Optional[str] = None
+
+
+class ProfileBackgroundBackfillRequest(BaseModel):
+    person_ids: Optional[List[str]] = None
+    limit: Optional[int] = 200
+    dry_run: Optional[bool] = False
 
 
 def _now():
@@ -493,7 +500,7 @@ async def create_person(person: PersonCreate):
                 profile_photo_url, network_tier, maintenance_mode, relationship_owner,
                 decision_role, influence_scope, account_priority, tier_rationale,
                 created_at, last_updated_at
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (pid, person.full_name, person.title_current, person.company_name_raw,
               person.email_primary, person.email_secondary, person.phone_primary,
               person.phone_secondary, person.linkedin_url, person.cat, person.env,
@@ -504,7 +511,25 @@ async def create_person(person: PersonCreate):
               person.account_priority, person.tier_rationale, now, now))
         return {"status": "created", "person_id": pid}
 
-    return await run_write(_create, label=f"create person {person.full_name}")
+    result = await run_write(_create, label=f"create person {person.full_name}")
+    if result.get("status") == "created":
+        try:
+            await backfill_missing_profile_background(person_ids=[result.get("person_id")], limit=1, dry_run=False)
+        except Exception as exc:
+            print(f"Background backfill skipped for {result.get('person_id')}: {exc}")
+    return result
+
+
+@router.post("/background/backfill")
+async def backfill_profile_background(req: ProfileBackgroundBackfillRequest):
+    limit = int(req.limit or 200)
+    limit = max(1, min(limit, 5000))
+    result = await backfill_missing_profile_background(
+        person_ids=req.person_ids,
+        limit=limit,
+        dry_run=bool(req.dry_run),
+    )
+    return {"status": "success", **result}
 
 @router.get("/stats")
 async def get_stats():

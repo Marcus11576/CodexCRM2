@@ -40,6 +40,10 @@ LOW_SIGNAL_CHAT_PATTERNS = (
     re.compile(r"^(?:hi|hello|hey|yo|sup)[.!?]*$"),
     re.compile(r"^(?:yes|ok(?:ay)?|sure|please)[,\s]*(?:log|save|capture|record)\s+(?:this|it|that)(?:\s+as\s+intelligence)?(?:\s+and\s+keep\s+the\s+wording\s+concise)?[.!?]*$"),
     re.compile(r"^(?:log|save|capture|record)\s+(?:this|it|that)(?:\s+as\s+intelligence)?[.!?]*$"),
+    re.compile(r"^(?:capture|log|save|record)\s+(?:this\s+)?update(?:\s+for\s+(?:the\s+)?profile)?[:.!?]*$"),
+    re.compile(r"^(?:capture|log|save|record)\s+update[:.!?]*$"),
+    re.compile(r"^(?:create|add)\s+task[:.!?]*$"),
+    re.compile(r"^next\s+action[:.!?]*$"),
     re.compile(r"^(?:no\s+change|nothing\s+to\s+log|skip|carry\s+on|all\s+good)[.!?]*$"),
 )
 

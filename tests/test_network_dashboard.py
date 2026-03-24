@@ -1916,6 +1916,13 @@ def test_profile_evidence_inputs_ignore_chatbot_stage_and_profile_completion_req
             "interaction_id": f"int-{uuid.uuid4().hex[:8]}",
             "channel": "chat",
             "interaction_at": now,
+            "summary": "Capture this update for the profile:",
+            "raw_text": "Capture this update for the profile:",
+        },
+        {
+            "interaction_id": f"int-{uuid.uuid4().hex[:8]}",
+            "channel": "chat",
+            "interaction_at": now,
             "summary": "Known Peter for 14 years and he is on Omnium board.",
             "raw_text": "Known Peter for 14 years and he is on Omnium board.",
         },
@@ -1935,6 +1942,7 @@ def test_profile_evidence_inputs_ignore_chatbot_stage_and_profile_completion_req
     assert "show stages please" not in texts
     assert "missing to complete profile" not in texts
     assert "provideing data to compleate profile" not in texts
+    assert "capture this update for the profile" not in texts
     assert "known peter for 14 years" in texts
     assert "project stage 2 package pressure" in texts
 
@@ -2036,3 +2044,222 @@ def test_transcript_segment_tags_remap_presentation_text_from_s9_to_s3():
     assert result["segments"]
     assert result["segments"][0]["tag_code"] == "S3"
     assert result["segments"][0]["tag_label"].startswith("S3")
+
+
+def test_transcript_segment_tags_fallback_when_model_quota_exhausted():
+    created_at = datetime.now(timezone.utc).isoformat()
+    person_id = f"net-tag-{uuid.uuid4().hex[:8]}"
+
+    async def setup(db):
+        await db.execute(
+            """
+            INSERT INTO PERSON (
+                person_id, full_name, title_current, company_name_raw, cat, created_at, last_updated_at
+            ) VALUES (?,?,?,?,?,?,?)
+            """,
+            (person_id, "Quota Fallback Contact", "Director", "Fallback Group", "GEN", created_at, created_at),
+        )
+
+    asyncio.run(run_write(setup))
+
+    original_runner = network_lab_module.run_json_chat_task
+
+    async def fake_run_json_chat_task(**_kwargs):
+        raise RuntimeError(
+            "Error code: 429 - {'error': {'message': 'You exceeded your current quota', 'type': 'insufficient_quota'}}"
+        )
+
+    network_lab_module.run_json_chat_task = fake_run_json_chat_task
+    try:
+        req = network_lab_module.TranscriptSegmentTagRequest(
+            mode="stage",
+            content="Met Matt today. He asked for a proposal next week.",
+            transcript_tagging={
+                "stage_relationship": [
+                    {"code": "S1", "label": "S1 Introduction"},
+                    {"code": "S2", "label": "S2 Understand"},
+                ],
+                "stage_opportunity": [],
+            },
+        )
+        result = asyncio.run(network_lab_module.tag_profile_transcript_segments(person_id, req))
+    finally:
+        network_lab_module.run_json_chat_task = original_runner
+        asyncio.run(_cleanup_records([person_id]))
+
+    assert result["status"] == "success"
+    assert result["model_degraded"] is True
+    assert result["segments"]
+    assert result["segments"][0]["mapped"] is True
+    assert result["segments"][0]["source"] == "default_mapping_model_unavailable"
+
+
+def test_transcript_segment_tags_remap_s9_problem_text_to_s5():
+    created_at = datetime.now(timezone.utc).isoformat()
+    person_id = f"net-tag-{uuid.uuid4().hex[:8]}"
+
+    async def setup(db):
+        await db.execute(
+            """
+            INSERT INTO PERSON (
+                person_id, full_name, title_current, company_name_raw, cat, created_at, last_updated_at
+            ) VALUES (?,?,?,?,?,?,?)
+            """,
+            (person_id, "Stage Pressure Contact", "Director", "Pressure Group", "GEN", created_at, created_at),
+        )
+
+    asyncio.run(run_write(setup))
+
+    original_runner = network_lab_module.run_json_chat_task
+
+    async def fake_run_json_chat_task(**_kwargs):
+        return (
+            {
+                "segments": [
+                    {"index": 0, "tag_code": "S9", "confidence": 0.9, "reason": "model output"}
+                ]
+            },
+            None,
+        )
+
+    network_lab_module.run_json_chat_task = fake_run_json_chat_task
+    try:
+        req = network_lab_module.TranscriptSegmentTagRequest(
+            mode="stage",
+            content=(
+                "Continued a problem with his back and health. "
+                "He is concerned that leadership has been leaving the area due to stress."
+            ),
+            transcript_tagging={
+                "stage_relationship": [
+                    {"code": "S5", "label": "S5 Problem Identified"},
+                    {"code": "S9", "label": "S9 Active Nurture"},
+                ],
+                "stage_opportunity": [],
+            },
+        )
+        result = asyncio.run(network_lab_module.tag_profile_transcript_segments(person_id, req))
+    finally:
+        network_lab_module.run_json_chat_task = original_runner
+        asyncio.run(_cleanup_records([person_id]))
+
+    assert result["segments"]
+    assert result["segments"][0]["tag_code"] == "S5"
+    assert result["segments"][0]["tag_label"].startswith("S5")
+
+
+def test_transcript_segment_tags_remap_personal_health_from_k5_to_k1():
+    created_at = datetime.now(timezone.utc).isoformat()
+    person_id = f"net-tag-{uuid.uuid4().hex[:8]}"
+
+    async def setup(db):
+        await db.execute(
+            """
+            INSERT INTO PERSON (
+                person_id, full_name, title_current, company_name_raw, cat, created_at, last_updated_at
+            ) VALUES (?,?,?,?,?,?,?)
+            """,
+            (person_id, "Knowledge Remap Contact", "Director", "Knowledge Group", "GEN", created_at, created_at),
+        )
+
+    asyncio.run(run_write(setup))
+
+    original_runner = network_lab_module.run_json_chat_task
+
+    async def fake_run_json_chat_task(**_kwargs):
+        return (
+            {
+                "segments": [
+                    {"index": 0, "tag_code": "K5", "confidence": 0.88, "reason": "model output"}
+                ]
+            },
+            None,
+        )
+
+    network_lab_module.run_json_chat_task = fake_run_json_chat_task
+    try:
+        req = network_lab_module.TranscriptSegmentTagRequest(
+            mode="knowledge",
+            content="Continued a problem with his back and health.",
+            transcript_tagging={
+                "knowledge_buckets": [
+                    {"box_id": 1, "code": "K1", "box_key": "family_status", "box_title": "Family Status"},
+                    {"box_id": 5, "code": "K5", "box_key": "challenges_demands", "box_title": "Challenges and Demands"},
+                ],
+                "stage_relationship": [],
+                "stage_opportunity": [],
+            },
+        )
+        result = asyncio.run(network_lab_module.tag_profile_transcript_segments(person_id, req))
+    finally:
+        network_lab_module.run_json_chat_task = original_runner
+        asyncio.run(_cleanup_records([person_id]))
+
+    assert result["segments"]
+    assert result["segments"][0]["tag_code"] == "K1"
+    assert result["segments"][0]["tag_label"].startswith("K1")
+
+
+def test_transcript_segment_tags_split_mixed_personal_business_stage_content():
+    created_at = datetime.now(timezone.utc).isoformat()
+    person_id = f"net-tag-{uuid.uuid4().hex[:8]}"
+
+    async def setup(db):
+        await db.execute(
+            """
+            INSERT INTO PERSON (
+                person_id, full_name, title_current, company_name_raw, cat, created_at, last_updated_at
+            ) VALUES (?,?,?,?,?,?,?)
+            """,
+            (person_id, "Mixed Context Contact", "Director", "Context Group", "GEN", created_at, created_at),
+        )
+
+    asyncio.run(run_write(setup))
+
+    original_runner = network_lab_module.run_json_chat_task
+
+    async def fake_run_json_chat_task(**_kwargs):
+        return (
+            {
+                "segments": [
+                    {"index": 0, "tag_code": "S9", "confidence": 0.92, "reason": "model output"},
+                    {"index": 1, "tag_code": "S9", "confidence": 0.92, "reason": "model output"},
+                    {"index": 2, "tag_code": "S9", "confidence": 0.92, "reason": "model output"},
+                    {"index": 3, "tag_code": "S9", "confidence": 0.92, "reason": "model output"},
+                    {"index": 4, "tag_code": "S9", "confidence": 0.92, "reason": "model output"},
+                ]
+            },
+            None,
+        )
+
+    network_lab_module.run_json_chat_task = fake_run_json_chat_task
+    try:
+        req = network_lab_module.TranscriptSegmentTagRequest(
+            mode="stage",
+            content=(
+                "Strongly, strongly believes that leadership should be here, which is why he is trying to make "
+                "himself seen and around sight in charge of 4,500 people in the region. "
+                "His daughter and his wife are safe. "
+                "His wife is Lebanese-Palestinian. "
+                "Still a little upset about not being involved in the OBE steering committees. "
+                "Other than that, the relationship remains strong."
+            ),
+            transcript_tagging={
+                "stage_relationship": [
+                    {"code": "S2", "label": "S2 Understand"},
+                    {"code": "S4", "label": "S4 Nurture"},
+                    {"code": "S9", "label": "S9 Active Nurture"},
+                ],
+                "stage_opportunity": [],
+            },
+        )
+        result = asyncio.run(network_lab_module.tag_profile_transcript_segments(person_id, req))
+    finally:
+        network_lab_module.run_json_chat_task = original_runner
+        asyncio.run(_cleanup_records([person_id]))
+
+    assert len(result["segments"]) == 5
+    assert result["segments"][0]["text"].startswith("Strongly, strongly believes")
+    assert result["segments"][0]["tag_code"] == "S2"
+    assert result["segments"][-1]["text"].startswith("Other than that")
+    assert result["segments"][-1]["tag_code"] == "S4"
